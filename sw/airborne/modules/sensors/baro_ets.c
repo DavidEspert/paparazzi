@@ -43,7 +43,7 @@
 #include "subsystems/nav.h"
 
 #ifdef SITL
-#include "gps.h"
+#include "subsystems/gps.h"
 #endif
 
 #define BARO_ETS_ADDR 0xE8
@@ -98,11 +98,23 @@ void baro_ets_read_periodic( void ) {
     I2CReceive(BARO_ETS_I2C_DEV, baro_ets_i2c_trans, BARO_ETS_ADDR, 2);
 #else // SITL
   baro_ets_adc = 0;
-  baro_ets_altitude = gps_alt / 100.0;
+  baro_ets_altitude = gps.hmsl / 1000.0;
   baro_ets_valid = TRUE;
   EstimatorSetAlt(baro_ets_altitude);
 #endif
 }
+
+#ifdef BARO_ETS_TELEMETRY
+
+#ifndef DOWNLINK_DEVICE
+#define DOWNLINK_DEVICE DOWNLINK_AP_DEVICE
+#endif
+
+#include "mcu_periph/uart.h"
+#include "messages.h"
+#include "downlink.h"
+
+#endif
 
 void baro_ets_read_event( void ) {
   // Get raw altimeter from buffer
@@ -138,6 +150,9 @@ void baro_ets_read_event( void ) {
       baro_ets_altitude = ground_alt + BARO_ETS_SCALE * (float)(baro_ets_offset-baro_ets_adc);
       // New value available
       EstimatorSetAlt(baro_ets_altitude);
+#ifdef BARO_ETS_TELEMETRY
+      DOWNLINK_SEND_BARO_ETS(DefaultChannel, &baro_ets_adc, &baro_ets_offset, &baro_ets_altitude);
+#endif
     } else {
       baro_ets_altitude = 0.0;
     }
