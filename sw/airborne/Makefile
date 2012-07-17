@@ -26,7 +26,7 @@ OBJDIR = $(PAPARAZZI_HOME)/var/$(AIRCRAFT)/$(TARGET)
 VARINCLUDE=$(PAPARAZZI_HOME)/var/include
 ACINCLUDE = $(PAPARAZZI_HOME)/var/$(AIRCRAFT)
 
-INCLUDES = -I $(PAPARAZZI_SRC)/sw/include -I $(PAPARAZZI_SRC)/sw/airborne -I $(PAPARAZZI_SRC)/conf/autopilot -I $(PAPARAZZI_SRC)/sw/airborne/arch/$($(TARGET).ARCHDIR) -I $(VARINCLUDE) -I $(ACINCLUDE)
+INCLUDES = -I$(PAPARAZZI_SRC)/sw/include -I$(PAPARAZZI_SRC)/sw/airborne -I$(PAPARAZZI_SRC)/conf/autopilot -I$(PAPARAZZI_SRC)/sw/airborne/arch/$($(TARGET).ARCHDIR) -I$(VARINCLUDE) -I$(ACINCLUDE)
 
 
 ifneq ($(MAKECMDGOALS),clean)
@@ -38,7 +38,11 @@ ifneq ($(MAKECMDGOALS),clean)
   ifeq ($($(TARGET).ARCHDIR), )
     $(error Architecture not set, maybe you forgot to add the target? e.g. <target name="tunnel" board="twog_1.0"/>)
   else
-    include ../../conf/Makefile.$($(TARGET).ARCHDIR)
+    ifdef $(TARGET).MAKEFILE
+      include ../../conf/Makefile.$($(TARGET).MAKEFILE)
+    else
+      include ../../conf/Makefile.$($(TARGET).ARCHDIR)
+    endif
   endif
 endif
 

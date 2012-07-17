@@ -142,7 +142,7 @@ void SPI1_ISR(void) __attribute__((naked));
 #define SSP_FRF  0x00 << 4  /* frame format      : SPI           */
 #define SSP_CPOL 0x00 << 6  /* clock polarity    : SCK idles low */
 #define SSP_CPHA 0x01 << 7  /* clock phase       : data captured on second clock transition */
-#define SSP_SCR  0x0F << 8  /* serial clock rate   */
+#define SSP_SCR  0x00 << 8  /* serial clock rate   */
 
 /* SSPCR1 settings */
 #define SSP_LBM  0x00 << 0  /* loopback mode     : disabled                  */
@@ -193,7 +193,9 @@ void SPI1_ISR(void) {
   }
 
   if (bit_is_set(SSPMIS, RTMIS)) { /* Rx fifo is not empty and no receive took place in the last 32 bits period */
+#if !SPI_NO_UNSELECT_SLAVE
     SpiUnselectCurrentSlave();
+#endif
     SpiReceive();
     SpiDisableRti();
     SpiClearRti();                /* clear interrupt */

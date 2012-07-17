@@ -2,7 +2,7 @@
  * $Id$
  *
  * Downlink protocol (handling messages.xml)
- *  
+ *
  * Copyright (C) 2003 Pascal Brisset, Antoine Drouin
  *
  * This file is part of paparazzi.
@@ -20,7 +20,7 @@
  * You should have received a copy of the GNU General Public License
  * along with paparazzi; see the file COPYING.  If not, write to
  * the Free Software Foundation, 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA. 
+ * Boston, MA 02111-1307, USA.
  *
  *)
 
@@ -31,7 +31,7 @@ type message_id = int
 type ac_id = int
 type class_name = string
 type format = string
-type _type = 
+type _type =
     Scalar of string
   | ArrayType of string
 type value =
@@ -73,6 +73,7 @@ let (//) = Filename.concat
 let messages_file = Env.paparazzi_src // "conf" // "messages.xml"
 let lazy_messages_xml = lazy (Xml.parse_file messages_file)
 let messages_xml = fun () -> Lazy.force lazy_messages_xml
+let units_file = Env.paparazzi_src // "conf" // "units.xml"
 
 external float_of_bytes : string -> int -> float = "c_float_of_indexed_bytes"
 external double_of_bytes : string -> int -> float = "c_double_of_indexed_bytes"
@@ -97,7 +98,7 @@ let types = [
   ("string",  { format = "%s" ;  glib_type = "gchar*"; inttype = "char*";  size = max_int; value=String "42" })
 ]
 
-let is_array_type = fun s -> 
+let is_array_type = fun s ->
   let n = String.length s in
   n >= 2 && String.sub s (n-2) 2 = "[]"
 
@@ -110,7 +111,7 @@ let int_of_string = fun x ->
     _ -> failwith (sprintf "Pprz.int_of_string: %s" x)
 
 let rec value = fun t v ->
-  match t with 
+  match t with
     Scalar ("uint8" | "uint16" | "int8" | "int16") -> Int (int_of_string v)
   | Scalar ("uint32" | "int32") -> Int32 (Int32.of_string v)
   | Scalar ("float" | "double") -> Float (float_of_string v)
@@ -157,21 +158,42 @@ let payload_size_of_message = fun message ->
     message.fields
     2 (** + message id + aircraft id *)
 
-  
+exception Unit_conversion_error of string
+exception Unknown_conversion of string * string
+
+let scale_of_units = fun from_unit to_unit ->
+  if (from_unit = to_unit) then
+    1.0
+  else
+    try
+      let units_xml = Xml.parse_file units_file in
+      (* find the first occurence of matching units or raise Not_found *)
+      let _unit = List.find (fun u ->
+          (* will raise Xml.No_attribute if not a valid attribute *)
+          let f = Xml.attrib u "from"
+          and t = Xml.attrib u "to" in
+          if from_unit = f && to_unit = t then true else false
+        ) (Xml.children units_xml) in
+      (* return coef, raise Failure if coef is not a numerical value *)
+      float_of_string (Xml.attrib _unit "coef")
+    with Xml.File_not_found _ -> raise (Unit_conversion_error ("Parse error of conf/units.xml"))
+      | Xml.No_attribute _ | Xml.Not_element _ -> raise (Unit_conversion_error ("File conf/units.xml has errors"))
+      | Failure "float_of_string" -> raise (Unit_conversion_error ("Unit coef is not numerical value"))
+      | Not_found -> raise (Unknown_conversion (from_unit, to_unit))
+      | _ -> raise (Unknown_conversion (from_unit, to_unit))
+
+
 let alt_unit_coef_of_xml = function xml ->
   try Xml.attrib xml "alt_unit_coef"
   with _ ->
     let u = try Xml.attrib xml "unit" with _ -> "" in
     let au = try Xml.attrib xml "alt_unit" with _ -> "" in
-    match (u, au) with
-      ("deg", "rad") | ("deg/s", "rad/s") -> string_of_float (pi /. 180.)
-    | ("rad", "deg") | ("rad/s", "deg/s") -> string_of_float (180. /. pi)
-    | ("m", "cm") | ("m/s", "cm/s") -> "100."
-    | ("cm", "m") | ("cm/s", "m/s") -> "0.01"
-    | ("m", "mm") | ("m/s", "mm/s") -> "1000."
-    | ("mm", "m") | ("mm/s", "m/s") -> "0.001"
-    | ("decideg", "deg") -> "0.1"
-    | (_, _) -> "1."
+    let coef = try string_of_float (scale_of_units u au) with
+      Unit_conversion_error s -> prerr_endline (sprintf "Unit conversion error: %s" s); flush stderr; exit 1
+    | Unknown_conversion _ -> "1." (* Use coef 1. *)
+    | _ -> "1."
+    in
+    coef
 
 let pipe_regexp = Str.regexp "|"
 let field_of_xml = fun xml ->
@@ -181,17 +203,17 @@ let field_of_xml = fun xml ->
   let auc = alt_unit_coef_of_xml xml in
   let values = try Str.split pipe_regexp (Xml.attrib xml "values") with _ -> [] in
 
-  ( String.lowercase (ExtXml.attrib xml "name"), 
+  ( String.lowercase (ExtXml.attrib xml "name"),
     { _type = t; fformat = f; alt_unit_coef = auc; enum=values })
 
 let string_of_values = fun vs ->
   String.concat " " (List.map (fun (a,v) -> sprintf "%s=%s" a (string_of_value v)) vs)
 
-let assoc = fun a vs -> 
-  try List.assoc (String.lowercase a) vs with Not_found -> 
+let assoc = fun a vs ->
+  try List.assoc (String.lowercase a) vs with Not_found ->
     failwith (sprintf "Attribute '%s' not found in '%s'" a (string_of_values vs))
 
-let float_assoc = fun (a:string) vs -> 
+let float_assoc = fun (a:string) vs ->
   match assoc a vs with
     Float x -> x
   | _ -> invalid_arg "Pprz.float_assoc"
@@ -209,7 +231,7 @@ let int_of_value = fun value ->
 let int_assoc = fun (a:string) vs ->
   int_of_value (assoc a vs)
 
-let int32_assoc = fun (a:string) vs -> 
+let int32_assoc = fun (a:string) vs ->
   match assoc a vs with
     Int32 x -> x
   | _ -> invalid_arg "Pprz.int_assoc"
@@ -227,8 +249,8 @@ let parse_class = fun xml_class ->
   List.iter
     (fun xml_msg ->
       let name = ExtXml.attrib xml_msg "name"
-      and link = 
-	try 
+      and link =
+	try
 	  Some (link_mode_of_string (Xml.attrib xml_msg "link"))
 	with
 	  Xml.No_attribute("link") -> None
@@ -246,7 +268,7 @@ let parse_class = fun xml_class ->
     (Xml.children xml_class);
   (by_id, by_name)
 
-    
+
 (** Returns a value and its length *)
 let rec value_of_bin = fun buffer index _type ->
   match _type with
@@ -263,7 +285,7 @@ let rec value_of_bin = fun buffer index _type ->
       let type_of_elt = Scalar t in
       let s = sizeof type_of_elt in
       let size = 1 + n * s in
-      (Array (Array.init n 
+      (Array (Array.init n
 	       (fun i -> fst (value_of_bin buffer (index+1+i*s) type_of_elt))), size)
   | Scalar "string" ->
       let n = Char.code buffer.[index] in
@@ -337,7 +359,7 @@ let hex_of_int_array = function
 	  let hex = sprintf "%02x" x in
 	  String.blit hex 0 s (2*i) 2)
 	array;
-      s	
+      s
   | value ->
       failwith (sprintf "Error: expecting array in Pprz.hex_of_int_array, found %s" (string_of_value value))
 
@@ -470,7 +492,7 @@ end
 
 module MessagesOfXml(Class:CLASS_Xml) = struct
   let max_length = 256
-  let messages_by_id, messages_by_name = 
+  let messages_by_id, messages_by_name =
     try
       let select = fun x -> Xml.attrib x "name" = Class.name in
       parse_class (ExtXml.child Class.xml ~select "class")
@@ -499,7 +521,7 @@ module MessagesOfXml(Class:CLASS_Xml) = struct
 	      []
 	    else
 	      failwith (sprintf "Pprz.values_of_payload, too many bytes: %s" (Debug.xprint buffer))
-	| (field_name, field_descr)::fs -> 
+	| (field_name, field_descr)::fs ->
 	    let (value, n) = value_field buffer index field_descr in
 	    (field_name, value) :: loop (index+n) fs in
       (id, ac_id, loop offset_fields message.fields)
@@ -526,11 +548,11 @@ module MessagesOfXml(Class:CLASS_Xml) = struct
 	i := !i + size
 	)
       message.fields;
-    
+
     (** Cut to the actual length *)
     let p = String.sub p 0 !i in
     Serial.payload_of_string p
-   
+
 
   let space = Str.regexp "[ \t]+"
   let values_of_string = fun s ->
@@ -548,15 +570,15 @@ module MessagesOfXml(Class:CLASS_Xml) = struct
 
   let string_of_message = fun ?(sep=" ") msg values ->
     (** Check that the values are compatible with this message *)
-    List.iter 
+    List.iter
       (fun (k, _) ->
-	if not (List.mem_assoc k msg.fields) 
+	if not (List.mem_assoc k msg.fields)
 	then invalid_arg (sprintf "Pprz.string_of_message: unknown field '%s' in message '%s'" k msg.name))
       values;
 
     String.concat sep
       (msg.name::
-       List.map 
+       List.map
 	 (fun (field_name, field) ->
 	   let v =
 	     try List.assoc field_name values with
@@ -582,14 +604,14 @@ module MessagesOfXml(Class:CLASS_Xml) = struct
   let message_bind = fun ?sender msg_name cb ->
     match sender with
       None ->
-	Ivy.bind 
-	  (fun _ args -> 
+	Ivy.bind
+	  (fun _ args ->
 	    let values = try snd (values_of_string args.(2)) with exc -> prerr_endline (Printexc.to_string exc); [] in
-	    cb args.(1) values) 
+	    cb args.(1) values)
 	  (sprintf "^([0-9]+\\.[0-9]+ )?([^ ]*) +(%s( .*|$))" msg_name)
     | Some s ->
 	Ivy.bind
-	  (fun _ args -> 
+	  (fun _ args ->
 	    let values = try snd (values_of_string args.(1)) with  exc -> prerr_endline (Printexc.to_string exc); [] in
 	    cb s values)
 	  (sprintf "^([0-9]+\\.[0-9]+ )?%s +(%s( .*|$))" s msg_name)

@@ -8,7 +8,7 @@
      Modified 6A speed controllers
      -->
 
- <servos min="0" neutral="0" max="0xff">
+ <servos>
     <servo name="FRONT" no="0" min="0" neutral="0" max="255"/>
     <servo name="BACK"  no="1" min="0" neutral="0" max="255"/>
     <servo name="RIGHT" no="2" min="0" neutral="0" max="255"/>
@@ -79,13 +79,13 @@
         <define name="REF_TAU" value="4" />
 
         <!-- feedback -->
-        <define name="GAIN_P" value="-400" />
-        <define name="GAIN_Q" value="-400" />
-        <define name="GAIN_R" value="-350" />
+        <define name="GAIN_P" value="400" />
+        <define name="GAIN_Q" value="400" />
+        <define name="GAIN_R" value="350" />
 
-        <define name="IGAIN_P" value="-75" />
-        <define name="IGAIN_Q" value="-75" />
-        <define name="IGAIN_R" value="-50" />
+        <define name="IGAIN_P" value="75" />
+        <define name="IGAIN_Q" value="75" />
+        <define name="IGAIN_R" value="50" />
 
         <!-- feedforward -->
         <define name="DDGAIN_P" value="300" />
@@ -96,53 +96,53 @@
   <section name="STABILIZATION_ATTITUDE" prefix="STABILIZATION_ATTITUDE_">
 
     <!-- setpoints -->
-    <define name="SP_MAX_PHI"     value="RadOfDeg(45.)"/>
-    <define name="SP_MAX_THETA"   value="RadOfDeg(45.)"/>
-    <define name="SP_MAX_R"       value="RadOfDeg(180.)"/><!-- Maximum speed in deg/s-->
+    <define name="SP_MAX_PHI"     value="45." unit="deg"/>
+    <define name="SP_MAX_THETA"   value="45." unit="deg"/>
+    <define name="SP_MAX_R"       value="180." unit="deg/s"/><!-- Maximum speed in deg/s-->
     <define name="DEADBAND_R"     value="250"/>
 
      <!-- reference -->
-    <define name="REF_OMEGA_P"  value="RadOfDeg(800)"/>
+    <define name="REF_OMEGA_P"  value="800" unit="deg/s"/>
     <define name="REF_ZETA_P"   value="0.85"/>
-    <define name="REF_MAX_P"    value="RadOfDeg(300.)"/>
+    <define name="REF_MAX_P"    value="300." unit="deg/s"/>
     <define name="REF_MAX_PDOT" value="RadOfDeg(7000.)"/>
 
-    <define name="REF_OMEGA_Q"  value="RadOfDeg(800)"/>
+    <define name="REF_OMEGA_Q"  value="800" unit="deg/s"/>
     <define name="REF_ZETA_Q"   value="0.85"/>
-    <define name="REF_MAX_Q"    value="RadOfDeg(300.)"/>
+    <define name="REF_MAX_Q"    value="300." unit="deg/s"/>
     <define name="REF_MAX_QDOT" value="RadOfDeg(7000.)"/>
 
-    <define name="REF_OMEGA_R"  value="RadOfDeg(500)"/>
+    <define name="REF_OMEGA_R"  value="500" unit="deg/s"/>
     <define name="REF_ZETA_R"   value="0.85"/>
-    <define name="REF_MAX_R"    value="RadOfDeg(180.)"/>
+    <define name="REF_MAX_R"    value="180." unit="deg/s"/>
     <define name="REF_MAX_RDOT" value="RadOfDeg(1800.)"/>
 
    <!-- feedback -->
     <!--
-    <define name="PHI_PGAIN"  value="-400"/>
-    <define name="PHI_DGAIN"  value="-300"/>
-    <define name="PHI_IGAIN"  value="-100"/>
+    <define name="PHI_PGAIN"  value="400"/>
+    <define name="PHI_DGAIN"  value="300"/>
+    <define name="PHI_IGAIN"  value="100"/>
 
-    <define name="THETA_PGAIN"  value="-400"/>
-    <define name="THETA_DGAIN"  value="-300"/>
-    <define name="THETA_IGAIN"  value="-100"/>
+    <define name="THETA_PGAIN"  value="400"/>
+    <define name="THETA_DGAIN"  value="300"/>
+    <define name="THETA_IGAIN"  value="100"/>
 
-    <define name="PSI_PGAIN"  value="-380"/>
-    <define name="PSI_DGAIN"  value="-320"/>
-    <define name="PSI_IGAIN"  value="-75"/>
+    <define name="PSI_PGAIN"  value="380"/>
+    <define name="PSI_DGAIN"  value="320"/>
+    <define name="PSI_IGAIN"  value="75"/>
 -->
 
-    <define name="PHI_PGAIN"  value="-2000"/>
-    <define name="PHI_DGAIN"  value="-400"/>
-    <define name="PHI_IGAIN"  value="-200"/>
+    <define name="PHI_PGAIN"  value="2000"/>
+    <define name="PHI_DGAIN"  value="400"/>
+    <define name="PHI_IGAIN"  value="200"/>
 
-    <define name="THETA_PGAIN"  value="-2000"/>
-    <define name="THETA_DGAIN"  value="-400"/>
-    <define name="THETA_IGAIN"  value="-200"/>
+    <define name="THETA_PGAIN"  value="2000"/>
+    <define name="THETA_DGAIN"  value="400"/>
+    <define name="THETA_IGAIN"  value="200"/>
 
-    <define name="PSI_PGAIN"  value="-1000"/>
-    <define name="PSI_DGAIN"  value="-350"/>
-    <define name="PSI_IGAIN"  value="-10"/>
+    <define name="PSI_PGAIN"  value="1000"/>
+    <define name="PSI_DGAIN"  value="350"/>
+    <define name="PSI_IGAIN"  value="10"/>
 
     <!-- feedforward -->
     <define name="PHI_DDGAIN"   value=" 300"/>
@@ -185,8 +185,8 @@
    <define name="REF_MAX_ZDD"  value=" 0.5*9.81"/>
    <define name="REF_MIN_ZD"   value="-1.5"/>
    <define name="REF_MAX_ZD"   value=" 1.5"/>
-   <define name="HOVER_KP"     value="-150"/>
-   <define name="HOVER_KD"     value="-80"/>
+   <define name="HOVER_KP"     value="150"/>
+   <define name="HOVER_KD"     value="80"/>
    <define name="HOVER_KI"     value="0"/>
    <!-- 1.5m/s for full stick : SPEED_BFP_OF_REAL(1.5) / (MAX_PPRZ/2) -->
    <define name="RC_CLIMB_COEF" value ="163"/>
@@ -196,11 +196,11 @@
   </section>
 
 <section name="GUIDANCE_H" prefix="GUIDANCE_H_">
-   <define name="PGAIN" value="-70"/>
-   <define name="DGAIN" value="-150"/>
-   <define name="IGAIN" value="-15"/>
-   <define name="NGAIN" value="-0"/>
-   <define name="AGAIN" value="-0"/>
+   <define name="PGAIN" value="70"/>
+   <define name="DGAIN" value="150"/>
+   <define name="IGAIN" value="15"/>
+   <define name="NGAIN" value="0"/>
+   <define name="AGAIN" value="0"/>
  </section>
 
  <section name="BAT">
@@ -228,7 +228,7 @@ BOARD_CFG = \"boards/booz2_v1_0.h\"
 # prevents motors from ever starting
 #ap.CFLAGS += -DKILL_MOTORS
 
-include $(PAPARAZZI_SRC)/conf/autopilot/booz2_common.makefile
+include $(PAPARAZZI_SRC)/conf/firmwares/booz2_common.makefile
 include $(CFG_BOOZ)/booz2_autopilot.makefile
 include $(CFG_BOOZ)/booz2_test_progs.makefile
 #ap.CFLAGS += -DFAILSAFE_GROUND_DETECT
@@ -248,7 +248,7 @@ include $(CFG_BOOZ)/subsystems/ins_hff.makefile
 ap.CFLAGS += -DGPS_LAG=0.8 -DUSE_GPS_ACC4R
 ap.CFLAGS += -DGPS_USE_LATLONG
 
-ap.CFLAGS += -DUSE_ADAPT_HOVER -DUSE_INS_NAV_INIT -DBOOZ_START_DELAY=3
+ap.CFLAGS += -DUSE_ADAPT_HOVER -DUSE_INS_NAV_INIT -DACTUATORS_START_DELAY=3
 
 
   </makefile>

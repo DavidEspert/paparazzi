@@ -27,6 +27,7 @@
 
 #include <float.h>  /* for FLT_EPSILON */
 #include <string.h> /* for memcpy      */
+#include "std.h" /* for ABS */
 
 #define SQUARE(_a) ((_a)*(_a))
 
@@ -99,6 +100,13 @@
     (_a).x = (_x);				\
     (_a).y = (_y);				\
     (_a).z = (_z);				\
+  }
+
+/* a =  {abs(x), abs(y), abs(z)} */
+#define VECT3_ASSIGN_ABS(_a, _x, _y, _z) {      \
+    (_a).x = ABS(_x);                              \
+    (_a).y = ABS(_y);                              \
+    (_a).z = ABS(_z);                              \
   }
 
 /* a = b */
@@ -199,6 +207,26 @@
     if ((_v).z > (_v_max).y) (_v).z = (_v_max).z; else if ((_v).z < (_v_min).z) (_v).z = (_v_min).z; \
   }
 
+/*  */
+#define VECT3_ABS(_vo, _vi) { \
+    (_vo).x = ABS((_vi).x);   \
+    (_vo).y = ABS((_vi).y);   \
+    (_vo).z = ABS((_vi).z);   \
+  }
+
+#define VECT3_CROSS_PRODUCT(_vo, _v1, _v2) {        \
+    (_vo).x = (_v1).y*(_v2).z - (_v1).z*(_v2).y;    \
+    (_vo).y = (_v1).z*(_v2).x - (_v1).x*(_v2).z;    \
+    (_vo).z = (_v1).x*(_v2).y - (_v1).y*(_v2).x;    \
+  }
+
+#define VECT3_RATES_CROSS_VECT3(_vo, _r1, _v2) {    \
+    (_vo).x = (_r1).q*(_v2).z - (_r1).r*(_v2).y;    \
+    (_vo).y = (_r1).r*(_v2).x - (_r1).p*(_v2).z;    \
+    (_vo).z = (_r1).p*(_v2).y - (_r1).q*(_v2).x;    \
+  }
+
+
 
 
 /*
@@ -297,6 +325,13 @@
     (_c).p = (_a).p + (_b).p;			\
     (_c).q = (_a).q + (_b).q;			\
     (_c).r = (_a).r + (_b).r;			\
+  }
+
+/* c = a + _s * b */
+#define RATES_SUM_SCALED(_c, _a, _b, _s) {		\
+    (_c).p = (_a).p + (_s)*(_b).p;			\
+    (_c).q = (_a).q + (_s)*(_b).q;			\
+    (_c).r = (_a).r + (_s)*(_b).r;			\
   }
 
 /* c = a - b */
@@ -413,7 +448,12 @@
     }									\
   }
 
-
+/* set _row of _mat with _vin multiplied by scalar _s */
+#define MAT33_ROW_VECT3_SMUL(_mat, _row, _vin, _s) {         \
+    MAT33_ELMT((_mat), _row, 0) = (_vin).x * (_s);           \
+    MAT33_ELMT((_mat), _row, 1) = (_vin).y * (_s);           \
+    MAT33_ELMT((_mat), _row, 2) = (_vin).z * (_s);           \
+  }
 
 
 //

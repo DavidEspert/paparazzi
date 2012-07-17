@@ -23,9 +23,15 @@
 /* Peripheral bus clock freq. */
 #define PCLK (CCLK / PBSD_VAL)
 
+#ifndef USE_LED_1
+#define USE_LED_1 1
+#endif
 #define LED_1_BANK 1
 #define LED_1_PIN 28
 
+#ifndef USE_LED_2
+#define USE_LED_2 1
+#endif
 #define LED_2_BANK 1
 #define LED_2_PIN 19
 
@@ -116,11 +122,14 @@
 #define USE_AD1_2
 #endif
 
+/* allow to define ADC_CHANNEL_VSUPPLY in the airframe file*/
+#ifndef ADC_CHANNEL_VSUPPLY
 #define ADC_CHANNEL_VSUPPLY AdcBank1(6)
 #ifndef USE_AD1
 #define USE_AD1
 #endif
 #define USE_AD1_6
+#endif
 
 #define DefaultVoltageOfAdc(adc) (0.01787109375*adc)
 

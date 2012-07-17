@@ -32,16 +32,19 @@
 #include "std.h"
 #include "generated/airframe.h"
 #include "generated/flight_plan.h"
+#include "mcu_periph/sys_time.h"
 
 #include <Ivy/ivy.h>
 
 #ifndef JSBSIM_PERIOD
 #define JSBSIM_SPEEDUP 4 ///< how many JSBSim calls per A/P control loop call?
-#define JSBSIM_PERIOD (1000.0/CONTROL_RATE/JSBSIM_SPEEDUP) ///< JSBSim timestep in milliseconds
+#define JSBSIM_PERIOD (1000.0/CONTROL_FREQUENCY/JSBSIM_SPEEDUP) ///< JSBSim timestep in milliseconds
 #else
-#define JSBSIM_SPEEDUP ((uint8_t) (1000./CONTROL_RATE/JSBSIM_PERIOD))
+#define JSBSIM_SPEEDUP ((uint8_t) (1000./CONTROL_FREQUENCY/JSBSIM_PERIOD))
 #endif
 #define DT (JSBSIM_PERIOD*1e-3) ///< JSBSim timestep in seconds
+
+#define SYSTIME_PERIOD ((uint32_t)(SYS_TIME_RESOLUTION * 1000)) ///< in msec
 
 #define RAD2DEG 57.29578
 #define FT2M 0.3048

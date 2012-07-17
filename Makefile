@@ -46,46 +46,64 @@ MULTIMON=sw/ground_segment/multimon
 MISC=sw/ground_segment/misc
 LOGALIZER=sw/logalizer
 SIMULATOR=sw/simulator
+EXT=sw/ext
 MAKE=make PAPARAZZI_SRC=$(PAPARAZZI_SRC) PAPARAZZI_HOME=$(PAPARAZZI_HOME)
 CONF=$(PAPARAZZI_SRC)/conf
 STATICINCLUDE =$(PAPARAZZI_HOME)/var/include
 MESSAGES_H=$(STATICINCLUDE)/messages.h
 MESSAGES2_H=$(STATICINCLUDE)/messages2.h
 UBX_PROTOCOL_H=$(STATICINCLUDE)/ubx_protocol.h
+MTK_PROTOCOL_H=$(STATICINCLUDE)/mtk_protocol.h
 XSENS_PROTOCOL_H=$(STATICINCLUDE)/xsens_protocol.h
 DL_PROTOCOL_H=$(STATICINCLUDE)/dl_protocol.h
 DL_PROTOCOL2_H=$(STATICINCLUDE)/dl_protocol2.h
 MESSAGES_XML = $(CONF)/messages.xml
 UBX_XML = $(CONF)/ubx.xml
+MTK_XML = $(CONF)/mtk.xml
 XSENS_XML = $(CONF)/xsens_MTi-G.xml
 TOOLS=$(PAPARAZZI_SRC)/sw/tools
+OCAML=$(shell which ocaml)
+OCAMLRUN=$(shell which ocamlrun)
+
+# try to find the paparazzi multilib toolchain
+TOOLCHAIN=$(shell find -L /opt/paparazzi/arm-multilib ~/sat -maxdepth 1 -type d -name arm-none-eabi 2>/dev/null | head -n 1)
+ifneq ($(TOOLCHAIN),)
+TOOLCHAIN_DIR=$(shell dirname $(TOOLCHAIN))
+#found the compiler from the paparazzi multilib package
+ARMGCC=$(TOOLCHAIN_DIR)/bin/arm-none-eabi-gcc
+else
+#try picking up the arm-none-eabi compiler from the path, otherwise use arm-elf
 HAVE_ARM_NONE_EABI_GCC := $(shell which arm-none-eabi-gcc)
 ifeq ($(strip $(HAVE_ARM_NONE_EABI_GCC)),)
 ARMGCC=$(shell which arm-elf-gcc)
 else
 ARMGCC=$(HAVE_ARM_NONE_EABI_GCC)
 endif
-OCAML=$(shell which ocaml)
-OCAMLRUN=$(shell which ocamlrun)
+endif
 
-all: commands static conf
+all: conf commands static
 
-static : lib center tools cockpit multimon tmtc misc logalizer lpc21iap sim_static static_h usb_lib
+static: lib center tools cockpit multimon tmtc misc logalizer lpc21iap sim_static static_h usb_lib ext
 
-conf: conf/conf.xml conf/control_panel.xml
+conf: conf/conf.xml conf/control_panel.xml conf/maps.xml FORCE
 
 conf/%.xml :conf/%.xml.example
 	[ -L $@ ] || [ -f $@ ] || cp $< $@
 
+conf/maps.xml: conf/maps.xml.example FORCE
+	-cd data/maps; $(MAKE)
+	if test ! -e $@; then cp $< $@; fi
+
+FORCE:
 
 lib:
 	cd $(LIB)/ocaml; $(MAKE)
 
 center: lib
-	cd sw/supervision; make
+	cd sw/supervision; $(MAKE)
 
 tools: lib
-	cd $(TOOLS); make
+	cd $(TOOLS); $(MAKE)
 
 logalizer: lib
 	cd $(LOGALIZER); $(MAKE)
@@ -105,43 +123,51 @@ misc:
 multimon:
 	cd $(MULTIMON); $(MAKE)
 
-static_h: $(MESSAGES_H) $(MESSAGES2_H) $(UBX_PROTOCOL_H) $(XSENS_PROTOCOL_H) $(DL_PROTOCOL_H) $(DL_PROTOCOL2_H)
+static_h: $(MESSAGES_H) $(MESSAGES2_H) $(UBX_PROTOCOL_H) $(MTK_PROTOCOL_H) $(XSENS_PROTOCOL_H) $(DL_PROTOCOL_H) $(DL_PROTOCOL2_H)
 
 usb_lib:
 	@[ -d sw/airborne/arch/lpc21/lpcusb ] && ((test -x "$(ARMGCC)" && (cd sw/airborne/arch/lpc21/lpcusb; $(MAKE))) || echo "Not building usb_lib: ARMGCC=$(ARMGCC) not found") || echo "Not building usb_lib: sw/airborne/arch/lpc21/lpcusb directory missing"
 
+ext:
+	$(MAKE) -C$(EXT) all
+
 $(MESSAGES_H) : $(MESSAGES_XML) $(CONF_XML) tools
 	$(Q)test -d $(STATICINCLUDE) || mkdir -p $(STATICINCLUDE)
 	@echo BUILD $@
-	$(Q)PAPARAZZI_SRC=$(PAPARAZZI_SRC) $(TOOLS)/gen_messages.out $< telemetry > /tmp/msg.h
+	$(Q)PAPARAZZI_SRC=$(PAPARAZZI_SRC) PAPARAZZI_HOME=$(PAPARAZZI_HOME) $(TOOLS)/gen_messages.out $< telemetry > /tmp/msg.h
 	$(Q)mv /tmp/msg.h $@
 	$(Q)chmod a+r $@
 
 $(MESSAGES2_H) : $(MESSAGES_XML) $(CONF_XML) tools
 	$(Q)test -d $(STATICINCLUDE) || mkdir -p $(STATICINCLUDE)
 	@echo BUILD $@
-	$(Q)PAPARAZZI_SRC=$(PAPARAZZI_SRC) $(TOOLS)/gen_messages2.out $< telemetry > /tmp/msg2.h
+	$(Q)PAPARAZZI_SRC=$(PAPARAZZI_SRC) PAPARAZZI_HOME=$(PAPARAZZI_HOME) $(TOOLS)/gen_messages2.out $< telemetry > /tmp/msg2.h
 	$(Q)mv /tmp/msg2.h $@
 	$(Q)chmod a+r $@
 
 $(UBX_PROTOCOL_H) : $(UBX_XML) tools
 	@echo BUILD $@
-	$(Q)PAPARAZZI_SRC=$(PAPARAZZI_SRC) $(TOOLS)/gen_ubx.out $< > /tmp/ubx.h
+	$(Q)PAPARAZZI_SRC=$(PAPARAZZI_SRC) PAPARAZZI_HOME=$(PAPARAZZI_HOME) $(TOOLS)/gen_ubx.out $< > /tmp/ubx.h
 	$(Q)mv /tmp/ubx.h $@
+
+$(MTK_PROTOCOL_H) : $(MTK_XML) tools
+	@echo BUILD $@
+	$(Q)PAPARAZZI_SRC=$(PAPARAZZI_SRC) PAPARAZZI_HOME=$(PAPARAZZI_HOME) $(TOOLS)/gen_mtk.out $< > /tmp/mtk.h
+	$(Q)mv /tmp/mtk.h $@
 
 $(XSENS_PROTOCOL_H) : $(XSENS_XML) tools
 	@echo BUILD $@
-	$(Q)PAPARAZZI_SRC=$(PAPARAZZI_SRC) $(TOOLS)/gen_xsens.out $< > /tmp/xsens.h
+	$(Q)PAPARAZZI_SRC=$(PAPARAZZI_SRC) PAPARAZZI_HOME=$(PAPARAZZI_HOME) $(TOOLS)/gen_xsens.out $< > /tmp/xsens.h
 	$(Q)mv /tmp/xsens.h $@
 
 $(DL_PROTOCOL_H) : $(MESSAGES_XML) tools
 	@echo BUILD $@
-	$(Q)PAPARAZZI_SRC=$(PAPARAZZI_SRC) $(TOOLS)/gen_messages.out $< datalink > /tmp/dl.h
+	$(Q)PAPARAZZI_SRC=$(PAPARAZZI_SRC) PAPARAZZI_HOME=$(PAPARAZZI_HOME) $(TOOLS)/gen_messages.out $< datalink > /tmp/dl.h
 	$(Q)mv /tmp/dl.h $@
 
 $(DL_PROTOCOL2_H) : $(MESSAGES_XML) tools
 	@echo BUILD $@
-	$(Q)PAPARAZZI_SRC=$(PAPARAZZI_SRC) $(TOOLS)/gen_messages2.out $< datalink > /tmp/dl2.h
+	$(Q)PAPARAZZI_SRC=$(PAPARAZZI_SRC) PAPARAZZI_HOME=$(PAPARAZZI_HOME) $(TOOLS)/gen_messages2.out $< datalink > /tmp/dl2.h
 	$(Q)mv /tmp/dl2.h $@
 
 include Makefile.ac
@@ -156,7 +182,7 @@ ac_h ac1 ac2 ac3 ac fbw ap: static conf
 #
 # call with : make bl PROC=[TINY|FBW|AP|GENERIC]
 bl:
-	cd $(AIRBORNE)/arch/lpc21/test/bootloader; make clean; make
+	cd $(AIRBORNE)/arch/lpc21/test/bootloader; $(MAKE) clean; $(MAKE)
 
 BOOTLOADER_DEV=/dev/ttyUSB0
 upload_bl bl.upload: bl
@@ -171,15 +197,15 @@ upload_jtag: bl
 
 
 lpc21iap:
-	cd sw/ground_segment/lpc21iap; make
+	cd sw/ground_segment/lpc21iap; $(MAKE)
 
 upgrade_bl bl.upgrade: bl lpc21iap
 	$(PAPARAZZI_SRC)/sw/ground_segment/lpc21iap/lpc21iap $(AIRBORNE)/arch/lpc21/test/bootloader/bl_ram.elf
 	$(PAPARAZZI_SRC)/sw/ground_segment/lpc21iap/lpc21iap $(AIRBORNE)/arch/lpc21/test/bootloader/bl.elf
 
 ms:
-	cd $(AIRBORNE)/arch/lpc21/lpcusb; make
-	cd $(AIRBORNE)/arch/lpc21/lpcusb/examples; make
+	cd $(AIRBORNE)/arch/lpc21/lpcusb; $(MAKE)
+	cd $(AIRBORNE)/arch/lpc21/lpcusb/examples; $(MAKE)
 
 upload_ms ms.upload: ms
 	$(PAPARAZZI_SRC)/sw/ground_segment/lpc21iap/lpc21iap $(AIRBORNE)/arch/lpc21/lpcusb/examples/msc.elf
@@ -195,10 +221,10 @@ run_sitl :
 	$(PAPARAZZI_HOME)/var/$(AIRCRAFT)/sim/simsitl
 
 install :
-	make -f Makefile.install PREFIX=$(PREFIX)
+	$(MAKE) -f Makefile.install PREFIX=$(PREFIX)
 
 uninstall :
-	make -f Makefile.install PREFIX=$(PREFIX) uninstall
+	$(MAKE) -f Makefile.install PREFIX=$(PREFIX) uninstall
 
 DISTRO=lenny
 deb :
@@ -208,14 +234,15 @@ deb :
 	dpkg-buildpackage $(DEBFLAGS) -Ivar -rfakeroot
 
 fast_deb:
-	make deb OCAMLC=ocamlc.opt DEBFLAGS=-b
+	$(MAKE) deb OCAMLC=ocamlc.opt DEBFLAGS=-b
 
 clean:
-	rm -fr dox build-stamp configure-stamp conf/%gconf.xml debian/files debian/paparazzi-arm7 debian/paparazzi-avr debian/paparazzi-base debian/paparazzi-bin debian/paparazzi-dev
-	rm -f  $(MESSAGES_H) $(MESSAGES2_H) $(UBX_PROTOCOL_H) $(DL_PROTOCOL_H)
-	find . -mindepth 2 -name Makefile -exec sh -c '$(MAKE) -C `dirname {}` $@' \;
-	find . -name '*~' -exec rm -f {} \;
-	rm -f paparazzi sw/simulator/launchsitl
+	$(Q)rm -fr dox build-stamp configure-stamp conf/%gconf.xml debian/files debian/paparazzi-base debian/paparazzi-bin
+	$(Q)rm -f  $(MESSAGES_H) $(MESSAGES2_H) $(UBX_PROTOCOL_H) $(MTK_PROTOCOL_H) $(DL_PROTOCOL_H)
+	$(Q)find . -mindepth 2 -name Makefile -a ! -path "./sw/ext/*" -exec sh -c 'echo "Cleaning {}"; $(MAKE) -C `dirname {}` $@' \;
+	$(Q)make -C sw/ext clean
+	$(Q)find . -name '*~' -exec rm -f {} \;
+	$(Q)rm -f paparazzi sw/simulator/launchsitl
 
 cleanspaces:
 	find ./sw/airborne -name '*.[ch]' -exec sed -i {} -e 's/[ \t]*$$//' \;
@@ -225,18 +252,20 @@ cleanspaces:
 	find ./conf -name '*.xml' -exec sed -i {} -e 's/[ \t]*$$//' ';'
 
 distclean : dist_clean
-dist_clean : clean
-	rm -r conf/srtm_data
+dist_clean :
+	@echo "Warning: This removes all non-repository files. This means you will loose your aircraft list, your maps, your logfiles, ... if you want this, then run: make dist_clean_irreversible"
 
+dist_clean_irreversible: clean
+	rm -rf conf/maps_data conf/maps.xml
+	rm -rf conf/conf.xml conf/controlpanel.xml
+	rm -rf var
 
 ab_clean:
 	find sw/airborne -name '*~' -exec rm -f {} \;
 
-test_all_example_airframes:
-	$(MAKE) AIRCRAFT=BOOZ2_A1 clean_ac ap sim
-	$(MAKE) AIRCRAFT=Microjet clean_ac ap sim
-	$(MAKE) AIRCRAFT=Tiny_IMU clean_ac ap
-	$(MAKE) AIRCRAFT=EasyStar_ETS clean_ac ap sim
+replace_current_conf_xml:
+	test conf/conf.xml || mv conf/conf.xml conf/conf.xml.backup.`date +%Y%m%d-%H%M%s`
+	cp conf/conf.xml.example conf/conf.xml
 
 commands: paparazzi sw/simulator/launchsitl
 
@@ -248,8 +277,6 @@ sw/simulator/launchsitl:
 	cat src/$(@F) | sed s#OCAMLRUN#$(OCAMLRUN)# | sed s#OCAML#$(OCAML)# > $@
 	chmod a+x $@
 
-#.SUFFIXES: .hgt.zip
-
-%.hgt.zip:
-	cd data/srtm; $(MAKE) $(@)
+test: all replace_current_conf_xml
+	cd tests; $(MAKE) test
 

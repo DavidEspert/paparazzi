@@ -2,7 +2,7 @@
  * $Id$
  *
  * Paparazzi center aircraft handling
- *  
+ *
  * Copyright (C) 2007 ENAC, Pascal Brisset, Antoine Drouin
  *
  * This file is part of paparazzi.
@@ -20,7 +20,7 @@
  * You should have received a copy of the GNU General Public License
  * along with paparazzi; see the file COPYING.  If not, write to
  * the Free Software Foundation, 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA. 
+ * Boston, MA 02111-1307, USA.
  *
  *)
 
@@ -40,15 +40,15 @@ let aircraft_sample = fun name ac_id ->
   Xml.Element ("aircraft",
 	       ["name", name;
 		"ac_id", ac_id;
-		"airframe", "airframes/microjet_example.xml";
+		"airframe", "airframes/examples/microjet.xml";
 		"radio", "radios/cockpitSX.xml";
-		"telemetry", "telemetry/default.xml";
+		"telemetry", "telemetry/default_fixedwing.xml";
 		"flight_plan", "flight_plans/basic.xml";
-		"settings", "settings/basic.xml";
+		"settings", "settings/fixedwing_basic.xml";
 		"gui_color", "blue"],
 	       [])
 
-				   
+
 let write_conf_xml = fun ?(user_save = false) () ->
   let l = Hashtbl.fold (fun _ a r -> a::r) Utils.aircrafts [] in
   let l = List.sort (fun ac1 ac2 -> compare (Xml.attrib ac1 "name") (Xml.attrib ac2 "name")) l in
@@ -84,7 +84,12 @@ let parse_conf_xml = fun vbox ->
   Gtk_tools.combo ("" :: !strings) vbox
 
 let editor =
-  try Sys.getenv "EDITOR" with _ -> "gedit"
+  try Sys.getenv "EDITOR" with _ -> (
+    if Os_calls.contains (Os_calls.os_name) "Darwin" then
+      "open"
+    else
+      "gedit"
+    )
 
 let edit = fun file ->
   ignore (Sys.command (sprintf "%s %s&" editor file))
@@ -95,7 +100,7 @@ let gcs_or_edit = fun file ->
     1 -> edit file
   | 2 -> ignore (Sys.command (sprintf "%s -edit '%s'&" gcs file))
   | _ -> failwith "Internal error: gcs_or_edit"
-    
+
 type ac_data =
     Label of GMisc.label
   | Tree of Gtk_tools.tree
@@ -175,7 +180,7 @@ let parse_ac_targets = fun target_combo ac_file ->
   let count = ref 0 in
   let (store, column) = Gtk_tools.combo_model target_combo in
   store#clear ();
-  (** Clear ComboBox 
+  (** Clear ComboBox
   **)
   (try
     let af_xml = Xml.parse_file (Env.paparazzi_src // "conf" // ac_file) in
@@ -208,7 +213,7 @@ let parse_ac_targets = fun target_combo ac_file ->
       end;
       let combo_box = Gtk_tools.combo_widget target_combo in
       combo_box#set_active 0
-(** 
+(**
     Gtk_tools.combo (!strings) target_combo
 **)
   with _ -> ())
@@ -306,7 +311,7 @@ let ac_combo_handler = fun gui (ac_combo:Gtk_tools.combo) target_combo ->
 
   (* A/C id *)
   ignore(gui#entry_ac_id#connect#changed ~callback:(fun () -> save_callback gui ac_combo model ()));
-  
+
   (* Conf *)
   List.iter (fun (name, subdir, label, button_browse, button_edit, editor, remove) ->
     let callback = fun _ ->
@@ -356,7 +361,8 @@ let build_handler = fun ~file gui ac_combo (target_combo:Gtk_tools.combo) (log:s
   (* Link target to upload button *)
   Gtk_tools.combo_connect target_combo
     (fun target ->
-      gui#button_upload#misc#set_sensitive (target <> "sim"));
+      (* if target is sim or nps, deactivate the upload button *)
+      gui#button_upload#misc#set_sensitive (target <> "sim" && target <> "nps"));
 
   (* New Target button *)
   let callback = fun _ ->
@@ -374,7 +380,7 @@ let build_handler = fun ~file gui ac_combo (target_combo:Gtk_tools.combo) (log:s
   let callback = fun () ->
     Utils.command ~file gui log (Gtk_tools.combo_value ac_combo) "clean_ac" in
   ignore (gui#button_clean#connect#clicked ~callback);
-  
+
   (* Build button *)
   let callback = fun () ->
     try (

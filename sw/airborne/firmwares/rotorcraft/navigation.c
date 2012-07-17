@@ -53,6 +53,9 @@ uint8_t nav_segment_start, nav_segment_end;
 uint8_t nav_circle_centre;
 int32_t nav_circle_radius, nav_circle_qdr, nav_circle_radians;
 
+int32_t nav_leg_progress;
+int32_t nav_leg_length;
+
 int32_t nav_roll, nav_pitch;
 int32_t nav_heading, nav_course;
 float nav_radius;
@@ -99,6 +102,8 @@ void nav_init(void) {
   nav_radius = DEFAULT_CIRCLE_RADIUS;
   nav_throttle = 0;
   nav_climb = 0;
+  nav_leg_progress = 0;
+  nav_leg_length = 1;
 
 }
 
@@ -111,10 +116,10 @@ void nav_run(void) {
   /* saturate it */
   VECT2_STRIM(path_to_waypoint, -(1<<15), (1<<15));
 
+#if !GUIDANCE_H_USE_REF
   int32_t dist_to_waypoint;
   INT32_VECT2_NORM(dist_to_waypoint, path_to_waypoint);
 
-#ifndef GUIDANCE_H_USE_REF
   if (dist_to_waypoint < CLOSE_TO_WAYPOINT) {
     VECT2_COPY(navigation_carrot, navigation_target);
   }
@@ -186,17 +191,16 @@ void nav_route(uint8_t wp_start, uint8_t wp_end) {
   // go back to metric precision or values are too large
   INT32_VECT2_RSHIFT(wp_diff,wp_diff,INT32_POS_FRAC);
   INT32_VECT2_RSHIFT(pos_diff,pos_diff,INT32_POS_FRAC);
-  int32_t leg_length;
   int32_t leg_length2 = Max((wp_diff.x * wp_diff.x + wp_diff.y * wp_diff.y),1);
-  INT32_SQRT(leg_length,leg_length2);
-  int32_t nav_leg_progress = (pos_diff.x * wp_diff.x + pos_diff.y * wp_diff.y) / leg_length;
+  INT32_SQRT(nav_leg_length,leg_length2);
+  nav_leg_progress = (pos_diff.x * wp_diff.x + pos_diff.y * wp_diff.y) / nav_leg_length;
   int32_t progress = Max((CARROT_DIST >> INT32_POS_FRAC), 0);
   nav_leg_progress += progress;
-  int32_t prog_2 = leg_length;// + progress / 2;
+  int32_t prog_2 = nav_leg_length;// + progress / 2;
   Bound(nav_leg_progress, 0, prog_2);
   struct Int32Vect2 progress_pos;
   VECT2_SMUL(progress_pos, wp_diff, nav_leg_progress);
-  VECT2_SDIV(progress_pos, progress_pos, leg_length);
+  VECT2_SDIV(progress_pos, progress_pos, nav_leg_length);
   INT32_VECT2_LSHIFT(progress_pos,progress_pos,INT32_POS_FRAC);
   VECT2_SUM(navigation_target,waypoints[wp_start],progress_pos);
   //printf("target %d %d | p %d %d | s %d %d | l %d %d %d\n",
@@ -244,6 +248,7 @@ static inline void nav_set_altitude( void ) {
   }
 }
 
+
 /** Reset the geographic reference to the current GPS fix */
 unit_t nav_reset_reference( void ) {
   ins_ltp_initialised = FALSE;
@@ -255,7 +260,7 @@ unit_t nav_reset_reference( void ) {
 unit_t nav_reset_alt( void ) {
   ins_vf_realign = TRUE;
 
-#ifdef USE_GPS
+#if USE_GPS
   ins_ltp_def.lla.alt = gps.lla_pos.alt;
   ins_ltp_def.hmsl = gps.hmsl;
 #endif
@@ -280,16 +285,16 @@ void nav_periodic_task() {
   /* run carrot loop */
   nav_run();
 
-  ground_alt = POS_BFP_OF_REAL((float)ins_ltp_def.hmsl / 100.);
+  ground_alt = POS_BFP_OF_REAL((float)ins_ltp_def.hmsl / 1000.);
 }
 
-#include "downlink.h"
+#include "subsystems/datalink/downlink.h"
 #include "messages.h"
 #include "mcu_periph/uart.h"
 void nav_move_waypoint(uint8_t wp_id, struct EnuCoor_i * new_pos) {
   if (wp_id < nb_waypoint) {
     INT32_VECT3_COPY(waypoints[wp_id],(*new_pos));
-    DOWNLINK_SEND_WP_MOVED_ENU(DefaultChannel, &wp_id, &(new_pos->x), &(new_pos->y), &(new_pos->z));
+    DOWNLINK_SEND_WP_MOVED_ENU(DefaultChannel, DefaultDevice, &wp_id, &(new_pos->x), &(new_pos->y), &(new_pos->z));
   }
 }
 
@@ -310,7 +315,7 @@ void navigation_update_wp_from_speed(uint8_t wp, struct Int16Vect3 speed_sp, int
   nav_heading += delta_heading;
 
   INT32_COURSE_NORMALIZE(nav_heading);
-  RunOnceEvery(10,DOWNLINK_SEND_WP_MOVED_ENU(DefaultChannel, &wp, &(waypoints[wp].x), &(waypoints[wp].y), &(waypoints[wp].z)));
+  RunOnceEvery(10,DOWNLINK_SEND_WP_MOVED_ENU(DefaultChannel, DefaultDevice, &wp, &(waypoints[wp].x), &(waypoints[wp].y), &(waypoints[wp].z)));
 }
 
 bool_t nav_detect_ground(void) {

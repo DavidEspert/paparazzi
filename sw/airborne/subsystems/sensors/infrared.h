@@ -27,7 +27,6 @@
 
 #include "std.h"
 #include "generated/airframe.h"
-#include "estimator.h"
 
 /*
  * Sensor installation
@@ -55,6 +54,10 @@
 */
 #define IR_RollOfIrs(_ir1, _ir2) (_ir1 + _ir2)
 #define IR_PitchOfIrs(_ir1, _ir2) (-(_ir1) + _ir2)
+#else
+#ifndef SITL
+#error "You have to define either HORIZ_SENSOR_ALIGNED or HORIZ_SENSOR_TILTED in the IR section"
+#endif
 #endif
 /* Vertical sensor, TOP_SIGN gives positice values when it's warm on the bottom */
 #ifndef IR_TopOfIr
@@ -91,6 +94,18 @@
 
 #ifndef IR_CORRECTION_DOWN
 #define IR_CORRECTION_DOWN 1.
+#endif
+
+
+/*
+ * Default neutral values
+ */
+#ifndef IR_ROLL_NEUTRAL_DEFAULT
+#define IR_ROLL_NEUTRAL_DEFAULT 0.0
+#endif
+
+#ifndef IR_PITCH_NEUTRAL_DEFAULT
+#define IR_PITCH_NEUTRAL_DEFAULT 0.0
 #endif
 
 struct Infrared_raw {
@@ -140,7 +155,6 @@ extern struct Infrared infrared;
   infrared.roll = infrared.lateral_correction * IR_RollOfIrs(infrared.value.ir1, infrared.value.ir2); \
   infrared.pitch = infrared.longitudinal_correction * IR_PitchOfIrs(infrared.value.ir1, infrared.value.ir2); \
   infrared.top = infrared.vertical_correction * IR_TopOfIr(infrared.value.ir3); \
-  estimator_update_state_infrared(); \
 }
 
 // initialization of the infrared structure

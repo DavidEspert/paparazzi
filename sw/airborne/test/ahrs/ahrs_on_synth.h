@@ -8,7 +8,7 @@ struct traj {
   char* desc;
   void (*init_fun)(void);
   void (*update_fun)(void);
-  
+
   double ts;
   double te;
 };
@@ -25,11 +25,14 @@ struct AhrsOnSynth {
   struct FloatRates  gyro_noise;
   struct FloatVect3  accel_noise;
 
+  float heading_noise;
+  float heading_meas;
+
   /* state */
   struct FloatEulers ltp_to_imu_euler;
   struct FloatQuat   ltp_to_imu_quat;
   struct FloatRates  imu_rates;
-  
+
   struct FloatVect3  ltp_jerk;
   struct FloatVect3  ltp_accel;
   struct FloatVect3  ltp_vel;

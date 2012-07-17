@@ -54,12 +54,15 @@ extern int32_t nav_circle_radius, nav_circle_qdr, nav_circle_radians;
 #define HORIZONTAL_MODE_ROUTE     1
 #define HORIZONTAL_MODE_CIRCLE    2
 #define HORIZONTAL_MODE_ATTITUDE  3
-extern int32_t nav_roll, nav_pitch;
-extern int32_t nav_heading, nav_course;
+extern int32_t nav_roll, nav_pitch;     ///< with #INT32_ANGLE_FRAC
+extern int32_t nav_heading, nav_course; ///< with #INT32_ANGLE_FRAC
 extern float nav_radius;
 
+extern int32_t nav_leg_progress;
+extern int32_t nav_leg_length;
+
 extern uint8_t vertical_mode;
-extern uint32_t nav_throttle;
+extern uint32_t nav_throttle;  ///< direct throttle from 0:MAX_PPRZ, used in VERTICAL_MODE_MANUAL
 extern int32_t nav_climb, nav_altitude, nav_flight_altitude;
 extern float flight_altitude;
 #define VERTICAL_MODE_MANUAL      0
@@ -76,8 +79,8 @@ bool_t nav_detect_ground(void);
 
 void nav_home(void);
 
-#define NavKillThrottle() ({ if (autopilot_mode == AP_MODE_NAV) { kill_throttle = 1; autopilot_motors_on = 0; } FALSE; })
-#define NavResurrect() ({ if (autopilot_mode == AP_MODE_NAV) { kill_throttle = 0; autopilot_motors_on = 1; } FALSE; })
+#define NavKillThrottle() ({ if (autopilot_mode == AP_MODE_NAV) { autopilot_set_motors_on(FALSE); } FALSE; })
+#define NavResurrect() ({ if (autopilot_mode == AP_MODE_NAV) { autopilot_set_motors_on(TRUE); } FALSE; })
 
 
 #define NavSetGroundReferenceHere() ({ nav_reset_reference(); FALSE; })
@@ -124,11 +127,17 @@ extern void nav_route(uint8_t wp_start, uint8_t wp_end);
   nav_route(_start, _end); \
 }
 
+/** Nav glide routine */
+#define NavGlide(_last_wp, _wp) { \
+  int32_t start_alt = waypoints[_last_wp].z; \
+  int32_t diff_alt = waypoints[_wp].z - start_alt; \
+  int32_t alt = start_alt + ((diff_alt * nav_leg_progress) / nav_leg_length); \
+  NavVerticalAltitudeMode(POS_FLOAT_OF_BFP(alt),0); \
+}
+
 bool_t nav_approaching_from(uint8_t wp_idx, uint8_t from_idx);
 #define NavApproaching(wp, time) nav_approaching_from(wp, 0)
 #define NavApproachingFrom(wp, from, time) nav_approaching_from(wp, from)
-
-#define NavGlide(_last_wp, _wp) {}
 
 /** Set the climb control to auto-throttle with the specified pitch
     pre-command */
@@ -155,8 +164,8 @@ bool_t nav_approaching_from(uint8_t wp_idx, uint8_t from_idx);
 
 /** Set the vertical mode to fixed throttle with the specified setpoint */
 #define NavVerticalThrottleMode(_throttle) { \
-  vertical_mode = VERTICAL_MODE_MANUAL; \
-  nav_throttle = (200 * ((uint32_t)_throttle) / 9600); \
+  vertical_mode = VERTICAL_MODE_MANUAL;      \
+  nav_throttle = _throttle;                  \
 }
 
 #define NavHeading(_course) {}

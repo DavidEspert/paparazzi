@@ -18,23 +18,41 @@
 #define PCLK (CCLK / PBSD_VAL)
 
 /* Onboard LEDs */
+#ifndef USE_LED_1
+#define USE_LED_1 1
+#endif
 #define LED_1_BANK 1
 #define LED_1_PIN 25
 
+#ifndef USE_LED_2
+#define USE_LED_2 1
+#endif
 #define LED_2_BANK 1
 #define LED_2_PIN 24
 
+#ifndef USE_LED_3
+#define USE_LED_3 1
+#endif
 #define LED_3_BANK 1
 #define LED_3_PIN 23
 
+#ifndef USE_LED_4
+#define USE_LED_4 1
+#endif
 #define LED_4_BANK 1
 #define LED_4_PIN 31
 
+#ifndef USE_LED_5
+#define USE_LED_5 1
+#endif
 #define LED_5_BANK 1
 #define LED_5_PIN 18
 
 #define POWER_SWITCH_LED 5
 
+#ifndef USE_LED_6
+#define USE_LED_6 1
+#endif
 #define LED_6_BANK 1
 #define LED_6_PIN 22
 
@@ -91,11 +109,14 @@
 #endif
 
 /* battery */
+/* allow to define ADC_CHANNEL_VSUPPLY in the airframe file*/
+#ifndef ADC_CHANNEL_VSUPPLY
 #define ADC_CHANNEL_VSUPPLY AdcBank0(2)
 #ifndef USE_AD0
 #define USE_AD0
 #endif
 #define USE_AD0_2
+#endif
 
 #define DefaultVoltageOfAdc(adc) (0.0183*adc)
 
@@ -139,7 +160,7 @@
 #define PWM1_PINSEL_BIT 14
 
 
-#define BOARD_HAS_BARO
+#define BOARD_HAS_BARO 1
 
 /*
  * Modem

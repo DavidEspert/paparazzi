@@ -57,7 +57,11 @@ static void     sim_parse_options(int argc, char** argv);
 static void     sim_init(void);
 static gboolean sim_periodic(gpointer data);
 
+#ifdef __APPLE__
+string ivyBus = "224.255.255.255";
+#else
 string ivyBus = "127.255.255.255";
+#endif
 string fgAddress = "127.0.0.1";
 
 static void ivy_transport_init(void);
@@ -76,6 +80,9 @@ static void sim_init(void) {
   // main AP init (feed the sensors once before ?)
   autopilot_init();
 
+  printf("sys_time resolution: %f\n", SYS_TIME_RESOLUTION);
+  printf("sys_time period in msec: %d\n", SYSTIME_PERIOD);
+
 }
 
 static gboolean sim_periodic(gpointer data __attribute__ ((unused))) {
@@ -83,7 +90,7 @@ static gboolean sim_periodic(gpointer data __attribute__ ((unused))) {
 
   /* read actuators positions and feed JSBSim inputs */
   copy_inputs_to_jsbsim(FDMExec);
-   
+
   /* run JSBSim flight model */
   bool result = true;
   if (run_model) {
@@ -94,22 +101,27 @@ static gboolean sim_periodic(gpointer data __attribute__ ((unused))) {
 
   /* read outputs from model state */
   copy_outputs_from_jsbsim(FDMExec);
-  
+
   /* send outputs to flightgear for visualisation */
-  if (run_fg == true)  
-    sim_ac_flightgear_send(FDMExec);  
+  if (run_fg == true)
+    sim_ac_flightgear_send(FDMExec);
 
   /* run the airborne code
      with 60 Hz, even if JSBSim runs with a multiple of this */
   if (ncalls == 0) {
-//  airborne_run_one_step();
-  autopilot_event_task();
-  autopilot_periodic_task();
+    //  airborne_run_one_step();
+    autopilot_event_task();
+    autopilot_periodic_task();
   }
   ++ncalls;
   if (ncalls == JSBSIM_SPEEDUP) ncalls = 0;
 
   return result;
+}
+
+static gboolean systime_periodic(gpointer data __attribute__ ((unused))) {
+  sys_tick_handler();
+  return true;
 }
 
 
@@ -118,13 +130,14 @@ int main ( int argc, char** argv) {
   sim_parse_options(argc, argv);
 
   sim_init();
-  
-  if (run_fg == true)  
-    sim_ac_flightgear_init(fgAddress.c_str(), 5501);    
+
+  if (run_fg == true)
+    sim_ac_flightgear_init(fgAddress.c_str(), 5501);
 
   GMainLoop *ml =  g_main_loop_new(NULL, FALSE);
 
   g_timeout_add(JSBSIM_PERIOD, sim_periodic, NULL);
+  g_timeout_add(SYSTIME_PERIOD, systime_periodic, NULL);
 
   g_main_loop_run(ml);
 
@@ -176,8 +189,8 @@ static void sim_parse_options(int argc, char** argv) {
       ivyBus = string(argv[++i]);
     }
     else if (argument == "-fg") {
-      run_fg = true;  
-      fgAddress = string(argv[++i]);  
+      run_fg = true;
+      fgAddress = string(argv[++i]);
     }
     else {
       cerr << "Unknown argument" << endl;
@@ -243,21 +256,21 @@ void jsbsim_init(void) {
       }
     }
     else {
-      
-      // FGInitialCondition::SetAltitudeASLFtIC 
+
+      // FGInitialCondition::SetAltitudeASLFtIC
       // requires this function to be called
-      // before itself         
+      // before itself
       IC->SetVgroundFpsIC(0.);
-        
+
       // Use flight plan initial conditions
       IC->SetLatitudeDegIC(NAV_LAT0 / 1e7);
       IC->SetLongitudeDegIC(NAV_LON0 / 1e7);
-          
+
       IC->SetAltitudeASLFtIC((GROUND_ALT + 2.0) / FT2M);
       IC->SetTerrainElevationFtIC(GROUND_ALT / FT2M);
       IC->SetPsiDegIC(QFU);
       IC->SetVgroundFpsIC(0.);
-      
+
       //initRunning for all engines
       FDMExec->GetPropulsion()->InitRunning(-1);
       if (!FDMExec->RunIC()) {
@@ -282,11 +295,11 @@ void jsbsim_init(void) {
 }
 
 bool check_crash_jsbsim(JSBSim::FGFDMExec* FDMExec) {
-    
+
   double agl = FDMExec->GetPropagate()->GetDistanceAGL(), // in ft
   lat = FDMExec->GetPropagate()->GetLatitude(), // in rad
   lon = FDMExec->GetPropagate()->GetLongitude(); // in rad
-    
+
   if (agl< -1e-5) {
     cerr << "Crash detected: agl < 0" << endl << endl;
     return false;
@@ -297,7 +310,7 @@ bool check_crash_jsbsim(JSBSim::FGFDMExec* FDMExec) {
          << endl;
     return false;
   }
-    
+
   if (isnan(agl) || isnan(lat) || isnan(lon)) {
     cerr << "JSBSim is producing NaNs. Exiting." << endl << endl;
     return false;

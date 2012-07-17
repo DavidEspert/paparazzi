@@ -1,22 +1,36 @@
 /*
-C Datei für die Einbindung eines ArduIMU's
-Autoren@ZHAW:   schmiemi
-        chaneren
-*/
-
+ * Copyright (C) 2011 Gautier Hattenberger
+ * based on ArduIMU driver:
+ *   Autoren@ZHAW:  schmiemi
+ *                  chaneren
+ *
+ * This file is part of paparazzi.
+ *
+ * paparazzi is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2, or (at your option)
+ * any later version.
+ *
+ * paparazzi is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with paparazzi; see the file COPYING.  If not, write to
+ * the Free Software Foundation, 59 Temple Place - Suite 330,
+ * Boston, MA 02111-1307, USA.
+ *
+ */
 
 #include <stdbool.h>
 #include "modules/ins/ins_arduimu_basic.h"
-//#include "firmwares/fixedwing/main_fbw.h"
 #include "mcu_periph/i2c.h"
 
-// test
+// Estimator interface
 #include "estimator.h"
 
 // GPS data for ArduIMU
-#ifndef UBX
-#error "currently only compatible with uBlox GPS modules"
-#endif
 #include "subsystems/gps.h"
 
 // Command vector for thrust
@@ -40,7 +54,7 @@ Autoren@ZHAW:   schmiemi
 #endif
 #include "mcu_periph/uart.h"
 #include "messages.h"
-#include "downlink.h"
+#include "subsystems/datalink/downlink.h"
 #endif
 
 struct i2c_transaction ardu_gps_trans;
@@ -54,6 +68,10 @@ struct FloatVect3 arduimu_accel;
 
 float ins_roll_neutral;
 float ins_pitch_neutral;
+
+// Ask the arduimu to recalibrate the gyros and accels neutrals
+// After calibration, values are store in the arduimu eeprom
+bool_t arduimu_calibrate_neutrals;
 
 // High Accel Flag
 #define HIGH_ACCEL_LOW_SPEED 15.0
@@ -73,6 +91,7 @@ void ArduIMU_init( void ) {
 
   ins_roll_neutral = INS_ROLL_NEUTRAL_DEFAULT;
   ins_pitch_neutral = INS_PITCH_NEUTRAL_DEFAULT;
+  arduimu_calibrate_neutrals = FALSE;
 
   high_accel_done = FALSE;
   high_accel_flag = FALSE;
@@ -89,29 +108,33 @@ void ArduIMU_periodicGPS( void ) {
 
   if (ardu_gps_trans.status != I2CTransDone) { return; }
 
+#if USE_HIGH_ACCEL_FLAG
   // Test for high acceleration:
   //  - low speed
   //  - high thrust
-  if (estimator_hspeed_dir < HIGH_ACCEL_LOW_SPEED && ap_state->commands[COMMAND_THROTTLE] > HIGH_ACCEL_HIGH_THRUST && !high_accel_done) {
+  if (estimator_hspeed_mod < HIGH_ACCEL_LOW_SPEED && ap_state->commands[COMMAND_THROTTLE] > HIGH_ACCEL_HIGH_THRUST && !high_accel_done) {
     high_accel_flag = TRUE;
   } else {
     high_accel_flag = FALSE;
-    if (estimator_hspeed_dir > HIGH_ACCEL_LOW_SPEED && !high_accel_flag) {
+    if (estimator_hspeed_mod > HIGH_ACCEL_LOW_SPEED && !high_accel_done) {
       high_accel_done = TRUE; // After takeoff, don't use high accel before landing (GS small, Throttle small)
     }
-    if (estimator_hspeed_dir < HIGH_ACCEL_HIGH_THRUST_RESUME && ap_state->commands[COMMAND_THROTTLE] < HIGH_ACCEL_HIGH_THRUST_RESUME) {
+    if (estimator_hspeed_mod < HIGH_ACCEL_HIGH_THRUST_RESUME && ap_state->commands[COMMAND_THROTTLE] < HIGH_ACCEL_HIGH_THRUST_RESUME) {
       high_accel_done = FALSE; // Activate high accel after landing
     }
   }
+#endif
 
   FillBufWith32bit(ardu_gps_trans.buf, 0, (int32_t)gps.speed_3d); // speed 3D
   FillBufWith32bit(ardu_gps_trans.buf, 4, (int32_t)gps.gspeed);   // ground speed
-  FillBufWith32bit(ardu_gps_trans.buf, 8, (int32_t)DegOfRad(gps.course / 1e6));   // course
-  ardu_gps_trans.buf[12] = gps.fix;                              // status gps fix
-  ardu_gps_trans.buf[13] = gps_ubx.status_flags;                      // status flags
+  FillBufWith32bit(ardu_gps_trans.buf, 8, (int32_t)gps.course);   // course
+  ardu_gps_trans.buf[12] = gps.fix;                               // status gps fix
+  ardu_gps_trans.buf[13] = (uint8_t)arduimu_calibrate_neutrals;   // calibration flag
   ardu_gps_trans.buf[14] = (uint8_t)high_accel_flag;              // high acceleration flag (disable accelerometers in the arduimu filter)
   I2CTransmit(ARDUIMU_I2C_DEV, ardu_gps_trans, ArduIMU_SLAVE_ADDR, 15);
 
+  // Reset calibration flag
+  if (arduimu_calibrate_neutrals) arduimu_calibrate_neutrals = FALSE;
 }
 
 void ArduIMU_periodic( void ) {
@@ -165,12 +188,14 @@ void ArduIMU_event( void ) {
     estimator_phi = arduimu_eulers.phi - ins_roll_neutral;
     estimator_theta = arduimu_eulers.theta - ins_pitch_neutral;
     estimator_p = arduimu_rates.p;
+    estimator_q = arduimu_rates.q;
+    estimator_r = arduimu_rates.r;
     ardu_ins_trans.status = I2CTransDone;
 
 #ifdef ARDUIMU_SYNC_SEND
-    //RunOnceEvery(15, DOWNLINK_SEND_AHRS_EULER(DefaultChannel, &arduimu_eulers.phi, &arduimu_eulers.theta, &arduimu_eulers.psi));
-    RunOnceEvery(15, DOWNLINK_SEND_IMU_GYRO(DefaultChannel, &arduimu_rates.p, &arduimu_rates.q, &arduimu_rates.r));
-    RunOnceEvery(15, DOWNLINK_SEND_IMU_ACCEL(DefaultChannel, &arduimu_accel.x, &arduimu_accel.y, &arduimu_accel.z));
+    //RunOnceEvery(15, DOWNLINK_SEND_AHRS_EULER(DefaultChannel, DefaultDevice, &arduimu_eulers.phi, &arduimu_eulers.theta, &arduimu_eulers.psi));
+    RunOnceEvery(15, DOWNLINK_SEND_IMU_GYRO(DefaultChannel, DefaultDevice, &arduimu_rates.p, &arduimu_rates.q, &arduimu_rates.r));
+    RunOnceEvery(15, DOWNLINK_SEND_IMU_ACCEL(DefaultChannel, DefaultDevice, &arduimu_accel.x, &arduimu_accel.y, &arduimu_accel.z));
 #endif
   }
   else if (ardu_ins_trans.status == I2CTransFailed) {

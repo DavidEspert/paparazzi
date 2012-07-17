@@ -24,16 +24,14 @@
     <subsystem name="radio_control" type="ppm"/>
     <subsystem name="telemetry"     type="transparent"/>
     <subsystem name="control"/>
-    <subsystem name="attitude"      type="infrared"/>
-    <subsystem name="gyro"          type="roll"/>
-    <subsystem name="gps"           type="ublox_lea5h_hitl"/>
+    <subsystem name="ahrs"          type="infrared"/>
+    <subsystem name="gps"           type="ublox_hitl"/>
     <subsystem name="navigation"/>
     <subsystem name="joystick"/>
   </firmware>
 
   <firmware name="setup">
     <target name="tunnel"       board="twog_1.0" />
-    <target name="setup_actuators"  board="twog_1.0" />
   </firmware>
 
   <modules>
@@ -44,6 +42,7 @@
       <flag name="USE_ADC_3"/>
       <flag name="USE_ADC_5"/>
     </load>
+    <load name="infrared_adc.xml"/>
   </modules>
 
   <servos>
@@ -109,32 +108,26 @@
     <define name="CORRECTION_RIGHT" value="1."/>
   </section>
 
-  <section name="GYRO" prefix="GYRO_">
-    <define name="ADC_ROLL_NEUTRAL" value="316"/>
-    <define name="ROLL_DIRECTION" value="1."/>
-    <define name="ROLL_SCALE" value="0.44"/>
-  </section>
-
   <section name="HORIZONTAL CONTROL" prefix="H_CTL_">
-    <define name="COURSE_PGAIN" value="-0.9"/>
+    <define name="COURSE_PGAIN" value="0.9"/>
 
-    <define name="ROLL_MAX_SETPOINT" value="0.53" unit="radians"/>
-    <define name="PITCH_MAX_SETPOINT" value="0.5" unit="radians"/>
-    <define name="PITCH_MIN_SETPOINT" value="-0.5" unit="radians"/>
+    <define name="ROLL_MAX_SETPOINT" value="0.53" unit="rad"/>
+    <define name="PITCH_MAX_SETPOINT" value="0.5" unit="rad"/>
+    <define name="PITCH_MIN_SETPOINT" value="-0.5" unit="rad"/>
 
-    <define name="PITCH_PGAIN" value="-6000."/>
+    <define name="PITCH_PGAIN" value="6000."/>
     <define name="PITCH_DGAIN" value="0."/>
     <define name="ELEVATOR_OF_ROLL" value="0"/>
 
     <!--  roll rate loop -->
-    <define name="ROLL_ATTITUDE_GAIN" value="-7500"/>
-    <define name="ROLL_RATE_GAIN" value="-1500"/>
+    <define name="ROLL_ATTITUDE_GAIN" value="7500"/>
+    <define name="ROLL_RATE_GAIN" value="1500"/>
   </section>
 
 
  <section name="VERTICAL CONTROL" prefix="V_CTL_">
     <!-- outer loop proportional gain -->
-    <define name="ALTITUDE_PGAIN" value="-0.05"/>
+    <define name="ALTITUDE_PGAIN" value="0.05"/>
     <!-- outer loop saturation -->
     <define name="ALTITUDE_MAX_CLIMB" value="3."/>
 
@@ -145,7 +138,7 @@
     <define name="AUTO_THROTTLE_LOITER_TRIM" value="2000"/>
     <define name="AUTO_THROTTLE_DASH_TRIM" value="-1500"/>
     <define name="AUTO_THROTTLE_CLIMB_THROTTLE_INCREMENT" value="0.15" unit="%/(m/s)"/>
-    <define name="AUTO_THROTTLE_PGAIN" value="-0.008"/>
+    <define name="AUTO_THROTTLE_PGAIN" value="0.008"/>
     <define name="AUTO_THROTTLE_IGAIN" value="0.25"/>
     <define name="AUTO_THROTTLE_PITCH_OF_VZ_PGAIN" value="0.14"/>
 
@@ -155,7 +148,6 @@
 
 
   <section name="NAV">
-    <define name="NAV_PITCH" value="0."/>
     <define name="NAV_GLIDE_PITCH_TRIM" value="0"/>
     <define name="DEFAULT_CIRCLE_RADIUS" value="75."/>
   </section>

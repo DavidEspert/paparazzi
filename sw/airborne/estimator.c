@@ -53,6 +53,7 @@ float estimator_theta;
 /* rates in radians per second */
 float estimator_p;
 float estimator_q;
+float estimator_r;
 
 /* flight time in seconds */
 uint16_t estimator_flight_time;
@@ -66,6 +67,7 @@ float estimator_hspeed_dir;
 /* wind */
 float wind_east, wind_north;
 float estimator_airspeed;
+float estimator_AOA;
 
 #define NORM_RAD_ANGLE2(x) { \
     while (x > 2 * M_PI) x -= 2 * M_PI; \
@@ -73,18 +75,12 @@ float estimator_airspeed;
   }
 
 
-// FIXME maybe vz = -climb for NED??
 #define EstimatorSetSpeedCart(vx, vy, vz) { \
   estimator_vx = vx; \
   estimator_vy = vy; \
   estimator_vz = vz; \
 }
-//  estimator_hspeed_mod = sqrt( estimator_vx * estimator_vx + estimator_vy * estimator_vy);
-//  estimator_hspeed_dir = atan2(estimator_vy, estimator_vx);
 
-
-//FIXME is this true ?? estimator_vx = estimator_hspeed_mod * cos(estimator_hspeed_dir);
-//FIXME is this true ?? estimator_vy = estimator_hspeed_mod * sin(estimator_hspeed_dir);
 
 void estimator_init( void ) {
 
@@ -95,22 +91,18 @@ void estimator_init( void ) {
 
   EstimatorSetSpeedPol ( 0., 0., 0.);
 
-  EstimatorSetRate(0., 0.);
+  EstimatorSetRate(0., 0., 0.);
 
-#ifdef USE_AIRSPEED
-  EstimatorSetAirspeed( 0. );
+#ifdef USE_AOA
+  EstimatorSetAOA( 0. );
 #endif
 
   estimator_flight_time = 0;
 
-  estimator_airspeed = NOMINAL_AIRSPEED;
+  // FIXME? Set initial airspeed to zero if USE_AIRSPEED ?
+  EstimatorSetAirspeed( NOMINAL_AIRSPEED );
 }
 
-
-
-void estimator_propagate_state( void ) {
-
-}
 
 bool_t alt_kalman_enabled;
 
@@ -121,7 +113,6 @@ bool_t alt_kalman_enabled;
 #endif
 
 #define GPS_SIGMA2 1.
-
 #define GPS_DT 0.25
 #define GPS_R 2.
 
@@ -146,17 +137,23 @@ void alt_kalman(float gps_z) {
   float R;
   float SIGMA2;
 
-#ifdef USE_BARO_MS5534A
+#if USE_BARO_MS5534A
   if (alt_baro_enabled) {
     DT = BARO_DT;
     R = baro_MS5534A_r;
     SIGMA2 = baro_MS5534A_sigma2;
   } else
-#elif defined(USE_BARO_ETS)
+#elif USE_BARO_ETS
   if (baro_ets_enabled) {
     DT = BARO_ETS_DT;
     R = baro_ets_r;
     SIGMA2 = baro_ets_sigma2;
+  } else
+#elif USE_BARO_BMP
+  if (baro_bmp_enabled) {
+    DT = BARO_BMP_DT;
+    R = baro_bmp_r;
+    SIGMA2 = baro_bmp_sigma2;
   } else
 #endif
   {
@@ -198,7 +195,7 @@ void alt_kalman(float gps_z) {
   }
 
 #ifdef DEBUG_ALT_KALMAN
-  DOWNLINK_SEND_ALT_KALMAN(&(p[0][0]),&(p[0][1]),&(p[1][0]), &(p[1][1]));
+  DOWNLINK_SEND_ALT_KALMAN(DefaultChannel,DefaultDevice,&(p[0][0]),&(p[0][1]),&(p[1][0]), &(p[1][1]));
 #endif
 }
 
@@ -213,7 +210,7 @@ void estimator_update_state_gps( void ) {
   gps_north -= nav_utm_north0;
 
   EstimatorSetPosXY(gps_east, gps_north);
-#ifndef USE_BARO_ETS
+#if !USE_BARO_BMP && !USE_BARO_ETS && !USE_BARO_MS5534A
   float falt = gps.hmsl / 1000.;
   EstimatorSetAlt(falt);
 #endif
@@ -222,37 +219,6 @@ void estimator_update_state_gps( void ) {
   float fcourse = gps.course / 1e7;
   EstimatorSetSpeedPol(fspeed, fcourse, fclimb);
 
-  // Heading estimator from wind-information, usually computed with -DWIND_INFO
-  // wind_north and wind_east initialized to 0, so still correct if not updated
-  float w_vn = cosf(estimator_hspeed_dir) * estimator_hspeed_mod - wind_north;
-  float w_ve = sinf(estimator_hspeed_dir) * estimator_hspeed_mod - wind_east;
-  estimator_psi = atan2f(w_ve, w_vn);
-  if (estimator_psi < 0.)
-    estimator_psi += 2 * M_PI;
-#ifdef EXTRA_DOWNLINK_DEVICE
-    DOWNLINK_SEND_ATTITUDE(ExtraPprzTransport,&estimator_phi,&estimator_psi,&estimator_theta);
-#endif
-}
-
-#include "subsystems/sensors/infrared.h"
-void estimator_update_state_infrared( void ) {
-  estimator_phi  = atan2(infrared.roll, infrared.top) - infrared.roll_neutral;
-
-  estimator_theta  = atan2(infrared.pitch, infrared.top) - infrared.pitch_neutral;
-
-  if (estimator_theta < -M_PI_2)
-    estimator_theta += M_PI;
-  else if (estimator_theta > M_PI_2)
-    estimator_theta -= M_PI;
-
-  if (estimator_phi >= 0)
-    estimator_phi *= infrared.correction_right;
-  else
-    estimator_phi *= infrared.correction_left;
-
-  if (estimator_theta >= 0)
-    estimator_theta *= infrared.correction_up;
-  else
-    estimator_theta *= infrared.correction_down;
+  // Heading estimation now in ahrs_infrared
 
 }

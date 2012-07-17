@@ -6,10 +6,10 @@
 <!ATTLIST telemetry>
 <!ATTLIST process
   name CDATA #REQUIRED
-  channel CDATA "DefaultChannel"
 >
 <!ATTLIST mode
   name CDATA #REQUIRED
+  key_press CDATA #IMPLIED
 >
 <!ATTLIST message
   name CDATA #REQUIRED

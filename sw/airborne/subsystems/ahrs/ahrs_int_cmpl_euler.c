@@ -1,6 +1,4 @@
 /*
- * $Id$
- *
  * Copyright (C) 2008-2010 The Paparazzi Team
  *
  * This file is part of paparazzi.
@@ -30,6 +28,11 @@
 
 #include "generated/airframe.h"
 
+#ifndef FACE_REINJ_1
+#define FACE_REINJ_1 1024
+#endif
+
+
 struct AhrsIntCmplEuler ahrs_impl;
 
 static inline void get_phi_theta_measurement_fom_accel(int32_t* phi_meas, int32_t* theta_meas, struct Int32Vect3 accel);
@@ -41,19 +44,26 @@ static inline void compute_body_orientation(void);
 
 #define PI_INTEG_EULER     (INT32_ANGLE_PI * F_UPDATE)
 #define TWO_PI_INTEG_EULER (INT32_ANGLE_2_PI * F_UPDATE)
-#define INTEG_EULER_NORMALIZE(_a) {				\
-    while (_a >  PI_INTEG_EULER)  _a -= TWO_PI_INTEG_EULER;	\
-    while (_a < -PI_INTEG_EULER)  _a += TWO_PI_INTEG_EULER;	\
+#define INTEG_EULER_NORMALIZE(_a) {                         \
+    while (_a >  PI_INTEG_EULER)  _a -= TWO_PI_INTEG_EULER; \
+    while (_a < -PI_INTEG_EULER)  _a += TWO_PI_INTEG_EULER; \
   }
 
 void ahrs_init(void) {
   ahrs.status = AHRS_UNINIT;
+
+  /* set ltp_to_body to zero */
   INT_EULERS_ZERO(ahrs.ltp_to_body_euler);
-  INT_EULERS_ZERO(ahrs.ltp_to_imu_euler);
   INT32_QUAT_ZERO(ahrs.ltp_to_body_quat);
-  INT32_QUAT_ZERO(ahrs.ltp_to_imu_quat);
+  INT32_RMAT_ZERO(ahrs.ltp_to_body_rmat);
   INT_RATES_ZERO(ahrs.body_rate);
+
+  /* set ltp_to_imu so that body is zero */
+  QUAT_COPY(ahrs.ltp_to_imu_quat, imu.body_to_imu_quat);
+  RMAT_COPY(ahrs.ltp_to_imu_rmat, imu.body_to_imu_rmat);
+  INT32_EULERS_OF_RMAT(ahrs.ltp_to_imu_euler, ahrs.ltp_to_imu_rmat);
   INT_RATES_ZERO(ahrs.imu_rate);
+
   INT_RATES_ZERO(ahrs_impl.gyro_bias);
   ahrs_impl.reinj_1 = FACE_REINJ_1;
 
@@ -68,7 +78,7 @@ void ahrs_align(void) {
 
   get_phi_theta_measurement_fom_accel(&ahrs_impl.hi_res_euler.phi, &ahrs_impl.hi_res_euler.theta, ahrs_aligner.lp_accel);
   get_psi_measurement_from_mag(&ahrs_impl.hi_res_euler.psi,
-			       ahrs_impl.hi_res_euler.phi/F_UPDATE, ahrs_impl.hi_res_euler.theta/F_UPDATE, ahrs_aligner.lp_mag);
+                               ahrs_impl.hi_res_euler.phi/F_UPDATE, ahrs_impl.hi_res_euler.theta/F_UPDATE, ahrs_aligner.lp_mag);
 
   EULERS_COPY(ahrs_impl.measure, ahrs_impl.hi_res_euler);
   EULERS_COPY(ahrs_impl.measurement, ahrs_impl.hi_res_euler);
@@ -85,7 +95,41 @@ void ahrs_align(void) {
 
 }
 
+//#define USE_NOISE_CUT 1
+//#define USE_NOISE_FILTER 1
+#define NOISE_FILTER_GAIN 50
 
+#if USE_NOISE_CUT
+#include "led.h"
+static inline bool_t cut_rates (struct Int32Rates i1, struct Int32Rates i2, int32_t threshold) {
+  struct Int32Rates diff;
+  RATES_DIFF(diff, i1, i2);
+  if (diff.p < -threshold || diff.p > threshold ||
+      diff.q < -threshold || diff.q > threshold ||
+      diff.r < -threshold || diff.r > threshold) {
+    return TRUE;
+  } else {
+    return FALSE;
+  }
+}
+#define RATE_CUT_THRESHOLD RATE_BFP_OF_REAL(1)
+
+static inline bool_t cut_accel (struct Int32Vect3 i1, struct Int32Vect3 i2, int32_t threshold) {
+  struct Int32Vect3 diff;
+  VECT3_DIFF(diff, i1, i2);
+  if (diff.x < -threshold || diff.x > threshold ||
+      diff.y < -threshold || diff.y > threshold ||
+      diff.z < -threshold || diff.z > threshold) {
+    LED_ON(4);
+    return TRUE;
+  } else {
+    LED_OFF(4);
+    return FALSE;
+  }
+}
+#define ACCEL_CUT_THRESHOLD ACCEL_BFP_OF_REAL(20)
+
+#endif
 
 /*
  *
@@ -106,9 +150,22 @@ void ahrs_propagate(void) {
   /* unbias gyro             */
   struct Int32Rates uf_rate;
   RATES_DIFF(uf_rate, imu.gyro, ahrs_impl.gyro_bias);
-  /* low pass rate */
-  RATES_ADD(ahrs.imu_rate, uf_rate);
-  RATES_SDIV(ahrs.imu_rate, ahrs.imu_rate, 2);
+#if USE_NOISE_CUT
+  static struct Int32Rates last_uf_rate = { 0, 0, 0 };
+  if (!cut_rates(uf_rate, last_uf_rate, RATE_CUT_THRESHOLD)) {
+#endif
+    /* low pass rate */
+#if USE_NOISE_FILTER
+    RATES_SUM_SCALED(ahrs.imu_rate, ahrs.imu_rate, uf_rate, NOISE_FILTER_GAIN);
+    RATES_SDIV(ahrs.imu_rate, ahrs.imu_rate, NOISE_FILTER_GAIN+1);
+#else
+    RATES_ADD(ahrs.imu_rate, uf_rate);
+    RATES_SDIV(ahrs.imu_rate, ahrs.imu_rate, 2);
+#endif
+#if USE_NOISE_CUT
+  }
+  RATES_COPY(last_uf_rate, uf_rate);
+#endif
 
   /* integrate eulers */
   struct Int32Eulers euler_dot;
@@ -142,7 +199,21 @@ void ahrs_propagate(void) {
 
 void ahrs_update_accel(void) {
 
-  get_phi_theta_measurement_fom_accel(&ahrs_impl.measurement.phi, &ahrs_impl.measurement.theta, imu.accel);
+#if USE_NOISE_CUT || USE_NOISE_FILTER
+  static struct Int32Vect3 last_accel = { 0, 0, 0 };
+#endif
+#if USE_NOISE_CUT
+  if (!cut_accel(imu.accel, last_accel, ACCEL_CUT_THRESHOLD)) {
+#endif
+#if USE_NOISE_FILTER
+    VECT3_SUM_SCALED(imu.accel, imu.accel, last_accel, NOISE_FILTER_GAIN);
+    VECT3_SDIV(imu.accel, imu.accel, NOISE_FILTER_GAIN+1);
+#endif
+    get_phi_theta_measurement_fom_accel(&ahrs_impl.measurement.phi, &ahrs_impl.measurement.theta, imu.accel);
+#if USE_NOISE_CUT
+  }
+  VECT3_COPY(last_accel, imu.accel);
+#endif
 
 }
 
@@ -150,6 +221,10 @@ void ahrs_update_accel(void) {
 void ahrs_update_mag(void) {
 
   get_psi_measurement_from_mag(&ahrs_impl.measurement.psi, ahrs.ltp_to_imu_euler.phi, ahrs.ltp_to_imu_euler.theta, imu.mag);
+
+}
+
+void ahrs_update_gps(void) {
 
 }
 
@@ -190,7 +265,7 @@ __attribute__ ((always_inline)) static inline void get_psi_measurement_from_mag(
   //  sphi_ctheta * imu.mag.y +
   //  cphi_ctheta * imu.mag.z;
   float m_psi = -atan2(me, mn);
-  *psi_meas = ((m_psi - RadOfDeg(ahrs_mag_offset))*(float)(1<<(INT32_ANGLE_FRAC))*F_UPDATE);
+  *psi_meas = ((m_psi - ahrs_mag_offset)*(float)(1<<(INT32_ANGLE_FRAC))*F_UPDATE);
 
 }
 
@@ -217,3 +292,35 @@ __attribute__ ((always_inline)) static inline void compute_body_orientation(void
   INT32_RMAT_TRANSP_RATEMULT(ahrs.body_rate, imu.body_to_imu_rmat, ahrs.imu_rate);
 
 }
+
+
+#ifdef AHRS_UPDATE_FW_ESTIMATOR
+// TODO use ahrs result directly
+#include "estimator.h"
+// remotely settable
+#ifndef INS_ROLL_NEUTRAL_DEFAULT
+#define INS_ROLL_NEUTRAL_DEFAULT 0
+#endif
+#ifndef INS_PITCH_NEUTRAL_DEFAULT
+#define INS_PITCH_NEUTRAL_DEFAULT 0
+#endif
+float ins_roll_neutral = INS_ROLL_NEUTRAL_DEFAULT;
+float ins_pitch_neutral = INS_PITCH_NEUTRAL_DEFAULT;
+void ahrs_update_fw_estimator(void)
+{
+  struct FloatEulers att;
+  // export results to estimator
+  EULERS_FLOAT_OF_BFP(att, ahrs.ltp_to_body_euler);
+
+  estimator_phi   = att.phi - ins_roll_neutral;
+  estimator_theta = att.theta - ins_pitch_neutral;
+  estimator_psi   = att.psi;
+
+  struct FloatRates rates;
+  RATES_FLOAT_OF_BFP(rates, ahrs.body_rate);
+  estimator_p = rates.p;
+  estimator_q = rates.q;
+  estimator_r = rates.r;
+
+}
+#endif //AHRS_UPDATE_FW_ESTIMATOR

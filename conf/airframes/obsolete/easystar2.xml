@@ -47,8 +47,8 @@
   </command_laws>
 
   <section name="AUTO1" prefix="AUTO1_">
-    <define name="MAX_ROLL" value="RadOfDeg(50)"/>
-    <define name="MAX_PITCH" value="RadOfDeg(40)"/>
+    <define name="MAX_ROLL" value="50" unit="deg"/>
+    <define name="MAX_PITCH" value="40" unit="deg"/>
   </section>
 
   <section name="adc" prefix="ADC_CHANNEL_">
@@ -93,7 +93,7 @@
     <define name="NOMINAL_AIRSPEED" value="15." unit="m/s"/>
     <define name="CARROT" value="4." unit="s"/>
     <define name="KILL_MODE_DISTANCE" value="(2.0*MAX_DIST_FROM_HOME)"/>
-    <define name="CONTROL_RATE" value="60" unit="Hz"/>
+    <define name="CONTROL_FREQUENCY" value="60" unit="Hz"/>
     <define name="NO_XBEE_API_INIT" value="TRUE"/>
     <define name="ALT_KALMAN_ENABLED" value="TRUE"/>
     <define name="TRIGGER_DELAY" value="1."/>
@@ -103,7 +103,7 @@
   <section name="VERTICAL CONTROL" prefix="V_CTL_">
     <define name="POWER_CTL_BAT_NOMINAL" value="11.0" unit="volt"/>
     <!-- outer loop -->
-    <define name="ALTITUDE_PGAIN" value="-0.075" unit="(m/s)/m"/>
+    <define name="ALTITUDE_PGAIN" value="0.075" unit="(m/s)/m"/>
     <define name="ALTITUDE_MAX_CLIMB" value="4." unit="m/s"/>
     <!-- auto throttle inner loop -->
     <define name="AUTO_THROTTLE_NOMINAL_CRUISE_THROTTLE" value="0.5" unit="%"/>
@@ -112,7 +112,7 @@
     <define name="AUTO_THROTTLE_LOITER_TRIM" value="1500" unit="pprz_t"/>
     <define name="AUTO_THROTTLE_DASH_TRIM" value="-1000" unit="pprz_t"/>
     <define name="AUTO_THROTTLE_CLIMB_THROTTLE_INCREMENT" value="0.1" unit="%/(m/s)"/>
-    <define name="AUTO_THROTTLE_PGAIN" value="-0.02" unit="%/(m/s)"/>
+    <define name="AUTO_THROTTLE_PGAIN" value="0.02" unit="%/(m/s)"/>
     <define name="AUTO_THROTTLE_IGAIN" value="0.1"/>
     <define name="AUTO_THROTTLE_PITCH_OF_VZ_PGAIN" value="0.05" unit="rad/(m/s)"/>
     <!-- auto airspeed and altitude inner loop -->
@@ -122,7 +122,7 @@
     <define name="AUTO_GROUNDSPEED_SETPOINT" value="6.0" unit="m/s"/>
     <define name="AUTO_GROUNDSPEED_PGAIN" value="0.75"/>
     <define name="AUTO_GROUNDSPEED_IGAIN" value="0.25"/>
-    <define name="AUTO_PITCH_PGAIN" value="-0.125"/>
+    <define name="AUTO_PITCH_PGAIN" value="0.125"/>
     <define name="AUTO_PITCH_IGAIN" value="0.025"/>
     <define name="AUTO_PITCH_MAX_PITCH" value="RadOfDeg(25)"/>
     <define name="AUTO_PITCH_MIN_PITCH" value="RadOfDeg(-25)"/>
@@ -130,19 +130,18 @@
   </section>
 
   <section name="HORIZONTAL CONTROL" prefix="H_CTL_">
-    <define name="COURSE_PGAIN" value="-0.7"/>
-    <define name="ROLL_MAX_SETPOINT" value="RadOfDeg(35)" unit="radians"/>
-    <define name="PITCH_MAX_SETPOINT" value="RadOfDeg(25)" unit="radians"/>
-    <define name="PITCH_MIN_SETPOINT" value="RadOfDeg(-25)" unit="radians"/>
-    <define name="PITCH_PGAIN" value="-20000."/>
+    <define name="COURSE_PGAIN" value="0.7"/>
+    <define name="ROLL_MAX_SETPOINT" value="35" unit="deg"/>
+    <define name="PITCH_MAX_SETPOINT" value="25" unit="deg"/>
+    <define name="PITCH_MIN_SETPOINT" value="-25" unit="deg"/>
+    <define name="PITCH_PGAIN" value="20000."/>
     <define name="PITCH_DGAIN" value="1.5"/>
     <define name="ELEVATOR_OF_ROLL" value="2500"/>
-    <define name="ROLL_ATTITUDE_GAIN" value="-7400"/>
-    <define name="ROLL_RATE_GAIN" value="-200"/>
+    <define name="ROLL_ATTITUDE_GAIN" value="7400"/>
+    <define name="ROLL_RATE_GAIN" value="200"/>
   </section>
 
   <section name="NAV">
-    <define name="NAV_PITCH" value="0."/>
     <define name="NAV_GLIDE_PITCH_TRIM" value="0"/>
   </section>
 
@@ -160,8 +159,8 @@
   <section name="FAILSAFE" prefix="FAILSAFE_">
     <define name="DELAY_WITHOUT_GPS" value="3" unit="s"/>
     <define name="DEFAULT_THROTTLE" value="0.4" unit="%"/>
-    <define name="DEFAULT_ROLL" value="RadOfDeg(15)" unit="rad"/>
-    <define name="DEFAULT_PITCH" value="RadOfDeg(0)" unit="rad"/>
+    <define name="DEFAULT_ROLL" value="15" unit="deg"/>
+    <define name="DEFAULT_PITCH" value="0" unit="deg"/>
     <define name="HOME_RADIUS" value="90" unit="m"/>
   </section>
 
@@ -174,7 +173,7 @@
 CONFIG = \"tiny_2_1_1.h\"
 
 # Target configuration
-include $(PAPARAZZI_SRC)/conf/autopilot/tiny.makefile
+include $(PAPARAZZI_SRC)/conf/firmwares/tiny.makefile
 
 FLASH_MODE=IAP
 
@@ -193,7 +192,7 @@ ap.srcs += radio_control.c $(SRC_ARCH)/ppm_hw.c
 
 # Telemetry configuration
 ap.CFLAGS += -DDOWNLINK -DUSE_UART1 -DDOWNLINK_TRANSPORT=PprzTransport -DDOWNLINK_FBW_DEVICE=Uart1 -DDOWNLINK_AP_DEVICE=Uart1 -DPPRZ_UART=Uart1 -DDATALINK=PPRZ -DUART1_BAUD=B57600
-ap.srcs += downlink.c $(SRC_ARCH)/mcu_periph/uart_arch.c datalink.c pprz_transport.c
+ap.srcs += subsystems/datalink/downlink.c $(SRC_ARCH)/mcu_periph/uart_arch.c datalink.c subsystems/datalink/pprz_transport.c
 
 ap.CFLAGS += -DINTER_MCU
 ap.srcs += inter_mcu.c
@@ -226,7 +225,7 @@ ap.CFLAGS += -DUSE_AIRSPEED_ETS -DUSE_AIRSPEED -DUSE_BARO_ETS -DUSE_I2C0 -DAGR_C
 ap.srcs += airspeed.c airspeed_ets.c baro_ets.c i2c.c $(SRC_ARCH)/i2c_hw.c
 
 # Config for SITL simulation
-include $(PAPARAZZI_SRC)/conf/autopilot/sitl.makefile
+include $(PAPARAZZI_SRC)/conf/firmwares/sitl.makefile
 sim.CFLAGS += -DBOARD_CONFIG=\"tiny.h\" -DLOITER_TRIM -DALT_KALMAN -DUSE_MODULES
 sim.srcs += subsystems/navigation/nav_line.c subsystems/navigation/nav_survey_rectangle.c
 sim.CFLAGS += -DUSE_AIRSPEED_ETS -DUSE_AIRSPEED -DUSE_BARO_ETS -DUSE_I2C0 -DAGR_CLIMB

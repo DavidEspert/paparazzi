@@ -33,6 +33,8 @@
 #define IMU_B2_MAG_NONE   0
 #define IMU_B2_MAG_MS2100 1
 #define IMU_B2_MAG_AMI601 2
+#define IMU_B2_MAG_HMC5843 3
+#define IMU_B2_MAG_HMC58XX 4
 
 
 #ifdef IMU_B2_VERSION_1_0
@@ -135,9 +137,9 @@
 #define IMU_ACCEL_Z_SIGN  1
 #endif
 #if !defined IMU_MAG_X_SIGN & !defined IMU_MAG_Y_SIGN & !defined IMU_MAG_Z_SIGN
-#define IMU_MAG_X_SIGN    1
+#define IMU_MAG_X_SIGN   -1
 #define IMU_MAG_Y_SIGN   -1
-#define IMU_MAG_Z_SIGN   -1
+#define IMU_MAG_Z_SIGN    1
 #endif
 #endif /* IMU_B2_VERSION_1_2 */
 
@@ -170,7 +172,7 @@
 #include "peripherals/hmc5843.h"
 #define foo_handler() {}
 #define ImuMagEvent(_mag_handler) {					\
-	  MagEvent(foo_handler); \
+    MagEvent(foo_handler);                          \
     if (hmc5843.data_available) {			\
       imu.mag_unscaled.x = hmc5843.data.value[IMU_MAG_X_CHAN];		\
       imu.mag_unscaled.y = hmc5843.data.value[IMU_MAG_Y_CHAN];		\
@@ -179,8 +181,22 @@
       hmc5843.data_available = FALSE;		\
     }									\
   }
+#elif defined IMU_B2_MAG_TYPE && IMU_B2_MAG_TYPE == IMU_B2_MAG_HMC58XX
+#include "peripherals/hmc58xx.h"
+#define foo_handler() {}
+#define ImuMagEvent(_mag_handler) {					\
+    MagEvent(foo_handler);                          \
+    if (hmc58xx_data_available) {			\
+      imu.mag_unscaled.x = hmc58xx_data.x;		\
+      imu.mag_unscaled.y = hmc58xx_data.y;		\
+      imu.mag_unscaled.z = hmc58xx_data.z;		\
+      _mag_handler();							\
+      hmc58xx_data_available = FALSE;		\
+    }									\
+  }
 #else
 #define ImuMagEvent(_mag_handler) {}
+#define ImuScaleMag(_imu) {}
 #endif
 
 

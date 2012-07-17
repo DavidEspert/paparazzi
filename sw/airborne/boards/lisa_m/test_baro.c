@@ -30,10 +30,11 @@
 #include BOARD_CONFIG
 
 #include "mcu.h"
-#include "sys_time.h"
+#include "mcu_periph/sys_time.h"
 #include "mcu_periph/uart.h"
+#include "led.h"
 
-#include "downlink.h"
+#include "subsystems/datalink/downlink.h"
 
 #include "subsystems/sensors/baro.h"
 //#include "my_debug_servo.h"
@@ -50,7 +51,7 @@ int main(void) {
   main_init();
 
   while(1) {
-    if (sys_time_periodic())
+    if (sys_time_check_and_ack_timer(0))
       main_periodic_task();
     main_event_task();
   }
@@ -60,7 +61,7 @@ int main(void) {
 
 static inline void main_init( void ) {
   mcu_init();
-  sys_time_init();
+  sys_time_register_timer((1./PERIODIC_FREQUENCY), NULL);
   baro_init();
 
   //  DEBUG_SERVO1_INIT();
@@ -75,19 +76,30 @@ static inline void main_periodic_task( void ) {
 
   RunOnceEvery(2, {baro_periodic();});
   LED_PERIODIC();
-  RunOnceEvery(256, {DOWNLINK_SEND_ALIVE(DefaultChannel, 16, MD5SUM);});
+  RunOnceEvery(256, {DOWNLINK_SEND_ALIVE(DefaultChannel, DefaultDevice, 16, MD5SUM);});
   RunOnceEvery(256,
     {
-      DOWNLINK_SEND_I2C_ERRORS(DefaultChannel,
-			       &i2c2_errors.ack_fail_cnt,
-			       &i2c2_errors.miss_start_stop_cnt,
-			       &i2c2_errors.arb_lost_cnt,
-			       &i2c2_errors.over_under_cnt,
-			       &i2c2_errors.pec_recep_cnt,
-			       &i2c2_errors.timeout_tlow_cnt,
-			       &i2c2_errors.smbus_alert_cnt,
-			       &i2c2_errors.unexpected_event_cnt,
-			       &i2c2_errors.last_unexpected_event);
+      uint16_t i2c2_ack_fail_cnt          = i2c2.errors->ack_fail_cnt;
+      uint16_t i2c2_miss_start_stop_cnt   = i2c2.errors->miss_start_stop_cnt;
+      uint16_t i2c2_arb_lost_cnt          = i2c2.errors->arb_lost_cnt;
+      uint16_t i2c2_over_under_cnt        = i2c2.errors->over_under_cnt;
+      uint16_t i2c2_pec_recep_cnt         = i2c2.errors->pec_recep_cnt;
+      uint16_t i2c2_timeout_tlow_cnt      = i2c2.errors->timeout_tlow_cnt;
+      uint16_t i2c2_smbus_alert_cnt       = i2c2.errors->smbus_alert_cnt;
+      uint16_t i2c2_unexpected_event_cnt  = i2c2.errors->unexpected_event_cnt;
+      uint32_t i2c2_last_unexpected_event = i2c2.errors->last_unexpected_event;
+      const uint8_t _bus2 = 2;
+      DOWNLINK_SEND_I2C_ERRORS(DefaultChannel, DefaultDevice,
+                               &i2c2_ack_fail_cnt,
+                               &i2c2_miss_start_stop_cnt,
+                               &i2c2_arb_lost_cnt,
+                               &i2c2_over_under_cnt,
+                               &i2c2_pec_recep_cnt,
+                               &i2c2_timeout_tlow_cnt,
+                               &i2c2_smbus_alert_cnt,
+                               &i2c2_unexpected_event_cnt,
+                               &i2c2_last_unexpected_event,
+                               &_bus2);
     });
 }
 
@@ -104,5 +116,5 @@ static inline void main_on_baro_diff(void) {
 }
 
 static inline void main_on_baro_abs(void) {
-  RunOnceEvery(5,{DOWNLINK_SEND_BARO_RAW(DefaultChannel, &baro.absolute, &baro.differential);});
+  RunOnceEvery(5,{DOWNLINK_SEND_BARO_RAW(DefaultChannel, DefaultDevice, &baro.absolute, &baro.differential);});
 }

@@ -2,7 +2,7 @@
  * $Id$
  *
  * Default ivy bus address selection
- *  
+ *
  * Copyright (C) 2011 Eric Parsonage
  *
  * This file is part of paparazzi.
@@ -20,32 +20,13 @@
  * You should have received a copy of the GNU General Public License
  * along with paparazzi; see the file COPYING.  If not, write to
  * the Free Software Foundation, 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA. 
+ * Boston, MA 02111-1307, USA.
  *
  *)
-
-let read_process_output command =
-  let buffer_size = 2048 in
-  let buffer = Buffer.create buffer_size in
-  let string = String.create buffer_size in
-  let in_channel = Unix.open_process_in command in
-  let chars_read = ref 1 in
-  while !chars_read <> 0 do
-    chars_read := input in_channel string 0 buffer_size;
-    Buffer.add_substring buffer string 0 !chars_read
-  done;
-  ignore (Unix.close_process_in in_channel);
-  Buffer.contents buffer
-
-let contains s substring =
-  try ignore (Str.search_forward (Str.regexp_string substring) s 0); true
-  with Not_found -> false
-
 let default_ivy_bus = String.copy (
   try (Sys.getenv "IVY_BUS" )
-    with  Not_found ->    
-     (if contains (read_process_output "uname") "Darwin" then       
-        "224.255.255.255:2010" 
-      else  
-        "127.255.255.255:2010"))     
-
+    with  Not_found ->
+     (if Os_calls.contains (Os_calls.os_name) "Darwin" then
+        "224.255.255.255:2010"
+      else
+        "127.255.255.255:2010"))

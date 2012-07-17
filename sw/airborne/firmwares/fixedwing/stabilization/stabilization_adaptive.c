@@ -116,6 +116,8 @@ inline static void h_ctl_pitch_loop( void );
 #define H_CTL_COURSE_DGAIN 0.
 #endif
 
+#pragma message "CAUTION! ALL control gains have to be positive now!"
+
 // Some default roll gains
 // H_CTL_ROLL_ATTITUDE_GAIN needs to be define in airframe
 #ifndef H_CTL_ROLL_RATE_GAIN
@@ -185,7 +187,7 @@ void h_ctl_init( void ) {
   use_airspeed_ratio = FALSE;
   airspeed_ratio2 = 1.;
 
-#ifdef USE_PITCH_TRIM
+#if USE_PITCH_TRIM
   v_ctl_pitch_loiter_trim = V_CTL_PITCH_LOITER_TRIM;
   v_ctl_pitch_dash_trim = V_CTL_PITCH_DASH_TRIM;
 #else
@@ -203,7 +205,7 @@ void h_ctl_course_loop ( void ) {
   static float last_err;
 
   // Ground path error
-  float err = estimator_hspeed_dir - h_ctl_course_setpoint;
+  float err = h_ctl_course_setpoint - estimator_hspeed_dir;
   NormRadAngle(err);
 
   float d_err = err - last_err;
@@ -220,7 +222,7 @@ void h_ctl_course_loop ( void ) {
   BoundAbs(h_ctl_roll_setpoint, h_ctl_roll_max_setpoint);
 }
 
-#ifdef USE_AIRSPEED
+#if USE_AIRSPEED
 static inline void compute_airspeed_ratio( void ) {
   if (use_airspeed_ratio) {
     // low pass airspeed
@@ -238,7 +240,7 @@ static inline void compute_airspeed_ratio( void ) {
 
 void h_ctl_attitude_loop ( void ) {
   if (!h_ctl_disabled) {
-#ifdef USE_AIRSPEED
+#if USE_AIRSPEED
     compute_airspeed_ratio();
 #endif
     h_ctl_roll_loop();
@@ -254,7 +256,7 @@ inline static void h_ctl_roll_loop( void ) {
 
   static float cmd_fb = 0.;
 
-#ifdef USE_ANGLE_REF
+#if USE_ANGLE_REF
   // Update reference setpoints for roll
   h_ctl_ref_roll_angle += h_ctl_ref_roll_rate * H_CTL_REF_DT;
   h_ctl_ref_roll_rate += h_ctl_ref_roll_accel * H_CTL_REF_DT;
@@ -277,50 +279,44 @@ inline static void h_ctl_roll_loop( void ) {
 
 #ifdef USE_KFF_UPDATE
   // update Kff gains
-  h_ctl_roll_Kffa -= KFFA_UPDATE * h_ctl_ref_roll_accel * cmd_fb / (H_CTL_REF_MAX_P_DOT*H_CTL_REF_MAX_P_DOT);
-  h_ctl_roll_Kffd -= KFFD_UPDATE * h_ctl_ref_roll_rate  * cmd_fb / (H_CTL_REF_MAX_P*H_CTL_REF_MAX_P);
+  h_ctl_roll_Kffa += KFFA_UPDATE * h_ctl_ref_roll_accel * cmd_fb / (H_CTL_REF_MAX_P_DOT*H_CTL_REF_MAX_P_DOT);
+  h_ctl_roll_Kffd += KFFD_UPDATE * h_ctl_ref_roll_rate  * cmd_fb / (H_CTL_REF_MAX_P*H_CTL_REF_MAX_P);
 #ifdef SITL
   printf("%f %f %f\n", h_ctl_roll_Kffa, h_ctl_roll_Kffd, cmd_fb);
 #endif
-  h_ctl_roll_Kffa = Min(h_ctl_roll_Kffa, 0);
-  h_ctl_roll_Kffd = Min(h_ctl_roll_Kffd, 0);
+  h_ctl_roll_Kffa = Max(h_ctl_roll_Kffa, 0);
+  h_ctl_roll_Kffd = Max(h_ctl_roll_Kffd, 0);
 #endif
 
   // Compute errors
-  float err = estimator_phi - h_ctl_ref_roll_angle;
+  float err = h_ctl_ref_roll_angle - estimator_phi;
 #ifdef SITL
   static float last_err = 0;
   estimator_p = (err - last_err)/(1/60.);
   last_err = err;
 #endif
-  float d_err = estimator_p - h_ctl_ref_roll_rate;
+  float d_err = h_ctl_ref_roll_rate - estimator_p;
 
   if (pprz_mode == PPRZ_MODE_MANUAL || launch == 0) {
     h_ctl_roll_sum_err = 0.;
   }
   else {
-    if (h_ctl_roll_igain < 0.) {
+    if (h_ctl_roll_igain > 0.) {
       h_ctl_roll_sum_err += err * H_CTL_REF_DT;
-      BoundAbs(h_ctl_roll_sum_err, (- H_CTL_ROLL_SUM_ERR_MAX / h_ctl_roll_igain));
+      BoundAbs(h_ctl_roll_sum_err, H_CTL_ROLL_SUM_ERR_MAX / h_ctl_roll_igain);
     } else {
       h_ctl_roll_sum_err = 0.;
     }
   }
 
-  cmd_fb = h_ctl_roll_attitude_gain * err;// + h_ctl_roll_rate_gain * d_err;
-  float cmd = h_ctl_roll_Kffa * h_ctl_ref_roll_accel
-    + h_ctl_roll_Kffd * h_ctl_ref_roll_rate
+  cmd_fb = h_ctl_roll_attitude_gain * err;
+  float cmd = - h_ctl_roll_Kffa * h_ctl_ref_roll_accel
+    - h_ctl_roll_Kffd * h_ctl_ref_roll_rate
     - cmd_fb
     - h_ctl_roll_rate_gain * d_err
     - h_ctl_roll_igain * h_ctl_roll_sum_err
     + v_ctl_throttle_setpoint * h_ctl_aileron_of_throttle;
-//  float cmd = h_ctl_roll_Kffa * h_ctl_ref_roll_accel
-//    + h_ctl_roll_Kffd * h_ctl_ref_roll_rate
-//    - h_ctl_roll_attitude_gain * err
-//    - h_ctl_roll_rate_gain * d_err
-//    - h_ctl_roll_igain * h_ctl_roll_sum_err
-//    + v_ctl_throttle_setpoint * h_ctl_aileron_of_throttle;
-//
+
   cmd /= airspeed_ratio2;
 
   // Set aileron commands
@@ -328,17 +324,11 @@ inline static void h_ctl_roll_loop( void ) {
 }
 
 
-// NOT USED
-#ifdef LOITER_TRIM
-float v_ctl_auto_throttle_loiter_trim = V_CTL_AUTO_THROTTLE_LOITER_TRIM;
-float v_ctl_auto_throttle_dash_trim = V_CTL_AUTO_THROTTLE_DASH_TRIM;
-#endif
-
-#ifdef USE_PITCH_TRIM
+#if USE_PITCH_TRIM
 inline static void loiter(void) {
   float pitch_trim;
 
-#ifdef USE_AIRSPEED
+#if USE_AIRSPEED
   if (estimator_airspeed > NOMINAL_AIRSPEED) {
     pitch_trim = v_ctl_pitch_dash_trim * (airspeed_ratio2-1) / ((AIRSPEED_RATIO_MAX * AIRSPEED_RATIO_MAX) - 1);
   } else {
@@ -361,17 +351,20 @@ inline static void loiter(void) {
 
 
 inline static void h_ctl_pitch_loop( void ) {
+#if !USE_GYRO_PITCH_RATE
   static float last_err;
+#endif
+
   /* sanity check */
   if (h_ctl_pitch_of_roll <0.)
     h_ctl_pitch_of_roll = 0.;
 
   h_ctl_pitch_loop_setpoint = h_ctl_pitch_setpoint + h_ctl_pitch_of_roll * fabs(estimator_phi);
-#ifdef USE_PITCH_TRIM
+#if USE_PITCH_TRIM
   loiter();
 #endif
 
-#ifdef USE_ANGLE_REF
+#if USE_ANGLE_REF
   // Update reference setpoints for pitch
   h_ctl_ref_pitch_angle += h_ctl_ref_pitch_rate * H_CTL_REF_DT;
   h_ctl_ref_pitch_rate += h_ctl_ref_pitch_accel * H_CTL_REF_DT;
@@ -393,24 +386,28 @@ inline static void h_ctl_pitch_loop( void ) {
 #endif
 
   // Compute errors
-  float err = estimator_theta - h_ctl_ref_pitch_angle;
+  float err =  h_ctl_ref_pitch_angle - estimator_theta;
+#if USE_GYRO_PITCH_RATE
+  float d_err = h_ctl_ref_pitch_rate - estimator_q;
+#else // soft derivation
   float d_err = (err - last_err)/H_CTL_REF_DT - h_ctl_ref_pitch_rate;
   last_err = err;
+#endif
 
   if (pprz_mode == PPRZ_MODE_MANUAL || launch == 0) {
     h_ctl_pitch_sum_err = 0.;
   }
   else {
-    if (h_ctl_pitch_igain < 0.) {
+    if (h_ctl_pitch_igain > 0.) {
       h_ctl_pitch_sum_err += err * H_CTL_REF_DT;
-      BoundAbs(h_ctl_pitch_sum_err, (- H_CTL_PITCH_SUM_ERR_MAX / h_ctl_pitch_igain));
+      BoundAbs(h_ctl_pitch_sum_err, H_CTL_PITCH_SUM_ERR_MAX / h_ctl_pitch_igain);
     } else {
       h_ctl_pitch_sum_err = 0.;
     }
   }
 
-  float cmd = h_ctl_pitch_Kffa * h_ctl_ref_pitch_accel
-    + h_ctl_pitch_Kffd * h_ctl_ref_pitch_rate
+  float cmd = - h_ctl_pitch_Kffa * h_ctl_ref_pitch_accel
+    - h_ctl_pitch_Kffd * h_ctl_ref_pitch_rate
     + h_ctl_pitch_pgain * err
     + h_ctl_pitch_dgain * d_err
     + h_ctl_pitch_igain * h_ctl_pitch_sum_err;

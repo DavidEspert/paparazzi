@@ -64,7 +64,7 @@ let index_of_settings = Hashtbl.create 13
 let index_of_blocks = Hashtbl.create 13
 
 (** External C functions to access the input device *)
-external stick_init : string -> int = "ml_stick_init"
+external stick_init : int -> int = "ml_stick_init"
 (** [stick_init device] Return 0 on success. Search for a device if [device]
  is the empty string *)
 
@@ -88,7 +88,8 @@ type msg = {
     msg_class : string;
     fields : (string * Syntax.expression) list;
     on_event : Syntax.expression option;
-    send_always : bool
+    send_always : bool;
+    has_ac_id : bool
   }
 
 (** Representation of a variable *)
@@ -117,7 +118,7 @@ let get_message_type = fun class_name ->
   | "trim_plus" -> "Trim"
   | "trim_minus" -> "Trim"
   | "trim_save" -> "Trim"
-  | _ -> failwith class_name    
+  | _ -> failwith class_name
 
 (** Get a message description from its name (and class name) *)
 (**   class_names with entries above as "Message" should be listed here  *)
@@ -230,12 +231,13 @@ let parse_msg = fun msg ->
   and msg_class = Xml.attrib msg "class"
   and send_always = (try (Xml.attrib msg "send_always") = "true" with _ -> false) in
 
-  let fields =
+  let fields, has_ac_id =
     match get_message_type msg_class with
-      "Message" -> 
+      "Message" ->
         let msg_descr = get_message msg_class msg_name in
-        List.map (parse_msg_field msg_descr) (Xml.children msg)
-    | "Trim" -> []
+        (List.map (parse_msg_field msg_descr) (Xml.children msg),
+        List.mem_assoc "ac_id" msg_descr.Pprz.fields)
+    | "Trim" -> ([], false)
     | _ -> failwith ("Unknown message class type") in
 
   let on_event =
@@ -245,7 +247,8 @@ let parse_msg = fun msg ->
     msg_class = msg_class;
     fields = fields;
     on_event = on_event;
-    send_always = send_always
+    send_always = send_always;
+    has_ac_id = has_ac_id
   }
 
 (** Parse an XML list of variables and set function *)
@@ -304,7 +307,7 @@ let parse_trim_file = fun trim_file_name inputs ->
     List.iter (trim_set inputs) trim_values;
   end
 
-(** Parse the complete (input and messages) XML desxription 
+(** Parse the complete (input and messages) XML desxription
     Also parses the trim xml file if it exists *)
 let parse_descr = fun xml_file trim_file ->
   let xml = Xml.parse_file xml_file in
@@ -429,7 +432,7 @@ let first_list (x,_) = x
 let trim_save_add_leaf = fun x channel_pair ->
   let chan_name = first_list channel_pair in
   let channel = second_list channel_pair in
-  match channel with 
+  match channel with
     Axis (i, deadband, limit, exponent, trim) -> x := x.contents ^ (Printf.sprintf "<trim axis='%s' value = '%f'/>" chan_name trim.contents)
   | Button i -> Printf.printf "%d" i
 
@@ -478,12 +481,12 @@ let execute_action = fun ac_id inputs buttons axis variables message ->
   let previous_values = get_previous_values message.msg_name in
   (* FIXME ((value <> previous) && on_event) || send_always ??? *)
   if ( ( (on_event, values) <> previous_values ) || message.send_always ) && on_event then begin
-    let vs = ("ac_id", Pprz.Int ac_id) :: values in
+    let vs = if message.has_ac_id then ("ac_id", Pprz.Int ac_id) :: values else values in
     match message.msg_class with
       "datalink" -> DL.message_send "input2ivy" message.msg_name vs
     | "ground" -> G.message_send "input2ivy" message.msg_name vs
     | "trim_plus" -> trim_adjust message.msg_name trim_step inputs
-    | "trim_minus" -> trim_adjust message.msg_name (-.trim_step) inputs 
+    | "trim_minus" -> trim_adjust message.msg_name (-.trim_step) inputs
     | "trim_save" -> trim_save inputs
     | c -> failwith (sprintf "execute_action: unknown class '%s'" c)
   end;
@@ -523,7 +526,7 @@ let execute_actions = fun actions ac_id ->
 (**   used for adjusting trims interactively from the keyboard *)
 (**   this capability is mostly for bench-time trimming when a joystick does not have adequate buttons *)
 (**   it is not a very complete capability  *)
-let execute_kb_action = fun actions conditions -> 
+let execute_kb_action = fun actions conditions ->
   let ch = input_byte Pervasives.stdin in
   (** esdx for left stick
       ijkm for right  *)
@@ -543,12 +546,12 @@ let execute_kb_action = fun actions conditions ->
 
   true
 
- 
+
 
 (************************************* MAIN **********************************)
 let () =
   let ivy_bus = ref Defivybus.default_ivy_bus  in
-  let device_name = ref "/dev/input/js0"
+  let device_index = ref 0
   and ac_name = ref "MYAC"
   and xml_descr = ref "" in
 
@@ -556,7 +559,7 @@ let () =
   let speclist =
     [ "-b", Arg.String (fun x -> ivy_bus := x),(sprintf "<ivy bus> Default is %s" !ivy_bus);
       "-ac",  Arg.Set_string ac_name, "<A/C name>";
-      "-d",  Arg.Set_string device_name, "<device name>";
+      "-d",  Arg.Set_int device_index, "<device index>";
       "-v",  Arg.Set verbose, "Verbose mode (useful to identify the channels of an input device)";
       "-id", Arg.Set_int joystick_id, "Joystick ID, from 0-255.  Each joystick requires a unique ID in a multiple joystick configuration.";
       "-", Arg.String anon_fun, "<xml file of actions>"
@@ -583,8 +586,8 @@ let () =
 
   let actions = parse_descr xml_descr_full trim_file_name.contents in
 
-  if stick_init !device_name <> 0 then
-    failwith (sprintf "Error: cannot open device %s\n" !device_name);
+  if stick_init !device_index <> 0 then
+    failwith (sprintf "Error: cannot open device with SDL index %i\n" !device_index);
 
   (** Connect to the Ivy bus *)
   Ivy.init "Paparazzi joystick" "READY" (fun _ _ -> ());

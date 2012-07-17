@@ -1,4 +1,4 @@
-# 
+#
 #   $Id$
 #   Copyright (C) 2003 Pascal Brisset, Antoine Drouin
 #
@@ -17,7 +17,7 @@
 # You should have received a copy of the GNU General Public License
 # along with paparazzi; see the file COPYING.  If not, write to
 # the Free Software Foundation, 59 Temple Place - Suite 330,
-# Boston, MA 02111-1307, USA.  
+# Boston, MA 02111-1307, USA.
 #
 
 
@@ -25,7 +25,7 @@ Q=@
 
 LBITS := $(shell getconf LONG_BIT)
 ifeq ($(LBITS),64)
-  FPIC = -ccopt -fPIC   
+  FPIC = -ccopt -fPIC
 else
   FPIC =
 endif
@@ -36,10 +36,10 @@ OCAMLC=ocamlc
 OCAMLOPT=ocamlopt
 OCAMLLEX=ocamllex
 OCAMLYACC=ocamlyacc
-OCAMLLIBDIR=$(shell ocamlc -where)
+OCAMLLIBDIR=$(shell $(OCAMLC) -where)
 
 
-SRC = fig.ml debug.ml base64.ml serial.ml ocaml_tools.ml expr_syntax.ml expr_parser.ml expr_lexer.ml extXml.ml env.ml xml2h.ml latlong.ml egm96.ml srtm.ml http.ml gm.ml iGN.ml geometry_2d.ml cserial.o convert.o ubx.ml pprz.ml xbee.ml logpprz.ml xmlCom.ml editAirframe.ml defivybus.ml
+SRC = fig.ml debug.ml base64.ml serial.ml ocaml_tools.ml expr_syntax.ml expr_parser.ml expr_lexer.ml extXml.ml env.ml xml2h.ml latlong.ml egm96.ml srtm.ml http.ml maps_support.ml gm.ml iGN.ml geometry_2d.ml cserial.o convert.o ubx.ml pprz.ml xbee.ml logpprz.ml xmlCom.ml os_calls.ml editAirframe.ml defivybus.ml
 CMO = $(SRC:.ml=.cmo)
 CMX = $(SRC:.ml=.cmx)
 
@@ -80,7 +80,7 @@ tests : lib-pprz.cma $(TESTS_CMO)
 	$(OCAMLC) $(INCLUDES) -custom -I . -o $@ str.cma unix.cma ivy-ocaml.cma xml-light.cma $^
 
 GTKCFLAGS := `pkg-config --cflags gtk+-2.0`
-#GTKCFLAGS := -I /usr/lib/gtk-2.0/include -I/usr/include/gtk-2.0 -I/usr/include/atk-1.0 -I/usr/include/glib-2.0 -I/usr/lib/glib-2.0/include -I/usr/include/pango-1.0 -I /usr/include/cairo
+#GTKCFLAGS := -I/usr/lib/gtk-2.0/include -I/usr/include/gtk-2.0 -I/usr/include/atk-1.0 -I/usr/include/glib-2.0 -I/usr/lib/glib-2.0/include -I/usr/include/pango-1.0 -I/usr/include/cairo
 # GTKCFLAGS := $(shell gtk-config --cflags)
 
 %.o   : %.c
@@ -164,6 +164,6 @@ clean :
 .depend: Makefile
 	ocamldep *.ml* > .depend
 
-ifneq ($(MAKECMDGOALS),clean) 
+ifneq ($(MAKECMDGOALS),clean)
 -include .depend
 endif

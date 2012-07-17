@@ -20,7 +20,7 @@
  * You should have received a copy of the GNU General Public License
  * along with paparazzi; see the file COPYING.  If not, write to
  * the Free Software Foundation, 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA. 
+ * Boston, MA 02111-1307, USA.
  *
  *)
 
@@ -40,6 +40,8 @@ val of_utm : Latlong.utm -> int
 
 val of_wgs84 : Latlong.geographic -> int
 (** [of_utm utm_pos] Returns the altitude of the given geographic position *)
+
+val area_of_tile : string -> string
 
 val horizon_slope : Latlong.geographic -> int -> float -> float -> float -> float
 (** [horizon_slope geo alt route half_aperture horizon] *)

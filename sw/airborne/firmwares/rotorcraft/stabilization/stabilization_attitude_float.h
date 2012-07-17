@@ -28,16 +28,24 @@
 
 #include "generated/airframe.h"
 
+#ifndef STABILIZATION_ATTITUDE_FLOAT_GAIN_NB
+#define STABILIZATION_ATTITUDE_FLOAT_GAIN_NB 1
+#endif
+
+#ifndef STABILIZATION_ATTITUDE_FLOAT_GAIN_IDX_DEFAULT
+#define STABILIZATION_ATTITUDE_FLOAT_GAIN_IDX_DEFAULT 0
+#endif
+
 struct FloatAttitudeGains {
-    struct FloatVect3  p;
-    struct FloatVect3  d;
-    struct FloatVect3  dd;
-    struct FloatVect3  rates_d;
-    struct FloatVect3  i;
-    struct FloatVect3  surface_p;
-    struct FloatVect3  surface_d;
-    struct FloatVect3  surface_dd;
-    struct FloatVect3  surface_i;
+  struct FloatVect3  p;
+  struct FloatVect3  d;
+  struct FloatVect3  dd;
+  struct FloatVect3  rates_d;
+  struct FloatVect3  i;
+  struct FloatVect3  surface_p;
+  struct FloatVect3  surface_d;
+  struct FloatVect3  surface_dd;
+  struct FloatVect3  surface_i;
 };
 
 extern struct FloatAttitudeGains stabilization_gains[];

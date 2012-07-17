@@ -2,7 +2,7 @@
  * $Id$
  *
  * Server part specific to fixed wing vehicles
- *  
+ *
  * Copyright (C) 2004 CENA/ENAC, Pascal Brisset, Antoine Drouin
  *
  * This file is part of paparazzi.
@@ -20,7 +20,7 @@
  * You should have received a copy of the GNU General Public License
  * along with paparazzi; see the file COPYING.  If not, write to
  * the Free Software Foundation, 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA. 
+ * Boston, MA 02111-1307, USA.
  *
  *)
 
@@ -44,16 +44,16 @@ let rec norm_course =
 
 let fvalue = fun x ->
   match x with
-    Pprz.Float x -> x 
-    | Pprz.Int32 x -> Int32.to_float x 
-    | Pprz.Int x -> float_of_int x 
+    Pprz.Float x -> x
+    | Pprz.Int32 x -> Int32.to_float x
+    | Pprz.Int x -> float_of_int x
     | _ -> failwith (sprintf "Receive.log_and_parse: float expected, got '%s'" (Pprz.string_of_value x))
 
-	  
+
 let ivalue = fun x ->
   match x with
     Pprz.Int x -> x
-  | Pprz.Int32 x -> Int32.to_int x 
+  | Pprz.Int32 x -> Int32.to_int x
   | _ -> failwith "Receive.log_and_parse: int expected"
 
 let format_string_field = fun s ->
@@ -90,13 +90,13 @@ let heading_from_course = ref false
 let log_and_parse = fun ac_name (a:Aircraft.aircraft) msg values ->
   let value = fun x -> try Pprz.assoc x values with Not_found -> failwith (sprintf "Error: field '%s' not found\n" x) in
 
-  let fvalue = fun x -> 
+  let fvalue = fun x ->
     let f = fvalue (value x) in
       match classify_float f with
 	FP_infinite | FP_nan ->
 	  let msg = sprintf "Non normal number: %f in '%s %s %s'" f ac_name msg.Pprz.name (string_of_values values) in
 	  raise (Telemetry_error (ac_name, format_string_field msg))
-	  
+
       | _ -> f
   and ivalue = fun x -> ivalue (value x) in
   if not (msg.Pprz.name = "DOWNLINK_STATUS") then
@@ -170,7 +170,7 @@ let log_and_parse = fun ac_name (a:Aircraft.aircraft) msg values ->
         a.pitch <- pitch;
         a.heading  <- norm_course (fvalue "psi")
       end
-  | "NAVIGATION" -> 
+  | "NAVIGATION" ->
       a.cur_block <- ivalue "cur_block";
       a.cur_stage <- ivalue "cur_stage";
       a.dist_to_wp <- sqrt (fvalue "dist2_wp")
@@ -185,27 +185,51 @@ let log_and_parse = fun ac_name (a:Aircraft.aircraft) msg values ->
       a.energy <- ivalue "energy"
   | "FBW_STATUS" ->
       a.bat <- fvalue "vsupply" /. 10.;
-      a.fbw.rc_rate <- ivalue "frame_rate"
+      a.fbw.pprz_mode_msgs_since_last_fbw_status_msg <- 0;
+      a.fbw.rc_rate <- ivalue "frame_rate";
+      let fbw_rc_mode = ivalue "rc_status" in
+      a.fbw.rc_status <- (
+        match fbw_rc_mode with
+          2 -> "NONE"
+        | 1 -> "LOST"
+        | _ -> "OK" );
+      let fbw_mode = ivalue "mode" in
+      a.fbw.rc_mode <- (
+        match fbw_mode with
+          2 -> "FAILSAFE"
+        | 1 -> "AUTO"
+        | _ -> "MANUAL" )
+  | "STATE_FILTER_STATUS" ->
+      a.state_filter_mode <- check_index (ivalue "state_filter_mode") state_filter_modes "STATE_FILTER_MODES"
   | "PPRZ_MODE" ->
       a.vehicle_type <- FixedWing;
-      a.ap_mode <- check_index (ivalue "ap_mode") fixedwing_ap_modes "AP_MODE";
       a.gaz_mode <- check_index (ivalue "ap_gaz") gaz_modes "AP_GAZ";
       a.lateral_mode <- check_index (ivalue "ap_lateral") lat_modes "AP_LAT";
       a.horizontal_mode <- check_index (ivalue "ap_horizontal") horiz_modes "AP_HORIZ";
+      a.inflight_calib.if_mode <- check_index (ivalue "if_calib_mode") if_modes "IF_MODE";
       let mcu1_status = ivalue "mcu1_status" in
       (** c.f. link_autopilot.h *)
-      a.fbw.rc_status <- 
-        if mcu1_status land 0b1 > 0
-        then "OK"
-        else if mcu1_status land 0b10 > 0
-        then "NONE"
-        else "LOST";
-            a.fbw.rc_mode <-
-        if mcu1_status land 0b1000 > 0
-        then "FAILSAFE"
-        else if mcu1_status land 0b100 > 0
-        then "AUTO"
-        else "MANUAL";
+      if a.fbw.pprz_mode_msgs_since_last_fbw_status_msg < 10 then
+        a.fbw.pprz_mode_msgs_since_last_fbw_status_msg <- a.fbw.pprz_mode_msgs_since_last_fbw_status_msg + 1;
+      (* If we have recent direct information from the FBW, and it says FAILSAFE: then do not thrust the AP message PPRZ_MODE *)
+      if ((a.fbw.pprz_mode_msgs_since_last_fbw_status_msg >= 10) && (a.fbw.rc_status <> "FAILSAFE")) then begin
+        a.fbw.rc_status <-
+          if mcu1_status land 0b1 > 0
+          then "OK"
+          else if mcu1_status land 0b10 > 0
+          then "NONE"
+          else "LOST";
+        a.fbw.rc_mode <-
+          if mcu1_status land 0b1000 > 0
+          then "FAILSAFE"
+          else if mcu1_status land 0b100 > 0
+          then "AUTO"
+          else "MANUAL";
+      end ;
+      if a.fbw.rc_mode = "FAILSAFE" then
+        a.ap_mode <- 5 (* Override and set FAIL(Safe) Mode *)
+      else
+        a.ap_mode <- check_index (ivalue "ap_mode") fixedwing_ap_modes "AP_MODE"
   | "CAM" ->
       a.cam.phi <- (Deg>>Rad) (fvalue  "phi");
       a.cam.theta <- (Deg>>Rad) (fvalue  "theta");
@@ -213,7 +237,7 @@ let log_and_parse = fun ac_name (a:Aircraft.aircraft) msg values ->
   | "SVINFO" ->
       let i = ivalue "chn" in
       assert(i < Array.length a.svinfo);
-      a.svinfo.(i) <- {  
+      a.svinfo.(i) <- {
         svid = ivalue "SVID";
         flags = ivalue "Flags";
         qi = ivalue "QI";
@@ -240,6 +264,9 @@ let log_and_parse = fun ac_name (a:Aircraft.aircraft) msg values ->
             if !Kml.enabled then Kml.update_horiz_mode a
           | _ -> ()
       end
+  | "SETTINGS" ->
+      a.inflight_calib.if_val1 <- fvalue "slider_1_val";
+      a.inflight_calib.if_val2 <- fvalue "slider_2_val";
   | "SURVEY" ->
       begin
         a.time_since_last_survey_msg <- 0.;
@@ -276,6 +303,26 @@ let log_and_parse = fun ac_name (a:Aircraft.aircraft) msg values ->
       and alt = ivalue "alt" in
       let geo = make_geo_deg (float lat /. 1e7) (float lon /. 1e7) in
 	    update_waypoint a (ivalue "wp_id") geo (float alt /. 100.)
+  | "GENERIC_COM" ->
+      let flight_time = ivalue "flight_time" in
+      if flight_time >= a.flight_time then begin
+        a.flight_time <- flight_time;
+        let lat = fvalue "lat"
+        and lon = fvalue "lon" in
+        let geo = make_geo (lat /. 1e7) (lon /. 1e7) in
+        a.pos <- geo;
+        a.alt <- fvalue "alt";
+        a.gspeed  <- fvalue "gspeed" /. 100.;
+        a.course  <- norm_course (fvalue "course" /. 1e3);
+        if !heading_from_course then
+          a.heading <- a.course;
+        a.agl <- a.alt -. float (try Srtm.of_wgs84 a.pos with _ -> 0);
+        a.bat <- fvalue "vsupply" /. 10.;
+        a.energy <- ivalue "energy" * 100;
+        a.throttle <- fvalue "throttle";
+        a.ap_mode <- check_index (ivalue "ap_mode") fixedwing_ap_modes "AP_MODE";
+        a.cur_block <- ivalue "nav_block";
+      end
   | "FORMATION_SLOT_TM" ->
       Dl_Pprz.message_send "ground_dl" "FORMATION_SLOT" values
   | "FORMATION_STATUS_TM" ->

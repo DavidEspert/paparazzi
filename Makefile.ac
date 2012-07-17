@@ -38,7 +38,7 @@ PERIODIC_FREQ = 60
 endif
 
 AIRFRAME_H=$(AC_GENERATED)/airframe.h
-PERIODIC_H=$(AC_GENERATED)/periodic.h
+PERIODIC_H=$(AC_GENERATED)/periodic_telemetry.h
 RADIO_H=$(AC_GENERATED)/radio.h
 FLIGHT_PLAN_H=$(AC_GENERATED)/flight_plan.h
 FLIGHT_PLAN_XML=$(ACINCLUDE)/flight_plan.xml
@@ -46,11 +46,8 @@ SETTINGS_H=$(AC_GENERATED)/settings.h
 SETTINGS_XMLS=$(patsubst %,$(CONF)/%,$(SETTINGS))
 SETTINGS_XML=$(ACINCLUDE)/settings.xml
 SETTINGS_MODULES=$(ACINCLUDE)/settings_modules.xml
+SETTINGS_TELEMETRY=$(ACINCLUDE)/settings_telemetry.xml
 MAKEFILE_AC=$(ACINCLUDE)/Makefile.ac
-SETTINGS_FILE=$(SETTINGS:settings%=%)
-#TUNING_FILE=$(subst   ,_,$(SETTINGS:settings/%.xml=%)).h
-TUNING_H=$(AC_GENERATED)/tuning.h
-SUPERVISION=./paparazzi
 MAKE=make PAPARAZZI_SRC=$(PAPARAZZI_SRC) PAPARAZZI_HOME=$(PAPARAZZI_HOME)
 MODULES_H=$(AC_GENERATED)/modules.h
 AIRCRAFT_MD5=$(AIRCRAFT_CONF_DIR)/aircraft.md5
@@ -61,18 +58,16 @@ Q=@
 init:
 	@[ -d $(PAPARAZZI_HOME) ] || (echo "Copying config example in your $(PAPARAZZI_HOME) directory"; mkdir -p $(PAPARAZZI_HOME); cp -a conf $(PAPARAZZI_HOME); cp -a data $(PAPARAZZI_HOME); mkdir -p $(PAPARAZZI_HOME)/var/maps; mkdir -p $(PAPARAZZI_HOME)/var/include)
 
-demo:
-	$(SUPERVISION)
-
 ifeq ($(MAKECMDGOALS),all_ac_h)
 -include $(MAKEFILE_AC)
 endif
 
 
 
-all_ac_h: $(AIRFRAME_H) $(MODULES_H) $(SETTINGS_H) $(TUNING_H) $(MAKEFILE_AC) $(PERIODIC_H)
-	@echo "TARGET: " $(TARGET) "\n" > $(ACINCLUDE)/$(TARGET)_srcs.list
-	@echo "CFLAGS: " $($(TARGET).CFLAGS) "\n"  >> $(ACINCLUDE)/$(TARGET)_srcs.list
+all_ac_h: $(AIRFRAME_H) $(MODULES_H) $(SETTINGS_H) $(MAKEFILE_AC) $(PERIODIC_H)
+	@echo "TARGET: " $(TARGET)"\n" > $(ACINCLUDE)/$(TARGET)_srcs.list
+	@echo "CFLAGS: " $($(TARGET).CFLAGS)"\n"  >> $(ACINCLUDE)/$(TARGET)_srcs.list
+	@echo "LDFLAGS: " $($(TARGET).LDFLAGS)"\n"  >> $(ACINCLUDE)/$(TARGET)_srcs.list
 	@echo "srcs: " $($(TARGET).srcs) >> $(ACINCLUDE)/$(TARGET)_srcs.list
 
 radio_ac_h : $(RADIO_H)
@@ -98,7 +93,7 @@ $(RADIO_H) : $(CONF)/$(RADIO) $(CONF_XML) $(TOOLS)/gen_radio.out
 $(PERIODIC_H) : $(CONF)/$(AIRFRAME_XML) $(MESSAGES_XML) $(CONF_XML) $(CONF)/$(TELEMETRY) $(MAKEFILE_AC)
 	$(Q)test -d $(AC_GENERATED) || mkdir -p $(AC_GENERATED)
 	@echo BUILD $@
-	$(Q)$(TOOLS)/gen_periodic.out $(CONF)/$(AIRFRAME_XML) $(MESSAGES_XML) $(CONF)/$(TELEMETRY) $(PERIODIC_FREQ) > $@
+	$(Q)$(TOOLS)/gen_periodic.out $(CONF)/$(AIRFRAME_XML) $(MESSAGES_XML) $(CONF)/$(TELEMETRY) $(PERIODIC_FREQ) $(SETTINGS_TELEMETRY) > $@
 	$(Q)chmod a+r $@
 	$(Q)cp $< $(AIRCRAFT_CONF_DIR)
 	$(Q)cp $(CONF)/$(TELEMETRY) $(AIRCRAFT_CONF_DIR)/telemetry
@@ -116,17 +111,12 @@ $(FLIGHT_PLAN_XML) : $(CONF)/$(FLIGHT_PLAN) $(CONF_XML) $(TOOLS)/gen_flight_plan
 	$(Q)$(TOOLS)/gen_flight_plan.out -dump $< > $@
 	$(Q)chmod a+r $@
 
-$(SETTINGS_H) : $(SETTINGS_XMLS) $(CONF_XML) $(SETTINGS_MODULES) $(TOOLS)/gen_settings.out
+$(SETTINGS_H) : $(SETTINGS_XMLS) $(CONF_XML) $(SETTINGS_MODULES) $(SETTINGS_TELEMETRY) $(TOOLS)/gen_settings.out
 	$(Q)test -d $(AC_GENERATED) || mkdir -p $(AC_GENERATED)
 	@echo BUILD $@
-	$(Q)$(TOOLS)/gen_settings.out $(SETTINGS_XML) $(SETTINGS_XMLS) $(SETTINGS_MODULES) > $@
+	$(Q)$(TOOLS)/gen_settings.out $(SETTINGS_XML) $(SETTINGS_TELEMETRY) $(SETTINGS_XMLS) $(SETTINGS_MODULES) > $@
 	$(Q)chmod a+r $@
 	$(Q)cp $(SETTINGS_XMLS) $(AIRCRAFT_CONF_DIR)/settings
-
-$(TUNING_H) : $(SETTINGS_XMLS) $(CONF_XML) $(TOOLS)/gen_tuning.out
-	$(Q)test -d $(AC_GENERATED) || mkdir -p $(AC_GENERATED)
-	@echo BUILD $@
-	$(Q)$(TOOLS)/gen_tuning.out $(SETTINGS_XMLS) > $@
 
 $(MODULES_H) : $(CONF)/$(AIRFRAME_XML) $(TOOLS)/gen_modules.out $(CONF)/modules/*.xml
 	$(Q)test -d $(AC_GENERATED) || mkdir -p $(AC_GENERATED)
@@ -135,6 +125,7 @@ $(MODULES_H) : $(CONF)/$(AIRFRAME_XML) $(TOOLS)/gen_modules.out $(CONF)/modules/
 	$(Q)chmod a+r $@
 
 $(SETTINGS_MODULES) : $(MODULES_H)
+$(SETTINGS_TELEMETRY) : $(PERIODIC_H)
 
 %.ac_h : $(TOOLS)/gen_aircraft.out
 	$(Q)if (expr "$(AIRCRAFT)"); then : ; else echo "AIRCRAFT undefined: type 'make AIRCRAFT=AircraftName ...'"; exit 1; fi

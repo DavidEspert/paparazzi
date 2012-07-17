@@ -36,19 +36,23 @@
 #include "baro_MS5534A.h"
 #endif
 
-#ifdef USE_BARO_ETS
+#if USE_BARO_ETS
 #include "modules/sensors/baro_ets.h"
 #endif
 
-/* position in meters */
-extern float estimator_x;
-extern float estimator_y;
-extern float estimator_z;
+#if USE_BARO_BMP
+#include "modules/sensors/baro_bmp.h"
+#endif
+
+/* position in meters, ENU frame, relative to reference */
+extern float estimator_x; ///< east position in meters
+extern float estimator_y; ///< north position in meters
+extern float estimator_z; ///< altitude above MSL in meters
 
 /* attitude in radians */
-extern float estimator_phi; /* + = right */
-extern float estimator_psi; /* CW, 0 = N */
-extern float estimator_theta; /* + = up */
+extern float estimator_phi;   ///< roll angle in rad, + = right
+extern float estimator_psi;   ///< heading in rad, CW, 0 = N
+extern float estimator_theta; ///< pitch angle in rad, + = up
 
 /* speed in meters per second */
 extern float estimator_z_dot;
@@ -56,22 +60,23 @@ extern float estimator_z_dot;
 /* rates in radians per second */
 extern float estimator_p;
 extern float estimator_q;
+extern float estimator_r;
 
-/* flight time in seconds */
+/** flight time in seconds. */
 extern uint16_t estimator_flight_time;
 extern float estimator_t;
 
 /* horizontal ground speed in module and dir (m/s, rad (CW/North)) */
-extern float estimator_hspeed_mod;
-extern float estimator_hspeed_dir;
+extern float estimator_hspeed_mod; ///< module of horizontal ground speed in m/s
+extern float estimator_hspeed_dir; ///< direction of horizontal ground speed in rad (CW/North)
 
 /* Wind and airspeed estimation sent by the GCS */
 extern float wind_east, wind_north; /* m/s */
-extern float estimator_airspeed; /* m/s */
+extern float estimator_airspeed; ///< m/s
 
+extern float estimator_AOA; ///< angle of attack in rad
 
 void estimator_init( void );
-void estimator_propagate_state( void );
 
 void estimator_update_state_gps( void );
 
@@ -91,10 +96,10 @@ extern void alt_kalman( float );
 #ifdef ALT_KALMAN
 #define EstimatorSetPosXY(x, y) { estimator_x = x; estimator_y = y; }
 
-#if defined(USE_BARO_MS5534A) || defined(USE_BARO_ETS)
+#if USE_BARO_MS5534A || USE_BARO_ETS || USE_BARO_BMP
 /* Kalman filter cannot be disabled in this mode (no z_dot) */
 #define EstimatorSetAlt(z) alt_kalman(z)
-#else /* USE_BARO_MS5534A */
+#else /* USE_BARO_x */
 #define EstimatorSetAlt(z) { \
   if (!alt_kalman_enabled) { \
     estimator_z = z; \
@@ -102,7 +107,7 @@ extern void alt_kalman( float );
     alt_kalman(z); \
   } \
 }
-#endif /* ! USE_BARO_MS5534A */
+#endif /* ! USE_BARO_x */
 
 #define EstimatorSetSpeedPol(vhmod, vhdir, vz) { \
   estimator_hspeed_mod = vhmod; \
@@ -121,12 +126,12 @@ extern void alt_kalman( float );
 #endif
 
 #define EstimatorSetAirspeed(airspeed) { estimator_airspeed = airspeed; }
+#define EstimatorSetAOA(AOA) { estimator_AOA = AOA; }
 
 #define EstimatorSetAtt(phi, psi, theta) { estimator_phi = phi; estimator_psi = psi; estimator_theta = theta; }
 #define EstimatorSetPhiPsi(phi, psi) { estimator_phi = phi; estimator_psi = psi; }
 
-#define EstimatorSetRate(p, q) { estimator_p = p; estimator_q = q; }
+#define EstimatorSetRate(p, q, r) { estimator_p = p; estimator_q = q; estimator_r = r; }
 
-extern void estimator_update_state_infrared( void );
 
 #endif /* ESTIMATOR_H */

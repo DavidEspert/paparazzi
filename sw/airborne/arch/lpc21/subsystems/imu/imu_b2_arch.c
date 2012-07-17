@@ -96,6 +96,9 @@ void imu_periodic(void) {
 #if defined IMU_B2_MAG_TYPE && IMU_B2_MAG_TYPE == IMU_B2_MAG_AMI601
   RunOnceEvery(10, { ami601_read(); });
 #endif
+#if defined IMU_B2_MAG_TYPE && IMU_B2_MAG_TYPE == IMU_B2_MAG_HMC58XX
+  RunOnceEvery(5,Hmc58xxPeriodic());
+#endif
 
 }
 
@@ -112,10 +115,10 @@ static void SSP_ISR(void) {
     if (ms2100_status == MS2100_IDLE || ms2100_status == MS2100_GOT_EOC) {
       ImuSetSSP8bits();
       if (ms2100_status == MS2100_IDLE) {
-        Ms2001SendReq();
+        Ms2100SendReq();
       }
       else { /* MS2100_GOT_EOC */
-        Ms2001ReadRes();
+        Ms2100ReadRes();
       }
       imu_ssp_status = IMU_SSP_STA_BUSY_MS2100;
     }
@@ -124,9 +127,9 @@ static void SSP_ISR(void) {
     }
     break;
   case IMU_SSP_STA_BUSY_MS2100:
-    Ms2001OnSpiInt();
+    Ms2100OnSpiInt();
     if (ms2100_status == MS2100_IDLE) {
-      Ms2001SendReq();
+      Ms2100SendReq();
       imu_ssp_status = IMU_SSP_STA_BUSY_MS2100;
     }
     else

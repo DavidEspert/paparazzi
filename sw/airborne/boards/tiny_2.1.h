@@ -37,27 +37,50 @@
 /* Peripheral bus clock freq. */
 #define PCLK (CCLK / PBSD_VAL)
 
+/* green */
+#ifndef USE_LED_1
+#define USE_LED_1 1
+#endif
 #define LED_1_BANK 1
 #define LED_1_PIN 17
 
+/* red */
+#ifndef USE_LED_2
+#define USE_LED_2 1
+#endif
 #define LED_2_BANK 1
 #define LED_2_PIN 16
 
+/* yellow */
+#ifndef USE_LED_3
+#define USE_LED_3 1
+#endif
 #define LED_3_BANK 1
 #define LED_3_PIN 23
 
+#ifndef USE_LED_4
+#define USE_LED_4 1
+#endif
 #define LED_4_BANK 1
 #define LED_4_PIN 18
 
 #define POWER_SWITCH_LED 4
 
+#ifndef USE_LED_5
+#define USE_LED_5 1
+#endif
 #define LED_5_BANK 1
 #define LED_5_PIN 22
 
 #define CAM_SWITCH_LED 5
 
-#define LED_GPS_RESET_BANK 1
-#define LED_GPS_RESET_PIN 21
+#ifndef USE_LED_6
+#define USE_LED_6 1
+#endif
+#define LED_6_BANK 1
+#define LED_6_PIN 21
+
+#define GPS_RESET 6
 
 #define Configure_GPS_RESET_Pin() LED_INIT(GPS_RESET)
 #define Set_GPS_RESET_Pin_LOW() LED_ON(GPS_RESET)
@@ -148,11 +171,14 @@
 #define USE_AD1_3
 #endif
 
+/* allow to define ADC_CHANNEL_VSUPPLY in the airframe file*/
+#ifndef ADC_CHANNEL_VSUPPLY
 #define ADC_CHANNEL_VSUPPLY AdcBank1(5)
 #ifndef USE_AD1
 #define USE_AD1
 #endif
 #define USE_AD1_5
+#endif
 
 
 #define DefaultVoltageOfAdc(adc) (0.01787109375*adc)

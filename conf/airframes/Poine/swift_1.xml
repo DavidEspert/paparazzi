@@ -15,17 +15,21 @@
     <subsystem name="radio_control"     type="spektrum"/>
     <subsystem name="telemetry" 	type="transparent"/>
     <subsystem name="control"/>
-    <subsystem name="attitude" 		type="infrared"/>
-    <subsystem name="gps" 		type="ublox_lea5h"/>
+    <subsystem name="ahrs" 		type="infrared"/>
+    <subsystem name="gps" 		type="ublox"/>
     <subsystem name="navigation"/>
   </firmware>
 
-  <firmware name="lisa_l_test_progs">
+  <modules>
+    <load name="infrared_adc.xml"/>
+  </modules>
+
+  <firmware name="lisa_test_progs">
     <target name="test_led"            board="lisa_m_1.0"/>
     <target name="test_uart"           board="lisa_m_1.0"/>
     <target name="test_servos"         board="lisa_m_1.0"/>
     <target name="test_telemetry"      board="lisa_m_1.0">
-      <param name="MODEM_PORT" value="UART2"/>
+      <configure name="MODEM_PORT" value="UART2"/>
     </target>
     <target name="test_bmp085"         board="lisa_m_1.0"/>
     <target name="test_esc_mkk_simple" board="lisa_m_1.0"/>
@@ -70,8 +74,8 @@
   </command_laws>
 
   <section name="AUTO1" prefix="AUTO1_">
-    <define name="MAX_ROLL" value="RadOfDeg(50)"/>
-    <define name="MAX_PITCH" value="RadOfDeg(35)"/>
+    <define name="MAX_ROLL" value="50" unit="deg"/>
+    <define name="MAX_PITCH" value="35" unit="deg"/>
   </section>
 
   <section name="INFRARED" prefix="IR_">
@@ -100,7 +104,7 @@
     <define name="NOMINAL_AIRSPEED" value="15." unit="m/s"/>
     <define name="CARROT" value="5." unit="s"/>
     <define name="KILL_MODE_DISTANCE" value="(1.5*MAX_DIST_FROM_HOME)"/>
-    <define name="CONTROL_RATE" value="60" unit="Hz"/>
+    <define name="CONTROL_FREQUENCY" value="60" unit="Hz"/>
 
     <define name="DEFAULT_CIRCLE_RADIUS" value="120."/>
   </section>
@@ -108,7 +112,7 @@
   <section name="VERTICAL CONTROL" prefix="V_CTL_">
     <define name="POWER_CTL_BAT_NOMINAL" value="11.1" unit="volt"/>
     <!-- outer loop proportional gain -->
-    <define name="ALTITUDE_PGAIN" value="-0.06"/> <!-- -0.024 -->
+    <define name="ALTITUDE_PGAIN" value="0.06"/> <!-- -0.024 -->
     <!-- outer loop saturation -->
     <define name="ALTITUDE_MAX_CLIMB" value="2."/>
 
@@ -117,12 +121,12 @@
     <define name="AUTO_THROTTLE_MIN_CRUISE_THROTTLE" value="0.35"/>
     <define name="AUTO_THROTTLE_MAX_CRUISE_THROTTLE" value="0.85"/>
     <define name="AUTO_THROTTLE_CLIMB_THROTTLE_INCREMENT" value="0.2" unit="%/(m/s)"/>
-    <define name="AUTO_THROTTLE_PGAIN" value="-0.023"/> <!-- -0.012 -->
+    <define name="AUTO_THROTTLE_PGAIN" value="0.023"/> <!-- -0.012 -->
     <define name="AUTO_THROTTLE_IGAIN" value="0.01"/>
     <define name="AUTO_THROTTLE_PITCH_OF_VZ_PGAIN" value="0.05"/>
 
     <!-- auto pitch inner loop -->
-    <define name="AUTO_PITCH_PGAIN" value="-0.06"/> <!-- -0.03 -->
+    <define name="AUTO_PITCH_PGAIN" value="0.06"/> <!-- -0.03 -->
     <define name="AUTO_PITCH_IGAIN" value="0.0"/>
     <define name="AUTO_PITCH_MAX_PITCH" value="0.35"/>
     <define name="AUTO_PITCH_MIN_PITCH" value="-0.35"/>
@@ -131,21 +135,20 @@
   </section>
 
   <section name="HORIZONTAL CONTROL" prefix="H_CTL_">
-    <define name="COURSE_PGAIN" value="-0.9"/>
-    <define name="ROLL_MAX_SETPOINT" value="0.70" unit="radians"/> <!-- 0.5 -->
-    <define name="PITCH_MAX_SETPOINT" value="0.5" unit="radians"/>
-    <define name="PITCH_MIN_SETPOINT" value="-0.5" unit="radians"/>
+    <define name="COURSE_PGAIN" value="0.9"/>
+    <define name="ROLL_MAX_SETPOINT" value="0.70" unit="rad"/> <!-- 0.5 -->
+    <define name="PITCH_MAX_SETPOINT" value="0.5" unit="rad"/>
+    <define name="PITCH_MIN_SETPOINT" value="-0.5" unit="rad"/>
 
     <define name="ROLL_PGAIN" value="6600."/>
     <define name="AILERON_OF_THROTTLE" value="0.0"/>
-    <define name="PITCH_PGAIN" value="-5500."/>
+    <define name="PITCH_PGAIN" value="5500."/>
     <define name="PITCH_DGAIN" value="0.4"/>
 
     <define name="ELEVATOR_OF_ROLL" value="2400"/>
   </section>
 
   <section name="NAV">
-    <define name="NAV_PITCH" value="0."/>
     <define name="NAV_GLIDE_PITCH_TRIM" value="0"/>
   </section>
 

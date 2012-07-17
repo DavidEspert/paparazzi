@@ -7,15 +7,21 @@ struct ImuAspirin imu_aspirin;
 
 /* initialize peripherals */
 static void configure_gyro(void);
-static void configure_mag(void);
 static void configure_accel(void);
+//static void configure_mag(void);
 
+#ifndef ASPIRIN_ACCEL_RATE
+#define ASPIRIN_ACCEL_RATE ADXL345_RATE_800
+#endif
+
+// FIXME: there should be no arch dependent code here!
 static void send_i2c_msg_with_retry(struct i2c_transaction* t) {
   uint8_t max_retry = 8;
   uint8_t nb_retry = 0;
   do {
     i2c_submit(&i2c2, t);
-    while(I2C_GetFlagStatus(I2C2, I2C_FLAG_BUSY));
+    while((I2C2_SR2 & I2C_SR2_BUSY));
+    //while(I2C_GetFlagStatus(I2C2, I2C_FLAG_BUSY));
     while (t->status == I2CTransPending || t->status == I2CTransRunning);
     if (t->status == I2CTransFailed)
       nb_retry++;
@@ -88,18 +94,16 @@ static void configure_gyro(void) {
 
 }
 
-
-
 static void configure_accel(void) {
 
-  /* set data rate to 800Hz */
-  adxl345_write_to_reg(ADXL345_REG_BW_RATE, 0x0D);
+  /* set data rate to 800Hz and bandwidth to 400Hz (unless set otherwise) */
+  adxl345_write_to_reg(ADXL345_REG_BW_RATE, ASPIRIN_ACCEL_RATE);
   /* switch to measurememnt mode */
   adxl345_write_to_reg(ADXL345_REG_POWER_CTL, 1<<3);
   /* enable data ready interrupt */
   adxl345_write_to_reg(ADXL345_REG_INT_ENABLE, 1<<7);
-  /* Enable full res and interrupt active low */
-  adxl345_write_to_reg(ADXL345_REG_DATA_FORMAT, 1<<3|1<<5);
+  /* Enable full res with +-16g range and interrupt active low */
+  adxl345_write_to_reg(ADXL345_REG_DATA_FORMAT, ADXL345_FULL_RES|ADXL345_RANGE_16G|ADXL345_INT_INVERT);
   /* clear spi rx reg to make DMA happy */
   adxl345_clear_rx_buf();
   /* reads data once to bring interrupt line up */

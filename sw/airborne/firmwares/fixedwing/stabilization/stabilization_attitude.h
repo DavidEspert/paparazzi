@@ -44,6 +44,11 @@ extern float h_ctl_course_pgain;
 extern float h_ctl_course_dgain;
 extern float h_ctl_roll_max_setpoint;
 
+#ifdef LOITER_TRIM
+extern float v_ctl_auto_throttle_loiter_trim;
+extern float v_ctl_auto_throttle_dash_trim;
+#endif
+
 /* roll and pitch disabling */
 extern bool_t h_ctl_disabled;
 
@@ -55,6 +60,13 @@ extern float  h_ctl_roll_setpoint;
 extern float  h_ctl_roll_pgain;
 extern pprz_t h_ctl_aileron_setpoint;
 extern float  h_ctl_roll_slew;
+
+#ifdef USE_AOA
+/* Pitch mode */
+#define H_CTL_PITCH_MODE_THETA	0
+#define H_CTL_PITCH_MODE_AOA	1
+extern uint8_t h_ctl_pitch_mode;
+#endif
 
 /* inner pitch loop parameters */
 extern float  h_ctl_pitch_setpoint;

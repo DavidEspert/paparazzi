@@ -1,6 +1,4 @@
 /*
- * $Id$
- *
  * Copyright (C) 2008-2009 Antoine Drouin <poinix@gmail.com>
  *
  * This file is part of paparazzi.
@@ -19,7 +17,6 @@
  * along with paparazzi; see the file COPYING.  If not, write to
  * the Free Software Foundation, 59 Temple Place - Suite 330,
  * Boston, MA 02111-1307, USA.
- *
  */
 
 #ifndef AUTOPILOT_H
@@ -45,12 +42,13 @@
 #define AP_MODE_HOVER_CLIMB       10
 #define AP_MODE_HOVER_Z_HOLD      11
 #define AP_MODE_NAV               12
+#define AP_MODE_RC_DIRECT	  13	// Safety Pilot Direct Commands for helicopter direct control: appropriately chosen as mode "13"
 
 
 extern uint8_t autopilot_mode;
 extern uint8_t autopilot_mode_auto2;
-extern bool_t  autopilot_motors_on;
-extern bool_t  autopilot_in_flight;
+extern bool_t autopilot_motors_on;
+extern bool_t autopilot_in_flight;
 extern bool_t kill_throttle;
 extern bool_t autopilot_rc;
 
@@ -60,11 +58,14 @@ extern void autopilot_init(void);
 extern void autopilot_periodic(void);
 extern void autopilot_on_rc_frame(void);
 extern void autopilot_set_mode(uint8_t new_autopilot_mode);
+extern void autopilot_set_motors_on(bool_t motors_on);
 
 extern bool_t autopilot_detect_ground;
 extern bool_t autopilot_detect_ground_once;
 
 extern uint16_t autopilot_flight_time;
+
+
 
 #ifndef MODE_MANUAL
 #define MODE_MANUAL AP_MODE_RATE_DIRECT
@@ -77,22 +78,23 @@ extern uint16_t autopilot_flight_time;
 #endif
 
 
-#define TRESHOLD_1_PPRZ (MIN_PPRZ / 2)
-#define TRESHOLD_2_PPRZ (MAX_PPRZ / 2)
+#define THRESHOLD_1_PPRZ (MIN_PPRZ / 2)
+#define THRESHOLD_2_PPRZ (MAX_PPRZ / 2)
 
 #define AP_MODE_OF_PPRZ(_rc, _mode) {               \
-    if      (_rc > TRESHOLD_2_PPRZ)                 \
+    if      (_rc > THRESHOLD_2_PPRZ)                 \
       _mode = autopilot_mode_auto2;                 \
-    else if (_rc > TRESHOLD_1_PPRZ)					\
+    else if (_rc > THRESHOLD_1_PPRZ)					\
       _mode = MODE_AUTO1;                           \
     else                                            \
       _mode = MODE_MANUAL;                          \
   }
 
-#define autopilot_KillThrottle(_v) {                            \
-    kill_throttle = _v;                                         \
-    if (kill_throttle) autopilot_motors_on = FALSE;				\
-    else autopilot_motors_on = TRUE;                            \
+#define autopilot_KillThrottle(_kill) { \
+    if (_kill)                          \
+      autopilot_set_motors_on(FALSE);   \
+    else                                \
+      autopilot_set_motors_on(TRUE);    \
   }
 
 #ifdef POWER_SWITCH_LED
@@ -107,13 +109,13 @@ extern uint16_t autopilot_flight_time;
   }
 #endif
 
-#ifndef TRESHOLD_GROUND_DETECT
-#define TRESHOLD_GROUND_DETECT ACCEL_BFP_OF_REAL(15.)
+#ifndef THRESHOLD_GROUND_DETECT
+#define THRESHOLD_GROUND_DETECT ACCEL_BFP_OF_REAL(15.)
 #endif
 static inline void DetectGroundEvent(void) {
   if (autopilot_mode == AP_MODE_FAILSAFE || autopilot_detect_ground_once) {
-    if (ins_ltp_accel.z < -TRESHOLD_GROUND_DETECT ||
-        ins_ltp_accel.z > TRESHOLD_GROUND_DETECT) {
+    if (ins_ltp_accel.z < -THRESHOLD_GROUND_DETECT ||
+        ins_ltp_accel.z > THRESHOLD_GROUND_DETECT) {
       autopilot_detect_ground = TRUE;
       autopilot_detect_ground_once = FALSE;
     }

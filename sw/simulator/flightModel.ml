@@ -46,6 +46,7 @@ type state = {
     mutable theta : radian;
     mutable theta_dot : radian_s;
     mutable phi_dot : radian_s;
+    mutable psi_dot : radian_s;
     mutable delta_a : float;
     mutable delta_b : float;
     mutable thrust : float;
@@ -69,6 +70,7 @@ module type SIG =
 let get_xyz state = (state.x, state.y, state.z)
 let get_time state = state.t
 let get_attitude state = (state.phi, state.theta, state.psi)
+let get_pqr state = (state.phi_dot, state.theta_dot, state.psi_dot)
 
 let get_air_speed state = state.air_speed
 let set_air_speed state = fun s -> state.air_speed <- s
@@ -85,23 +87,58 @@ module Make(A:Data.MISSION) = struct
       Not_found ->
 	failwith (Printf.sprintf "Child 'section' with 'name=%s' expected in '%s'\n" name (Xml.to_string A.ac.airframe))
 
+  let tag_define = fun sect name ->
+    try
+      (ExtXml.child sect ~select:(fun x -> ExtXml.attrib x "name" = name) "define")
+    with
+        Not_found ->
+	      failwith (Printf.sprintf "Child 'define' with 'name=%s' expected in '%s'\n" name (Xml.to_string sect))
+
   let defined_value = fun sect name ->
     try
-      (Xml.attrib (ExtXml.child sect ~select:(fun x -> ExtXml.attrib x "name" = name) "define") "value")
+      (Xml.attrib (tag_define sect name) "value")
     with
-      Not_found ->
-	failwith (Printf.sprintf "Child 'define' with 'name=%s' expected in '%s'\n" name (Xml.to_string sect))
+        Not_found ->
+	      failwith (Printf.sprintf "Child 'define' with 'name=%s' in '%s' has no value\n" name (Xml.to_string sect))
 
   let float_value = fun section s ->
     let x = (defined_value section s) in
     try float_of_string x with Failure "float_of_string" ->
       failwith (sprintf "float_of_string: %s" x)
 
+  (* FIXME: refactor code_unit_scale of tag to pprz.ml *)
+  let code_unit_scale_of_tag = function t ->
+    (* if unit attribute is not specified don't even attempt to convert the units *)
+    let u = try ExtXml.attrib t "unit" with _ -> failwith "Unit conversion error" in
+    let cu = try ExtXml.attrib t "code_unit" with _ -> "" in
+    (* default value for code_unit is rad[/s] when unit is deg[/s] *)
+    try match (u, cu) with
+        ("deg", "") -> Pprz.scale_of_units u "rad" (* implicit conversion to rad *)
+      | ("deg/s", "") -> Pprz.scale_of_units u "rad/s" (* implicit conversion to rad/s *)
+      | (_, "") -> failwith "Unit conversion error" (* code unit is not defined and no implicit conversion *)
+      | (_,_) -> Pprz.scale_of_units u cu (* try to convert *)
+    with
+        Pprz.Unit_conversion_error s -> prerr_endline (sprintf "Unit conversion error: %s" s); flush stderr; exit 1
+      | Pprz.Unknown_conversion (su, scu) -> prerr_endline (sprintf "Warning: unknown unit conversion: from %s to %s" su scu); flush stderr; failwith "Unknown unit conversion"
+      | _ -> failwith "Unit conversion error"
+
+  let code_value = fun section s ->
+    let t = (tag_define section s) in
+    try
+      let coef = try (code_unit_scale_of_tag t) with _ -> 1. in
+      (ExtXml.float_attrib t "value") *. coef
+    with
+        _ ->
+          failwith (Printf.sprintf "Can't convert 'define' with 'name=%s' in '%s' to floating point value\n" s (Xml.to_string section))
+
   let simu_section =
     try section "SIMU" with _ -> Xml.Element("", [], [])
 
   let roll_response_factor =
     try float_value simu_section "ROLL_RESPONSE_FACTOR" with _ -> 15.
+
+  let pitch_response_factor =
+    try float_value simu_section "PITCH_RESPONSE_FACTOR" with _ -> 1.
 
   let yaw_response_factor =
     try float_value simu_section "YAW_RESPONSE_FACTOR" with _ -> 1.
@@ -112,7 +149,11 @@ module Make(A:Data.MISSION) = struct
   let max_bat_level =
     try float_value (section "BAT") "MAX_BAT_LEVEL" with _ -> 12.5
 
-  let max_phi = 0.7 (* rad *)
+  let h_ctrl_section =
+    try section "HORIZONTAL CONTROL" with _ -> Xml.Element("",[],[])
+
+  let max_phi =
+    try code_value h_ctrl_section "ROLL_MAX_SETPOINT" with _ -> 0.7 (* rad *)
   let max_phi_dot = 0.25 (* rad/s *)
   let bound = fun x mi ma -> if x > ma then ma else if x < mi then mi else x
 
@@ -137,12 +178,12 @@ module Make(A:Data.MISSION) = struct
 
   let infrared_section = try section "INFRARED" with _ -> Xml.Element("",[],[])
 
-  let nominal_airspeed = float_of_string (defined_value misc_section "NOMINAL_AIRSPEED")
-  let maximum_airspeed = try float_value misc_section "MAXIMUM_AIRSPEED" with _ -> nominal_airspeed *. 1.5
-  let max_power = try float_value misc_section "MAXIMUM_POWER" with _ -> 5. *. maximum_airspeed *. weight
+  let nominal_airspeed = code_value misc_section "NOMINAL_AIRSPEED"
+  let maximum_airspeed = try code_value misc_section "MAXIMUM_AIRSPEED" with _ -> nominal_airspeed *. 1.5
+  let max_power = try code_value misc_section "MAXIMUM_POWER" with _ -> 5. *. maximum_airspeed *. weight
 
-  let roll_neutral_default = try rad_of_deg (float_value infrared_section "ROLL_NEUTRAL_DEFAULT") with _ -> 0.
-  let pitch_neutral_default = try rad_of_deg (float_value infrared_section "PITCH_NEUTRAL_DEFAULT") with _ -> 0.
+  let roll_neutral_default = try code_value infrared_section "ROLL_NEUTRAL_DEFAULT" with _ -> 0.
+  let pitch_neutral_default = try code_value infrared_section "PITCH_NEUTRAL_DEFAULT" with _ -> 0.
 
 
   let vert_ctrl_section = try section "VERTICAL CONTROL" with _ -> Xml.Element("",[],[])
@@ -161,7 +202,7 @@ module Make(A:Data.MISSION) = struct
 
   let do_commands = fun state commands ->
     let c_lda = 4e-5 in (* FIXME *)
-    state.delta_a <- -. c_lda *. float commands.(command_roll);
+    state.delta_a <- c_lda *. float commands.(command_roll);
     state.delta_b <- float commands.(command_pitch);
     state.thrust <- (float (commands.(command_throttle) - min_thrust) /. float (max_thrust - min_thrust))
 
@@ -169,15 +210,22 @@ module Make(A:Data.MISSION) = struct
 
   let init route = {
     start = Unix.gettimeofday (); t = 0.; x = 0.; y = 0. ; z = 0.;
-    psi = route; phi = 0.; phi_dot = 0.; theta_dot = 0.;
+    psi = route; phi = 0.; phi_dot = 0.; theta_dot = 0.; psi_dot = 0.;
     delta_a = 0.; delta_b = 0.; thrust = 0.; air_speed = 0.;
     theta = 0.; z_dot = 0.
   }
 
 (* Minimum complexity *)
 (*
-   http://controls.ae.gatech.edu/papers/johnson_dasc_01.pdf
-   http://controls.ae.gatech.edu/papers/johnson_mst_01.pdf
+   Johnson, E.N., Fontaine, S.G., and Kahn, A.D.,
+   “Minimum Complexity Uninhabited Air Vehicle Guidance And Flight Control System,”
+   Proceedings of the 20th Digital Avionics Systems Conference, 2001.
+   http://www.ae.gatech.edu/~ejohnson/JohnsonFontaineKahn.pdf
+
+   Johnson, E.N. and Fontaine, S.G.,
+   “Use Of Flight Simulation To Complement Flight Testing Of Low-Cost UAVs,”
+   Proceedings of the AIAA Modeling and Simulation Technology Conference, 2001.
+   http://www.ae.gatech.edu/~ejohnson/AIAA%202001-4059.pdf
  *)
   let state_update = fun state nominal_airspeed (wx, wy, wz) agl dt ->
     let now = state.t +. dt in
@@ -194,13 +242,13 @@ module Make(A:Data.MISSION) = struct
       state.phi <- norm_angle (state.phi +. state.phi_dot *. dt);
       state.phi <- bound state.phi (-.max_phi) max_phi;
 
-      let psi_dot = -. g /. state.air_speed *. tan (yaw_response_factor *. state.phi) in
-      state.psi <- norm_angle (state.psi +. psi_dot *. dt);
+      state.psi_dot <- -. g /. state.air_speed *. tan (yaw_response_factor *. state.phi);
+      state.psi <- norm_angle (state.psi +. state.psi_dot *. dt);
 
       (* Aerodynamic pitching moment coeff, proportional to elevator;
         No Thrust moment, so null (0) for steady flight *)
       let c_m = 5e-7 *.state.delta_b in
-      let theta_dot_dot = c_m *. v2 -. state.theta_dot in
+      let theta_dot_dot = pitch_response_factor *. c_m *. v2 -. state.theta_dot in
       state.theta_dot <- state.theta_dot +. theta_dot_dot *. dt;
       state.theta <- state.theta +. state.theta_dot *. dt;
 

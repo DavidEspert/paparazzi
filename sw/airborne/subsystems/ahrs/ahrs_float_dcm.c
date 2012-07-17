@@ -29,14 +29,12 @@
 #include "subsystems/ahrs/ahrs_float_dcm_algebra.h"
 #include "math/pprz_algebra_float.h"
 
-#ifdef USE_GPS
+#if USE_GPS
 #include "subsystems/gps.h"
 #endif
 
 #include <string.h>
 
-// FIXME this is still needed for fixedwing integration
-#include "estimator.h"
 #include "led.h"
 
 // FIXME Debugging Only
@@ -45,14 +43,25 @@
 #endif
 #include "mcu_periph/uart.h"
 #include "messages.h"
-#include "downlink.h"
+#include "subsystems/datalink/downlink.h"
+
+
+#ifdef AHRS_UPDATE_FW_ESTIMATOR
+// FIXME this is still needed for fixedwing integration
+#include "estimator.h"
+// remotely settable
+#ifndef INS_ROLL_NEUTRAL_DEFAULT
+#define INS_ROLL_NEUTRAL_DEFAULT 0
+#endif
+#ifndef INS_PITCH_NEUTRAL_DEFAULT
+#define INS_PITCH_NEUTRAL_DEFAULT 0
+#endif
+float ins_roll_neutral = INS_ROLL_NEUTRAL_DEFAULT;
+float ins_pitch_neutral = INS_PITCH_NEUTRAL_DEFAULT;
+#endif /* AHRS_UPDATE_FW_ESTIMATOR */
 
 
 struct AhrsFloatDCM ahrs_impl;
-
-// remotely settable
-float ins_roll_neutral = INS_ROLL_NEUTRAL_DEFAULT;
-float ins_pitch_neutral = INS_PITCH_NEUTRAL_DEFAULT;
 
 // Axis definition: X axis pointing forward, Y axis pointing to the right and Z axis pointing down.
 // Positive pitch : nose up
@@ -73,11 +82,12 @@ float DCM_Matrix[3][3]       = {{1,0,0},{0,1,0},{0,0,1}};
 float Update_Matrix[3][3]    = {{0,1,2},{3,4,5},{6,7,8}}; //Gyros here
 float Temporary_Matrix[3][3] = {{0,0,0},{0,0,0},{0,0,0}};
 
-#ifdef USE_MAGNETOMETER
+#if USE_MAGNETOMETER
 float MAG_Heading_X = 1;
 float MAG_Heading_Y = 0;
 #endif
 
+static inline void compute_ahrs_representations(void);
 static inline void compute_body_orientation_and_rates(void);
 static inline void set_dcm_matrix_from_rmat(struct FloatRMat *rmat);
 
@@ -91,66 +101,31 @@ int renorm_blowup_count = 0;
 float imu_health = 0.;
 #endif
 
+#if USE_HIGH_ACCEL_FLAG
+// High Accel Flag
+#define HIGH_ACCEL_LOW_SPEED 15.0
+#define HIGH_ACCEL_LOW_SPEED_RESUME 4.0 // Hysteresis
+#define HIGH_ACCEL_HIGH_THRUST (0.8*MAX_PPRZ)
+#define HIGH_ACCEL_HIGH_THRUST_RESUME (0.1*MAX_PPRZ) // Hysteresis
+bool_t high_accel_done;
+bool_t high_accel_flag;
+// Command vector for thrust (fixed_wing)
+#include "inter_mcu.h"
+#endif
+
 
 static inline void set_dcm_matrix_from_rmat(struct FloatRMat *rmat)
 {
   for (int i=0; i<3; i++) {
-    for (int j=0; j<3; j++) { 
+    for (int j=0; j<3; j++) {
       DCM_Matrix[i][j] = RMAT_ELMT(*rmat, j, i);
     }
   }
 }
 
 
-/**************************************************/
-
-void ahrs_update_fw_estimator( void )
-{
-#if (OUTPUTMODE==2)         // Only accelerometer info (debugging purposes)
-  ahrs_float.ltp_to_imu_euler.phi = atan2(accel_float.y,accel_float.z);    // atan2(acc_y,acc_z)
-  ahrs_float.ltp_to_imu_euler.theta = -asin((accel_float.x)/GRAVITY); // asin(acc_x)
-  ahrs_float.ltp_to_imu_euler.psi = 0;
-#else
-  ahrs_float.ltp_to_imu_euler.phi = atan2(DCM_Matrix[2][1],DCM_Matrix[2][2]);
-  ahrs_float.ltp_to_imu_euler.theta = -asin(DCM_Matrix[2][0]);
-  ahrs_float.ltp_to_imu_euler.psi = atan2(DCM_Matrix[1][0],DCM_Matrix[0][0]);
-  ahrs_float.ltp_to_imu_euler.psi += M_PI; // Rotating the angle 180deg to fit for PPRZ
-#endif
-
-  /* set quaternion and rotation matrix representations as well */
-  FLOAT_QUAT_OF_EULERS(ahrs_float.ltp_to_imu_quat, ahrs_float.ltp_to_imu_euler);
-  FLOAT_RMAT_OF_EULERS(ahrs_float.ltp_to_imu_rmat, ahrs_float.ltp_to_imu_euler);
-
-  compute_body_orientation_and_rates();
-
-  // export results to estimator
-  estimator_phi   = ahrs_float.ltp_to_body_euler.phi - ins_roll_neutral;
-  estimator_theta = ahrs_float.ltp_to_body_euler.theta - ins_pitch_neutral;
-  estimator_psi   = ahrs_float.ltp_to_body_euler.psi;
-
-  estimator_p = ahrs_float.body_rate.p;
-  estimator_q = ahrs_float.body_rate.q;
-/*
-  RunOnceEvery(6,DOWNLINK_SEND_RMAT_DEBUG(DefaultChannel,
-    &(DCM_Matrix[0][0]),
-    &(DCM_Matrix[0][1]),
-    &(DCM_Matrix[0][2]),
-
-    &(DCM_Matrix[1][0]),
-    &(DCM_Matrix[1][1]),
-    &(DCM_Matrix[1][2]),
-
-    &(DCM_Matrix[2][0]),
-    &(DCM_Matrix[2][1]),
-    &(DCM_Matrix[2][2])
-
-  ));
-*/
-}
-
-
 void ahrs_init(void) {
-  ahrs_float.status = AHRS_UNINIT;
+  ahrs.status = AHRS_UNINIT;
 
   /*
    * Initialises our IMU alignement variables
@@ -175,6 +150,11 @@ void ahrs_init(void) {
 
   /* set inital filter dcm */
   set_dcm_matrix_from_rmat(&ahrs_float.ltp_to_imu_rmat);
+
+#if USE_HIGH_ACCEL_FLAG
+  high_accel_done = FALSE;
+  high_accel_flag = FALSE;
+#endif
 }
 
 void ahrs_align(void)
@@ -226,9 +206,10 @@ void ahrs_propagate(void)
 #endif
 
   Matrix_update();
-  // INFO, ahrs struct only updated in ahrs_update_fw_estimator
 
   Normalize();
+
+  compute_ahrs_representations();
 }
 
 void ahrs_update_accel(void)
@@ -243,7 +224,7 @@ void ahrs_update_accel(void)
   accel_float.z = -accel_float.z;
 
 
-#ifdef USE_GPS
+#if USE_GPS
   if (gps.fix == GPS_FIX_3D) {    //Remove centrifugal acceleration.
     accel_float.y += gps.speed_3d/100. * Omega[2];  // Centrifugal force on Acc_y = GPS_speed*GyroZ
     accel_float.z -= gps.speed_3d/100. * Omega[1];  // Centrifugal force on Acc_z = GPS_speed*GyroY
@@ -256,7 +237,7 @@ void ahrs_update_accel(void)
 
 void ahrs_update_mag(void)
 {
-#ifdef USE_MAGNETOMETER
+#if USE_MAGNETOMETER
 #warning MAGNETOMETER FEEDBACK NOT TESTED YET
 
   float cos_roll;
@@ -300,11 +281,15 @@ void ahrs_update_mag(void)
   ltp_mag.y = MAG_Heading_Y;
 
   // Downlink
-  RunOnceEvery(10,DOWNLINK_SEND_IMU_MAG(DefaultChannel, &ltp_mag.x, &ltp_mag.y, &ltp_mag.z));
+  RunOnceEvery(10,DOWNLINK_SEND_IMU_MAG(DefaultChannel, DefaultDevice, &ltp_mag.x, &ltp_mag.y, &ltp_mag.z));
 
   // Magnetic Heading
   // MAG_Heading = atan2(imu.mag.y, -imu.mag.x);
 #endif
+}
+
+void ahrs_update_gps(void) {
+
 }
 
 void Normalize(void)
@@ -312,7 +297,7 @@ void Normalize(void)
   float error=0;
   float temporary[3][3];
   float renorm=0;
-  boolean problem=FALSE;
+  uint8_t problem=FALSE;
 
   // Find the non-orthogonality of X wrt Y
   error= -Vector_Dot_Product(&DCM_Matrix[0][0],&DCM_Matrix[1][0])*.5; //eq.19
@@ -411,6 +396,25 @@ void Drift_correction(void)
   // Weight for accelerometer info (<0.5G = 0.0, 1G = 1.0 , >1.5G = 0.0)
   Accel_weight = Chop(1 - 2*fabs(1 - Accel_magnitude),0,1);  //
 
+#if USE_HIGH_ACCEL_FLAG
+  // Test for high acceleration:
+  //  - low speed
+  //  - high thrust
+  if (estimator_hspeed_mod < HIGH_ACCEL_LOW_SPEED && ap_state->commands[COMMAND_THROTTLE] > HIGH_ACCEL_HIGH_THRUST && !high_accel_done) {
+    high_accel_flag = TRUE;
+  } else {
+    high_accel_flag = FALSE;
+    if (estimator_hspeed_mod > HIGH_ACCEL_LOW_SPEED && !high_accel_done) {
+      high_accel_done = TRUE; // After takeoff, don't use high accel before landing (GS small, Throttle small)
+    }
+    if (estimator_hspeed_mod < HIGH_ACCEL_HIGH_THRUST_RESUME && ap_state->commands[COMMAND_THROTTLE] < HIGH_ACCEL_HIGH_THRUST_RESUME) {
+      high_accel_done = FALSE; // Activate high accel after landing
+    }
+  }
+  if (high_accel_flag) { Accel_weight = 0.; }
+#endif
+
+
   #if PERFORMANCE_REPORTING == 1
   {
 
@@ -428,7 +432,7 @@ void Drift_correction(void)
 
   //*****YAW***************
 
-#ifdef USE_MAGNETOMETER
+#if USE_MAGNETOMETER
   // We make the gyro YAW drift correction based on compass magnetic heading
 //  float mag_heading_x = cos(MAG_Heading);
 //  float mag_heading_y = sin(MAG_Heading);
@@ -442,7 +446,7 @@ void Drift_correction(void)
   Vector_Scale(&Scaled_Omega_I[0],&errorYaw[0],Ki_YAW);
   Vector_Add(Omega_I,Omega_I,Scaled_Omega_I);//adding integrator to the Omega_I
 
-#elif defined USE_GPS // Use GPS Ground course to correct yaw gyro drift
+#elif USE_GPS // Use GPS Ground course to correct yaw gyro drift
 
   if(gps.fix == GPS_FIX_3D && gps.gspeed>= 500) { //got a 3d fix and ground speed is more than 0.5 m/s
     float ground_course = ((float)gps.course)/1.e7 - M_PI; //This is the runaway direction of you "plane" in rad
@@ -462,8 +466,8 @@ void Drift_correction(void)
 
   //  Here we will place a limit on the integrator so that the integrator cannot ever exceed half the saturation limit of the gyros
   Integrator_magnitude = sqrt(Vector_Dot_Product(Omega_I,Omega_I));
-  if (Integrator_magnitude > DegOfRad(300)) {
-    Vector_Scale(Omega_I,Omega_I,0.5f*DegOfRad(300)/Integrator_magnitude);
+  if (Integrator_magnitude > RadOfDeg(300)) {
+    Vector_Scale(Omega_I,Omega_I,0.5f*RadOfDeg(300)/Integrator_magnitude);
   }
 
 
@@ -521,3 +525,52 @@ static inline void compute_body_orientation_and_rates(void) {
   FLOAT_RMAT_TRANSP_RATEMULT(ahrs_float.body_rate, ahrs_impl.body_to_imu_rmat, ahrs_float.imu_rate);
 
 }
+
+static inline void compute_ahrs_representations(void) {
+#if (OUTPUTMODE==2)         // Only accelerometer info (debugging purposes)
+  ahrs_float.ltp_to_imu_euler.phi = atan2(accel_float.y,accel_float.z);    // atan2(acc_y,acc_z)
+  ahrs_float.ltp_to_imu_euler.theta = -asin((accel_float.x)/GRAVITY); // asin(acc_x)
+  ahrs_float.ltp_to_imu_euler.psi = 0;
+#else
+  ahrs_float.ltp_to_imu_euler.phi = atan2(DCM_Matrix[2][1],DCM_Matrix[2][2]);
+  ahrs_float.ltp_to_imu_euler.theta = -asin(DCM_Matrix[2][0]);
+  ahrs_float.ltp_to_imu_euler.psi = atan2(DCM_Matrix[1][0],DCM_Matrix[0][0]);
+  ahrs_float.ltp_to_imu_euler.psi += M_PI; // Rotating the angle 180deg to fit for PPRZ
+#endif
+
+  /* set quaternion and rotation matrix representations as well */
+  FLOAT_QUAT_OF_EULERS(ahrs_float.ltp_to_imu_quat, ahrs_float.ltp_to_imu_euler);
+  FLOAT_RMAT_OF_EULERS(ahrs_float.ltp_to_imu_rmat, ahrs_float.ltp_to_imu_euler);
+
+  compute_body_orientation_and_rates();
+
+  /*
+    RunOnceEvery(6,DOWNLINK_SEND_RMAT_DEBUG(DefaultChannel, DefaultDevice,
+    &(DCM_Matrix[0][0]),
+    &(DCM_Matrix[0][1]),
+    &(DCM_Matrix[0][2]),
+
+    &(DCM_Matrix[1][0]),
+    &(DCM_Matrix[1][1]),
+    &(DCM_Matrix[1][2]),
+
+    &(DCM_Matrix[2][0]),
+    &(DCM_Matrix[2][1]),
+    &(DCM_Matrix[2][2])
+
+    ));
+  */
+}
+
+#ifdef AHRS_UPDATE_FW_ESTIMATOR
+void ahrs_update_fw_estimator( void ) {
+  // export results to estimator
+  estimator_phi   = ahrs_float.ltp_to_body_euler.phi - ins_roll_neutral;
+  estimator_theta = ahrs_float.ltp_to_body_euler.theta - ins_pitch_neutral;
+  estimator_psi   = ahrs_float.ltp_to_body_euler.psi;
+
+  estimator_p = ahrs_float.body_rate.p;
+  estimator_q = ahrs_float.body_rate.q;
+  estimator_r = ahrs_float.body_rate.r;
+}
+#endif //AHRS_UPDATE_FW_ESTIMATOR

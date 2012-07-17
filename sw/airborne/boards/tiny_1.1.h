@@ -10,21 +10,37 @@
 /* CPU clock freq.               */
 #define CCLK (FOSC * PLL_MUL)
 
+#ifdef USE_USB_HIGH_PCLK
+/* Peripheral bus speed mask  0x00-> 4, 0x01-> 1, 0x02-> 2   */
+/* change both PBSD_BITS/VAL     15MHz,    60MHz,    30MHz   */
+#define PBSD_BITS 0x02
+#define PBSD_VAL 2
+#else
 /* Peripheral bus speed mask 0x00->4, 0x01-> 1, 0x02 -> 2   */
 #define PBSD_BITS 0x00
 #define PBSD_VAL 4
+#endif
 
 /* Peripheral bus clock freq. */
 #define PCLK (CCLK / PBSD_VAL)
 
 /* Onboard leds */
+#ifndef USE_LED_1
+#define USE_LED_1 1
+#endif
 #define LED_1_BANK 1
 #define LED_1_PIN 28
 
+#ifndef USE_LED_2
+#define USE_LED_2 1
+#endif
 #define LED_2_BANK 1
 #define LED_2_PIN 19
 
 /* Switch pin */
+#ifndef USE_LED_3
+#define USE_LED_3 1
+#endif
 #define LED_3_BANK 0
 #define LED_3_PIN 11
 
@@ -117,11 +133,14 @@
 #define USE_AD1_5
 #endif
 
+/* allow to define ADC_CHANNEL_VSUPPLY in the airframe file*/
+#ifndef ADC_CHANNEL_VSUPPLY
 #define ADC_CHANNEL_VSUPPLY AdcBank1(6)
 #ifndef USE_AD1
 #define USE_AD1
 #endif
 #define USE_AD1_6
+#endif
 
 #define DefaultVoltageOfAdc(adc) (0.01787109375*adc)
 

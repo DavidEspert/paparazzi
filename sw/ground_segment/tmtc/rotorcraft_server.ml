@@ -173,12 +173,14 @@ let log_and_parse = fun ac_name (a:Aircraft.aircraft) msg values ->
       a.heading <- norm_course (foi32value "psi" /. angle_frac);
       a.roll    <- foi32value "phi" /. angle_frac;
       a.pitch   <- foi32value "theta" /. angle_frac;
-      a.throttle <- foi32value "thrust" /. 2.; (* thrust / 200 * 100 *)
-      (*a.unix_time <- LL.unix_time_of_tow (truncate (fvalue "itow" /. 1000.));
-      a.itow <- Int32.of_float (fvalue "itow");*)
+      a.throttle <- foi32value "thrust" /. 9600. *. 100.;
       a.flight_time   <- ivalue "flight_time";
       (*if a.gspeed > 3. && a.ap_mode = _AUTO2 then
           Wind.update ac_name a.gspeed a.course*)
+  | "GPS_INT" ->
+      a.unix_time <- LL.unix_time_of_tow (truncate (fvalue "tow" /. 1000.));
+      a.itow <- Int32.of_float (fvalue "tow");
+      a.gps_Pacc <- ivalue "pacc"
   | "ROTORCRAFT_STATUS" ->
       a.vehicle_type  <- Rotorcraft;
       a.fbw.rc_status <- get_rc_status (ivalue "rc_status");
@@ -186,7 +188,9 @@ let log_and_parse = fun ac_name (a:Aircraft.aircraft) msg values ->
       a.gps_mode      <- check_index (ivalue "gps_status") gps_modes "GPS_MODE";
       a.ap_mode       <- check_index (ivalue "ap_mode") rotorcraft_ap_modes "ROTORCRAFT_AP_MODE";
       a.kill_mode     <- ivalue "ap_motors_on" == 0;
-      a.bat           <- fvalue "vsupply" /. 10.;
+      a.bat           <- fvalue "vsupply" /. 10.
+  | "STATE_FILTER_STATUS" ->
+      a.state_filter_mode <- check_index (ivalue "state_filter_mode") state_filter_modes "STATE_FILTER_MODES"
   | "INS_REF" ->
       let x = foi32value "ecef_x0" /. 100.
       and y = foi32value "ecef_y0" /. 100.

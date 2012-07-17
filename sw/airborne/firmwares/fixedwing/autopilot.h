@@ -32,12 +32,13 @@
 
 #include <inttypes.h>
 #include "std.h"
-#include "sys_time.h"
+#include "mcu_periph/sys_time.h"
+#include "estimator.h"
 
-#define TRESHOLD_MANUAL_PPRZ (MIN_PPRZ / 2)
+#define THRESHOLD_MANUAL_PPRZ (MIN_PPRZ / 2)
 
-#define TRESHOLD1 TRESHOLD_MANUAL_PPRZ
-#define TRESHOLD2 (MAX_PPRZ/2)
+#define THRESHOLD1 THRESHOLD_MANUAL_PPRZ
+#define THRESHOLD2 (MAX_PPRZ/2)
 
 
 #define  PPRZ_MODE_MANUAL 0
@@ -47,40 +48,33 @@
 #define  PPRZ_MODE_GPS_OUT_OF_ORDER 4
 #define  PPRZ_MODE_NB 5
 
-#define PPRZ_MODE_OF_PULSE(pprz, mega8_status) \
-  (pprz > TRESHOLD2 ? PPRZ_MODE_AUTO2 : \
-        (pprz > TRESHOLD1 ? PPRZ_MODE_AUTO1 : PPRZ_MODE_MANUAL))
+#define PPRZ_MODE_OF_PULSE(pprz) \
+  (pprz > THRESHOLD2 ? PPRZ_MODE_AUTO2 : \
+        (pprz > THRESHOLD1 ? PPRZ_MODE_AUTO1 : PPRZ_MODE_MANUAL))
 
 extern uint8_t pprz_mode;
 extern bool_t kill_throttle;
 
 
+// FIXME, move to control
 #define LATERAL_MODE_MANUAL    0
 #define LATERAL_MODE_ROLL_RATE 1
 #define LATERAL_MODE_ROLL      2
 #define LATERAL_MODE_COURSE    3
 #define LATERAL_MODE_NB        4
+extern uint8_t lateral_mode;
 
-#define STICK_PUSHED(pprz) (pprz < TRESHOLD1 || pprz > TRESHOLD2)
-
-
+#define STICK_PUSHED(pprz) (pprz < THRESHOLD1 || pprz > THRESHOLD2)
 #define FLOAT_OF_PPRZ(pprz, center, travel) ((float)pprz / (float)MAX_PPRZ * travel + center)
-
-extern uint8_t fatal_error_nb;
 
 #define THROTTLE_THRESHOLD_TAKEOFF (pprz_t)(MAX_PPRZ * 0.9)
 
-extern uint8_t lateral_mode;
 extern uint8_t vsupply;
-
-extern float slider_1_val, slider_2_val;
+extern float energy;
 
 extern bool_t launch;
 
-extern uint8_t light_mode;
 extern bool_t gps_lost;
-
-extern bool_t sum_err_reset;
 
 /** Assignment, returning _old_value != _value
  * Using GCC expression statements */
@@ -88,16 +82,6 @@ extern bool_t sum_err_reset;
   uint8_t new_mode = _value; \
   (_mode != new_mode ? _mode = new_mode, TRUE : FALSE); \
 })
-
-void periodic_task( void );
-//void telecommand_task(void);
-
-#ifdef RADIO_CONTROL
-#include "subsystems/radio_control.h"
-static inline void autopilot_process_radio_control ( void ) {
-  pprz_mode = PPRZ_MODE_OF_PULSE(radio_control.values[RADIO_MODE], 0);
-}
-#endif
 
 extern bool_t power_switch;
 
@@ -114,11 +98,24 @@ extern bool_t power_switch;
   estimator_flight_time = 0; launch = FALSE; \
 }
 
+/* CONTROL_RATE will be removed in the next release
+ * please use CONTROL_FREQUENCY instead
+ */
+#ifndef CONTROL_FREQUENCY
+#ifdef  CONTROL_RATE
+#define CONTROL_FREQUENCY CONTROL_RATE
+#pragma message "CONTROL_RATE is deprecated. Please use CONTROL_FREQUENCY instead. Defaults to 60Hz if not defined."
+#else
+#define CONTROL_FREQUENCY 60
+#endif  // CONTROL_RATE
+#endif  // CONTROL_FREQUENCY
 
-/* For backward compatibility with old airframe files */
-#include "generated/airframe.h"
-#ifndef CONTROL_RATE
-#define CONTROL_RATE 20
+#ifndef NAVIGATION_FREQUENCY
+#define NAVIGATION_FREQUENCY 4
+#endif
+
+#ifndef MODULES_FREQUENCY
+#define MODULES_FREQUENCY 60
 #endif
 
 #endif /* AUTOPILOT_H */

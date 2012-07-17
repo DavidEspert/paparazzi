@@ -24,14 +24,14 @@
 
 /** \file charge_sens.c
  *  \brief I2C interface for University of Reading charge sensor
- *   
+ *
  */
 
 #include "modules/meteo/charge_sens.h"
 #include "mcu_periph/i2c.h"
 #include "mcu_periph/uart.h"
 #include "messages.h"
-#include "downlink.h"
+#include "subsystems/datalink/downlink.h"
 
 #ifndef DOWNLINK_DEVICE
 #define DOWNLINK_DEVICE DOWNLINK_AP_DEVICE
@@ -64,7 +64,7 @@ void charge_sens_event( void ) {
     charge_trans.status = I2CTransDone;
 
     if (++charge_cnt >= CHARGE_NB) {
-      DOWNLINK_SEND_ATMOSPHERE_CHARGE(DefaultChannel, 
+      DOWNLINK_SEND_ATMOSPHERE_CHARGE(DefaultChannel, DefaultDevice,
           &charge[0], &charge[1], &charge[2], &charge[3], &charge[4],
           &charge[5], &charge[6], &charge[7], &charge[8], &charge[9]);
       charge_cnt = 0;

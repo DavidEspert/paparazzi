@@ -48,6 +48,7 @@ let string_of_maps_source = function
 
 let maps_source = ref Google
 let set_maps_source = fun s -> maps_source := s
+let get_maps_source = fun () -> !maps_source
 
 let mkdir = fun d ->
   if not (Sys.file_exists d) then
@@ -196,7 +197,7 @@ let ms_key = fun key ->
   done;
   (ms_key, ms_key.[n-2])
 
-let google_version = 76
+let google_version = Maps_support.google_version
 
 let url_of_tile_key = fun maps_source s ->
   let (x, y, z) = xyz_of_qsrt s in

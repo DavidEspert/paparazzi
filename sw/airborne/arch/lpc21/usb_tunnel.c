@@ -32,7 +32,7 @@
 
 #include "std.h"
 #include "mcu.h"
-#include "sys_time.h"
+#include "mcu_periph/sys_time.h"
 #include "led.h"
 #include "mcu_periph/uart.h"
 #include "mcu_periph/usb_serial.h"
@@ -67,11 +67,11 @@ int main( void ) {
       inc = Uart0Getch();
       VCOM_putchar(inc);
     }
-    if (VCOM_check_available() && uart0_check_free_space(1)) {
+    if (VCOM_check_available() && Uart0CheckFreeSpace(1)) {
       LED_ON(2);
       tx_time = T0TC;
       inc = VCOM_getchar();
-      uart0_transmit(inc);
+      Uart0Transmit(inc);
     }
   }
 #else
@@ -84,11 +84,11 @@ int main( void ) {
       inc = Uart1Getch();
       VCOM_putchar(inc);
     }
-    if (VCOM_check_available() && uart1_check_free_space(1)) {
+    if (VCOM_check_available() && Uart1CheckFreeSpace(1)) {
       LED_ON(2);
       tx_time = T0TC;
       inc = VCOM_getchar();
-      uart1_transmit(inc);
+      Uart1Transmit(inc);
     }
   }
 #endif

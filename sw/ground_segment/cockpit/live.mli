@@ -2,7 +2,7 @@
 * $Id$
 *
 * Real time handling of flying A/Cs
-*  
+*
 * Copyright (C) 2004-2006 ENAC, Pascal Brisset, Antoine Drouin
 *
 * This file is part of paparazzi.
@@ -20,7 +20,7 @@
 * You should have received a copy of the GNU General Public License
 * along with paparazzi; see the file COPYING.  If not, write to
 * the Free Software Foundation, 59 Temple Place - Suite 330,
-* Boston, MA 02111-1307, USA. 
+* Boston, MA 02111-1307, USA.
 *
 *)
 
@@ -32,6 +32,7 @@ type aircraft = private {
     track : MapTrack.track;
     color: color;
     fp_group : MapFP.flight_plan;
+    fp_show : GMenu.check_menu_item;
     wp_HOME : MapWaypoints.waypoint option;
     fp : Xml.xml;
     blocks : (int * string) list;
@@ -69,6 +70,9 @@ val safe_bind : string -> (string -> Pprz.values -> unit) -> unit
 
 val track_size : int ref
 (** Default length for A/C tracks on the 2D view *)
+
+val auto_hide_fp : bool -> unit
+(** Automatically hide flight plan of not selected ac *)
 
 val listen_acs_and_msgs : MapCanvas.widget -> GPack.notebook -> Pages.alert -> bool -> Gtk_tools.pixmap_in_drawin_area -> unit
 (** [listen_acs_and_msgs geomap aircraft_notebook alert_page auto_center_new_ac alt_graph] *)

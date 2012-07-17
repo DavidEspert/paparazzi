@@ -76,6 +76,12 @@ extern uint8_t horizontal_mode;
 
 extern void fly_to_xy(float x, float y);
 
+#define NavGotoWaypoint(_wp) { \
+  horizontal_mode = HORIZONTAL_MODE_WAYPOINT; \
+  fly_to_xy(waypoints[_wp].x, waypoints[_wp].y); \
+}
+
+
 extern void nav_eight_init( void );
 extern void nav_eight(uint8_t, uint8_t, float);
 #define Eight(a, b, c) nav_eight((a), (b), (c))
@@ -134,6 +140,7 @@ bool_t nav_approaching_xy(float x, float y, float from_x, float from_y, float ap
 #define NavApproaching(wp, time) nav_approaching_xy(waypoints[wp].x, waypoints[wp].y, last_x, last_y, time)
 #define NavApproachingFrom(wp, from, time) nav_approaching_xy(waypoints[wp].x, waypoints[wp].y, waypoints[from].x, waypoints[from].y, time)
 
+
 /** Set the climb control to auto-throttle with the specified pitch
     pre-command */
 #define NavVerticalAutoThrottleMode(_pitch) { \
@@ -175,7 +182,8 @@ bool_t nav_approaching_xy(float x, float y, float from_x, float from_y, float ap
 
 #define NavAttitude(_roll) { \
   lateral_mode = LATERAL_MODE_ROLL; \
-  h_ctl_roll_setpoint = _roll; \
+  if(pprz_mode != PPRZ_MODE_AUTO1)  \
+	 {h_ctl_roll_setpoint = _roll;} \
 }
 
 #define nav_IncreaseShift(x) { if (x==0) nav_shift = 0; else nav_shift += x; }

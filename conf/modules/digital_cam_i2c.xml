@@ -1,12 +1,16 @@
 <!DOCTYPE module SYSTEM "module.dtd">
 
 <module name="atmega_i2c_cam_ctrl" dir="digital_cam">
+  <doc>
+    <description></description>
+  </doc>
+
   <header>
     <file name="atmega_i2c_cam_ctrl.h"/>
   </header>
 
   <init 	fun="atmega_i2c_cam_ctrl_init()"/>
-  <periodic 	fun="atmega_i2c_cam_ctrl_periodic()"  autorun="TRUE" freq="4" /> 
+  <periodic 	fun="atmega_i2c_cam_ctrl_periodic()"  autorun="TRUE" freq="4" />
   <event 	fun="atmega_i2c_cam_ctrl_event()"/>
 
   <datalink message="PAYLOAD_COMMAND" fun="ParseCameraCommand()" />

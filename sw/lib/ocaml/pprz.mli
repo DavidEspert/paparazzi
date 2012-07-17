@@ -2,7 +2,7 @@
  * $Id$
  *
  * Downlink protocol (handling messages.xml)
- *  
+ *
  * Copyright (C) 2003 Pascal Brisset, Antoine Drouin
  *
  * This file is part of paparazzi.
@@ -20,7 +20,7 @@
  * You should have received a copy of the GNU General Public License
  * along with paparazzi; see the file COPYING.  If not, write to
  * the Free Software Foundation, 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA. 
+ * Boston, MA 02111-1307, USA.
  *
  *)
 
@@ -30,10 +30,10 @@ type class_name = string
 type message_id = int
 type ac_id = int
 type format = string
-type _type = 
+type _type =
     Scalar of string
   | ArrayType of string
-type value = 
+type value =
     Int of int | Float of float | String of string | Int32 of int32
   | Array of value array
 type field = {
@@ -43,8 +43,8 @@ type field = {
     enum : string list (* 'values' attribute *)
   }
 type link_mode = Forwarded | Broadcasted
-type message = { 
-    name : string; 
+type message = {
+    name : string;
     fields : (string * field) list;
     link : link_mode option
   }
@@ -86,21 +86,22 @@ val int32_assoc : string -> values -> Int32.t
 val hex_of_int_array : value -> string
 (** Returns the hexadecimal string of an array of integers *)
 
+exception Unit_conversion_error of string
+(** Unit_conversion_error raised when parsing error occurs *)
+exception Unknown_conversion of string * string
+(** Unknown_conversion raised when conversion fails *)
+
+val scale_of_units : string -> string -> float
+(** scale_of_units from to
+ *  Returns conversion factor between two units
+ *  The possible conversions are described in conf/units.xml
+ *  May raise Invalid_argument if one of the unit is not valid
+ *  or if units.xml is not valid
+ *)
+
 val alt_unit_coef_of_xml : Xml.xml -> string
 (** Return coef for alternate unit
-    Default possible corrections:
-    deg -> rad
-    rad -> deg
-    m -> cm
-    cm -> m
-    m -> mm
-    mm -> m
-    m/s -> cm/s
-    cm/s -> m/s
-    m/s -> mm/s
-    mm/s -> m/s
-    decideg -> deg
-    *)
+ *)
 
 exception Unknown_msg_name of string * string
 (** [Unknown_msg_name (name, class_name)] Raised if message [name] is not

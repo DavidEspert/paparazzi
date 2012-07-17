@@ -5,7 +5,6 @@ struct Baro baro;
 struct BaroBoard baro_board;
 struct i2c_transaction baro_trans;
 
-
 static inline void baro_board_write_to_register(uint8_t baro_addr, uint8_t reg_addr, uint8_t val_msb, uint8_t val_lsb);
 static inline void baro_board_read_from_register(uint8_t baro_addr, uint8_t reg_addr);
 static inline void baro_board_set_current_register(uint8_t baro_addr, uint8_t reg_addr);
@@ -27,6 +26,7 @@ void baro_init(void) {
 void baro_periodic(void) {
   // check i2c_done
   if (!i2c_idle(&i2c2)) return;
+
   switch (baro_board.status) {
   case LBS_UNINITIALIZED:
     baro_board_send_reset();
@@ -67,7 +67,14 @@ void baro_periodic(void) {
 
 
 void baro_board_send_config_abs(void) {
+#ifndef BARO_LOW_GAIN
+#pragma message "Using High LisaL Baro Gain: Do not use below 1000hPa"
   baro_board_write_to_register(BARO_ABS_ADDR, 0x01, 0x86, 0x83);
+#else
+#pragma message "Using Low LisaL Baro Gain, capable of measuring below 1000hPa or more"
+  //config register should be 0x84 in low countries, or 0x86 in normal countries
+  baro_board_write_to_register(BARO_ABS_ADDR, 0x01, 0x84, 0x83);
+#endif
 }
 
 void baro_board_send_config_diff(void) {
