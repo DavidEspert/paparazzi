@@ -193,7 +193,13 @@ sim.CFLAGS 		+= -DSITL
 sim.srcs 		+= $(SRC_ARCH)/sim_ap.c
 
 sim.CFLAGS 		+= -DDOWNLINK -DDOWNLINK_TRANSPORT=IvyTransport
-sim.srcs 		+= subsystems/datalink/downlink.c $(SRC_FIRMWARE)/datalink.c $(SRC_ARCH)/ivy_transport.c
+sim.srcs 		+= subsystems/datalink/downlink.c  $(SRC_FIRMWARE)/datalink.c $(SRC_ARCH)/ivy_transport.c
+# GJN Added during development...
+sim.srcs		+= mcu_periph/device.c mcu_periph/transmit_buffer.c subsystems/datalink/transport_pprz.c
+# sim.CFLAGS 		+= -DUSE_UART0
+# sim.srcs		+= mcu_periph/uart.c $(SRC_ARCH)/mcu_periph/uart_arch.c
+sim.CFLAGS 		+= -DUSE_I2C1
+# Already included sim.srcs		+= mcu_periph/i2c.c $(SRC_ARCH)/mcu_periph/i2c_arch.c
 
 sim.srcs 		+= $(SRC_ARCH)/sim_gps.c $(SRC_ARCH)/sim_adc_generic.c
 

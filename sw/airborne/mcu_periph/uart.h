@@ -87,12 +87,23 @@ static inline bool_t uart_char_available(struct uart_periph* p) {
 
 #ifdef USE_UART0
 extern struct uart_periph uart0;
-extern void uart0_init(void);
 
+//Init
+extern void uart0_init(void);
+//static inline void UART0Init(){ uart_periph_init(&uart0);}
 #define UART0Init() uart_periph_init(&uart0)
-#define UART0CheckFreeSpace(_x) uart_check_free_space(&uart0, _x)
+
+//Transmit (inline and non-inline versions)
+extern void uart0_transmit(uint8_t data);
+//static inline void UART0Transmit(uint8_t data){ uart_transmit(&uart0, data);}
 #define UART0Transmit(_x) uart_transmit(&uart0, _x)
+
+//SendMessage
+extern void uart0_sendMessage(uint8_t *buff, uint8_t length);
+//static inline UART0SendMessage() {}
 #define UART0SendMessage() {}
+
+#define UART0CheckFreeSpace(_x) uart_check_free_space(&uart0, _x)
 #define UART0ChAvailable() uart_char_available(&uart0)
 #define UART0Getch() uart_getch(&uart0)
 #define UART0TxRunning uart0.tx_running
@@ -101,14 +112,26 @@ extern void uart0_init(void);
 
 #endif // USE_UART0
 
+
 #ifdef USE_UART1
 extern struct uart_periph uart1;
-extern void uart1_init(void);
 
+//Init
+extern void uart1_init(void);
+//static inline void UART1Init(){ uart_periph_init(&uart1);}
 #define UART1Init() uart_periph_init(&uart1)
-#define UART1CheckFreeSpace(_x) uart_check_free_space(&uart1, _x)
+
+//Transmit (inline and non-inline versions)
+extern void uart1_transmit(uint8_t data);
+//static inline void UART1Transmit(uint8_t data){ uart_transmit(&uart1, data);}
 #define UART1Transmit(_x) uart_transmit(&uart1, _x)
+
+//SendMessage
+extern void uart1_sendMessage(uint8_t *buff, uint8_t length);
+//static inline UART1SendMessage() {}
 #define UART1SendMessage() {}
+
+#define UART1CheckFreeSpace(_x) uart_check_free_space(&uart1, _x)
 #define UART1ChAvailable() uart_char_available(&uart1)
 #define UART1Getch() uart_getch(&uart1)
 #define UART1TxRunning uart1.tx_running
@@ -117,14 +140,26 @@ extern void uart1_init(void);
 
 #endif // USE_UART1
 
+
 #ifdef USE_UART2
 extern struct uart_periph uart2;
-extern void uart2_init(void);
 
+//Init
+extern void uart2_init(void);
+//static inline void UART2Init(){ uart_periph_init(&uart2);}
 #define UART2Init() uart_periph_init(&uart2)
-#define UART2CheckFreeSpace(_x) uart_check_free_space(&uart2, _x)
+
+//Transmit (inline and non-inline versions)
+extern void uart2_transmit(uint8_t data);
+//static inline void UART2Transmit(uint8_t data){ uart_transmit(&uart2, data);}
 #define UART2Transmit(_x) uart_transmit(&uart2, _x)
+
+//SendMessage
+extern void uart2_sendMessage(uint8_t *buff, uint8_t length);
+//static inline UART2SendMessage() {}
 #define UART2SendMessage() {}
+
+#define UART2CheckFreeSpace(_x) uart_check_free_space(&uart2, _x)
 #define UART2ChAvailable() uart_char_available(&uart2)
 #define UART2Getch() uart_getch(&uart2)
 #define UART2TxRunning uart2.tx_running
@@ -133,14 +168,26 @@ extern void uart2_init(void);
 
 #endif // USE_UART2
 
+
 #ifdef USE_UART3
 extern struct uart_periph uart3;
-extern void uart3_init(void);
 
+//Init
+extern void uart3_init(void);
+//static inline void UART3Init(){ uart_periph_init(&uart3);}
 #define UART3Init() uart_periph_init(&uart3)
-#define UART3CheckFreeSpace(_x) uart_check_free_space(&uart3, _x)
+
+//Transmit (inline and non-inline versions)
+extern void uart3_transmit(uint8_t data);
+//static inline void UART3Transmit(uint8_t data){ uart_transmit(&uart3, data);}
 #define UART3Transmit(_x) uart_transmit(&uart3, _x)
+
+//SendMessage
+extern void uart3_sendMessage(uint8_t *buff, uint8_t length);
+//static inline UART3SendMessage() {}
 #define UART3SendMessage() {}
+
+#define UART3CheckFreeSpace(_x) uart_check_free_space(&uart3, _x)
 #define UART3ChAvailable() uart_char_available(&uart3)
 #define UART3Getch() uart_getch(&uart3)
 #define UART3TxRunning uart3.tx_running
@@ -149,14 +196,26 @@ extern void uart3_init(void);
 
 #endif // USE_UART3
 
+
 #ifdef USE_UART4
 extern struct uart_periph uart4;
-extern void uart4_init(void);
 
+//Init
+extern void uart4_init(void);
+//static inline void UART4Init(){ uart_periph_init(&uart4);}
 #define UART4Init() uart_periph_init(&uart4)
-#define UART4CheckFreeSpace(_x) uart_check_free_space(&uart4, _x)
+
+//Transmit (inline and non-inline versions)
+extern void uart4_transmit(uint8_t data);
+//static inline void UART4Transmit(uint8_t data){ uart_transmit(&uart4, data);}
 #define UART4Transmit(_x) uart_transmit(&uart4, _x)
+
+//SendMessage
+extern void uart4_sendMessage(uint8_t *buff, uint8_t length);
+//static inline UART4SendMessage() {}
 #define UART4SendMessage() {}
+
+#define UART4CheckFreeSpace(_x) uart_check_free_space(&uart4, _x)
 #define UART4ChAvailable() uart_char_available(&uart4)
 #define UART4Getch() uart_getch(&uart4)
 #define UART4TxRunning uart4.tx_running
@@ -165,14 +224,26 @@ extern void uart4_init(void);
 
 #endif // USE_UART4
 
+
 #ifdef USE_UART5
 extern struct uart_periph uart5;
-extern void uart5_init(void);
 
+//Init
+extern void uart5_init(void);
+//static inline void UART5Init(){ uart_periph_init(&uart5);}
 #define UART5Init() uart_periph_init(&uart5)
-#define UART5CheckFreeSpace(_x) uart_check_free_space(&uart5, _x)
+
+//Transmit (inline and non-inline versions)
+extern void uart5_transmit(uint8_t data);
+//static inline void UART5Transmit(uint8_t data){ uart_transmit(&uart5, data);}
 #define UART5Transmit(_x) uart_transmit(&uart5, _x)
+
+//SendMessage
+extern void uart5_sendMessage(uint8_t *buff, uint8_t length);
+//static inline UART5SendMessage() {}
 #define UART5SendMessage() {}
+
+#define UART5CheckFreeSpace(_x) uart_check_free_space(&uart5, _x)
 #define UART5ChAvailable() uart_char_available(&uart5)
 #define UART5Getch() uart_getch(&uart5)
 #define UART5TxRunning uart5.tx_running
@@ -181,14 +252,26 @@ extern void uart5_init(void);
 
 #endif // USE_UART5
 
+
 #ifdef USE_UART6
 extern struct uart_periph uart6;
-extern void uart6_init(void);
 
+//Init
+extern void uart6_init(void);
+//static inline void UART6Init(){ uart_periph_init(&uart6);}
 #define UART6Init() uart_periph_init(&uart6)
-#define UART6CheckFreeSpace(_x) uart_check_free_space(&uart6, _x)
+
+//Transmit (inline and non-inline versions)
+extern void uart6_transmit(uint8_t data);
+//static inline void UART6Transmit(uint8_t data){ uart_transmit(&uart6, data);}
 #define UART6Transmit(_x) uart_transmit(&uart6, _x)
+
+//SendMessage
+extern void uart6_sendMessage(uint8_t *buff, uint8_t length);
+//static inline UART6SendMessage() {}
 #define UART6SendMessage() {}
+
+#define UART6CheckFreeSpace(_x) uart_check_free_space(&uart6, _x)
 #define UART6ChAvailable() uart_char_available(&uart6)
 #define UART6Getch() uart_getch(&uart6)
 #define UART6TxRunning uart6.tx_running

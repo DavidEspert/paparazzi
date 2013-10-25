@@ -91,14 +91,16 @@ XSENS_XML = $(CONF)/xsens_MTi-G.xml
 #
 MESSAGES_H=$(STATICINCLUDE)/messages.h
 MESSAGES2_H=$(STATICINCLUDE)/messages2.h
+MESSAGES3_H=$(STATICINCLUDE)/messages_data.h
 UBX_PROTOCOL_H=$(STATICINCLUDE)/ubx_protocol.h
 MTK_PROTOCOL_H=$(STATICINCLUDE)/mtk_protocol.h
 XSENS_PROTOCOL_H=$(STATICINCLUDE)/xsens_protocol.h
 DL_PROTOCOL_H=$(STATICINCLUDE)/dl_protocol.h
 DL_PROTOCOL2_H=$(STATICINCLUDE)/dl_protocol2.h
+DL_PROTOCOL3_H=$(STATICINCLUDE)/dl_protocol_data.h
 ABI_MESSAGES_H=$(STATICINCLUDE)/abi_messages.h
 
-GEN_HEADERS = $(MESSAGES_H) $(MESSAGES2_H) $(UBX_PROTOCOL_H) $(MTK_PROTOCOL_H) $(XSENS_PROTOCOL_H) $(DL_PROTOCOL_H) $(DL_PROTOCOL2_H) $(ABI_MESSAGES_H)
+GEN_HEADERS = $(MESSAGES_H) $(MESSAGES2_H) $(MESSAGES3_H) $(UBX_PROTOCOL_H) $(MTK_PROTOCOL_H) $(XSENS_PROTOCOL_H) $(DL_PROTOCOL_H) $(DL_PROTOCOL2_H) $(DL_PROTOCOL3_H) $(ABI_MESSAGES_H)
 
 
 all: ground_segment ext lpctools
@@ -179,7 +181,15 @@ $(MESSAGES2_H) : $(MESSAGES_XML) tools
 	$(Q)test -d $(STATICINCLUDE) || mkdir -p $(STATICINCLUDE)
 	@echo GENERATE $@
 	$(eval $@_TMP := $(shell $(MKTEMP)))
-	$(Q)PAPARAZZI_SRC=$(PAPARAZZI_SRC) PAPARAZZI_HOME=$(PAPARAZZI_HOME) $(TOOLS)/gen_messages2.out $< telemetry > $($@_TMP)
+	$(Q)PAPARAZZI_SRC=$(PAPARAZZI_SRC) PAPARAZZI_HOME=$(PAPARAZZI_HOME) $(TOOLS)/gen_downlink_macros.out $< telemetry > $($@_TMP)
+	$(Q)mv $($@_TMP) $@
+	$(Q)chmod a+r $@
+
+$(MESSAGES3_H) : $(MESSAGES_XML) tools
+	$(Q)test -d $(STATICINCLUDE) || mkdir -p $(STATICINCLUDE)
+	@echo GENERATE $@
+	$(eval $@_TMP := $(shell $(MKTEMP)))
+	$(Q)PAPARAZZI_SRC=$(PAPARAZZI_SRC) PAPARAZZI_HOME=$(PAPARAZZI_HOME) $(TOOLS)/gen_downlink_data.out $< telemetry > $($@_TMP)
 	$(Q)mv $($@_TMP) $@
 	$(Q)chmod a+r $@
 
@@ -214,7 +224,14 @@ $(DL_PROTOCOL_H) : $(MESSAGES_XML) tools
 $(DL_PROTOCOL2_H) : $(MESSAGES_XML) tools
 	@echo GENERATE $@
 	$(eval $@_TMP := $(shell $(MKTEMP)))
-	$(Q)PAPARAZZI_SRC=$(PAPARAZZI_SRC) PAPARAZZI_HOME=$(PAPARAZZI_HOME) $(TOOLS)/gen_messages2.out $< datalink > $($@_TMP)
+	$(Q)PAPARAZZI_SRC=$(PAPARAZZI_SRC) PAPARAZZI_HOME=$(PAPARAZZI_HOME) $(TOOLS)/gen_downlink_macros.out $< datalink > $($@_TMP)
+	$(Q)mv $($@_TMP) $@
+	$(Q)chmod a+r $@
+
+$(DL_PROTOCOL3_H) : $(MESSAGES_XML) tools
+	@echo GENERATE $@
+	$(eval $@_TMP := $(shell $(MKTEMP)))
+	$(Q)PAPARAZZI_SRC=$(PAPARAZZI_SRC) PAPARAZZI_HOME=$(PAPARAZZI_HOME) $(TOOLS)/gen_downlink_data.out $< datalink > $($@_TMP)
 	$(Q)mv $($@_TMP) $@
 	$(Q)chmod a+r $@
 

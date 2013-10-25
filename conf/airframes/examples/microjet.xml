@@ -174,7 +174,7 @@
     <subsystem name="radio_control" type="ppm"/>
 
     <!-- Communication -->
-    <subsystem name="telemetry" 	type="xbee_api">
+    <subsystem name="telemetry" 	type="transparent">
       <configure name="MODEM_BAUD" 		value="B9600"/>
     </subsystem>
 

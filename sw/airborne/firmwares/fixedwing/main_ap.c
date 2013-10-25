@@ -74,6 +74,9 @@
 #include "subsystems/datalink/xbee.h"
 #include "subsystems/datalink/w5100.h"
 #include "firmwares/fixedwing/ap_downlink.h"
+#include "messages2.h"
+#include "mcu_periph/device.h"
+#include "subsystems/datalink/transport2.h"
 
 // modules & settings
 #include "generated/modules.h"
@@ -431,7 +434,11 @@ void reporting_task( void ) {
 
   /** initialisation phase during boot */
   if (boot) {
-    DOWNLINK_SEND_BOOT(DefaultChannel, DefaultDevice, &version);
+//    DOWNLINK_SEND_BOOT(DefaultChannel, DefaultDevice);
+    for(uint8_t i=0; i < 6; i++){
+      downlink_send_BOOT(&PprzTransport, &dev_I2C1, &version);
+      downlink_send_RC(&PprzTransport, &dev_I2C1, RADIO_CONTROL_NB_CHANNEL, radio_control.values);
+    }
     boot = FALSE;
   }
   /** then report periodicly */

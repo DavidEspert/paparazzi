@@ -22,34 +22,6 @@
 
 #include "mcu_periph/uart.h"
 
-#ifdef USE_UART0
-struct uart_periph uart0;
-#endif
-
-#ifdef USE_UART1
-struct uart_periph uart1;
-#endif
-
-#ifdef USE_UART2
-struct uart_periph uart2;
-#endif
-
-#ifdef USE_UART3
-struct uart_periph uart3;
-#endif
-
-#ifdef USE_UART4
-struct uart_periph uart4;
-#endif
-
-#ifdef USE_UART5
-struct uart_periph uart5;
-#endif
-
-#ifdef USE_UART6
-struct uart_periph uart6;
-#endif
-
 void uart_periph_init(struct uart_periph* p) {
   p->rx_insert_idx = 0;
   p->rx_extract_idx = 0;
@@ -73,3 +45,58 @@ uint8_t uart_getch(struct uart_periph* p) {
   p->rx_extract_idx = (p->rx_extract_idx + 1) % UART_RX_BUFFER_SIZE;
   return ret;
 }
+
+static inline void uart_sendMessage(struct uart_periph* p, uint8_t *buff, uint8_t length) {
+  for(uint8_t i= 0; i < length; i++) uart_transmit(p, buff[i]);
+}
+
+
+
+#ifdef USE_UART0
+struct uart_periph uart0;
+
+void uart0_transmit(uint8_t data)			{ uart_transmit(&uart0, data); }
+void uart0_sendMessage(uint8_t *buff, uint8_t length)	{ uart_sendMessage(&uart0, buff, length); }
+#endif
+
+#ifdef USE_UART1
+struct uart_periph uart1;
+
+void uart1_transmit(uint8_t data){ uart_transmit(&uart1, data);}
+void uart1_sendMessage(uint8_t *buff, uint8_t length)	{ uart_sendMessage(&uart1, buff, length); }
+#endif
+
+#ifdef USE_UART2
+struct uart_periph uart2;
+
+void uart2_transmit(uint8_t data){ uart_transmit(&uart2, data);}
+void uart2_sendMessage(uint8_t *buff, uint8_t length)	{ uart_sendMessage(&uart2, buff, length); }
+#endif
+
+#ifdef USE_UART3
+struct uart_periph uart3;
+
+void uart3_transmit(uint8_t data){ uart_transmit(&uart3, data);}
+void uart3_sendMessage(uint8_t *buff, uint8_t length)	{ uart_sendMessage(&uart3, buff, length); }
+#endif
+
+#ifdef USE_UART4
+struct uart_periph uart4;
+
+void uart4_transmit(uint8_t data){ uart_transmit(&uart4, data);}
+void uart4_sendMessage(uint8_t *buff, uint8_t length)	{ uart_sendMessage(&uart4, buff, length); }
+#endif
+
+#ifdef USE_UART5
+struct uart_periph uart5;
+
+void uart5_transmit(uint8_t data){ uart_transmit(&uart5, data);}
+void uart5_sendMessage(uint8_t *buff, uint8_t length)	{ uart_sendMessage(&uart5, buff, length); }
+#endif
+
+#ifdef USE_UART6
+struct uart_periph uart6;
+
+void uart6_transmit(uint8_t data){ uart_transmit(&uart6, data);}
+void uart6_sendMessage(uint8_t *buff, uint8_t length)	{ uart_sendMessage(&uart6, buff, length); }
+#endif

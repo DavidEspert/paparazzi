@@ -6,5 +6,9 @@ ap.CFLAGS += -D$(MODEM_PORT)_BAUD=$(MODEM_BAUD)
 
 ap.CFLAGS += -DDOWNLINK -DDOWNLINK_FBW_DEVICE=$(MODEM_PORT) -DDOWNLINK_AP_DEVICE=$(MODEM_PORT) -DPPRZ_UART=$(MODEM_PORT)
 ap.CFLAGS += -DDOWNLINK_TRANSPORT=PprzTransport -DDATALINK=PPRZ
-ap.srcs += subsystems/datalink/downlink.c subsystems/datalink/pprz_transport.c
+ap.srcs += subsystems/datalink/downlink.c mcu_periph/device.c mcu_periph/transmit_buffer.c subsystems/datalink/transport_pprz.c subsystems/datalink/pprz_transport.c
 ap.srcs += $(SRC_FIRMWARE)/datalink.c
+# GJN Added during development...
+# ap.CFLAGS += -DUSE_UART0 -DDOWNLINK_FBW_DEVICE=UART0 -DDOWNLINK_AP_DEVICE=UART0 -DPPRZ_UART=UART0 -DUART0_BAUD=B9600
+ap.CFLAGS += -DUSE_I2C1 -DDOWNLINK_FBW_DEVICE=I2C1 -DDOWNLINK_AP_DEVICE=I2C1 -DPPRZ_UART=I2C1 -DI2C1_BAUD=B9600
+ap.srcs += subsystems/datalink/downlink.c mcu_periph/device.c mcu_periph/transmit_buffer.c subsystems/datalink/transport_pprz.c subsystems/datalink/pprz_transport.c
