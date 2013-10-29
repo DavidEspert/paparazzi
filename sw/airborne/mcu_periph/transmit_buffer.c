@@ -39,7 +39,10 @@
 
 /*
 struct transmit_buffer tx_buff ={
+  .slot[0 ... (TX_BUFF_NUM_SLOTS-1)].length = 0,
   .slot[0 ... (TX_BUFF_NUM_SLOTS-1)].status = ST_FREE,
+  .slot[0 ... (TX_BUFF_NUM_SLOTS-1)].priority = 0,
+  .slot[0 ... (TX_BUFF_NUM_SLOTS-1)].next_slot = TX_BUFF_NUM_SLOTS,
   .first_output = TX_BUFF_NUM_SLOTS,
   .semaphore_get = 0,
   .semaphore_queue = 0,
@@ -49,15 +52,19 @@ struct transmit_buffer tx_buff ={
 
 
 void tx_buffer_init(struct transmit_buffer *tx_buff) {
-  for (uint8_t i = 0; i < TX_BUFF_NUM_SLOTS; i++)
+  for (uint8_t i = 0; i < TX_BUFF_NUM_SLOTS; i++){
+    tx_buff->slot[i].length = 0;
     tx_buff->slot[i].status = ST_FREE;
+    tx_buff->slot[i].priority = 0;
+    tx_buff->slot[i].next_slot = TX_BUFF_NUM_SLOTS;
+  }
   tx_buff->first_output = TX_BUFF_NUM_SLOTS;
   tx_buff->semaphore_get = 0;
   tx_buff->semaphore_queue = 0;
   tx_buff->pdg_action.action = NONE;
 }
 
-uint8_t get_tx_slot(struct transmit_buffer *tx_buff, uint8_t length, uint8_t *idx){
+uint8_t tx_buffer_get_slot(struct transmit_buffer *tx_buff, uint8_t length, uint8_t *idx){
   uint8_t slot_idx = 0;
   TRACE("\tbuffer_transmit: get_tx_slot:  msg_len = %u\n", length);
   
@@ -88,13 +95,14 @@ uint8_t get_tx_slot(struct transmit_buffer *tx_buff, uint8_t length, uint8_t *id
 
   //3- Slot available!
   tx_buff->slot[slot_idx].status = ST_RESERVED;
+  tx_buff->slot[slot_idx].length = length;
   *idx = slot_idx;
   TRACE("\tbuffer_transmit: get_tx_slot:  slot_id = %u\n", slot_idx);
 
   tx_buff->semaphore_get--;	return TX_BUFF_TRUE;
 }
 
-uint8_t * get_buff_pointer(struct transmit_buffer *tx_buff, uint8_t idx){
+uint8_t * tx_buffer_get_slot_pointer(struct transmit_buffer *tx_buff, uint8_t idx){
   return &(tx_buff->slot[idx].buffer[0]);
 }
 
@@ -173,6 +181,31 @@ void insert_slot_in_queue(struct transmit_buffer *tx_buff, uint8_t idx){
   TRACE("\tbuffer_transmit: insert_slot_in_queue:  INSERTED IN THE MIDDLE\n"); DEBUG_PRINT_BUFFER;
 }
 
+void extract_slot_from_queue(struct transmit_buffer *tx_buff, uint8_t idx){
+  uint8_t queue_idx = tx_buff->first_output;
+  //1- find slot in queue
+  //case A- queue is empty
+  if (queue_idx >= TX_BUFF_NUM_SLOTS){
+    return;
+  }
+  //case B- slot is the first element in queue
+  if(queue_idx == idx){
+    if(tx_buff->slot[queue_idx].status != ST_SENDING){
+      tx_buff->first_output = tx_buff->slot[idx].next_slot;
+      tx_buffer_free_slot(tx_buff, idx);
+    }
+    return;
+  }
+  //case C- slot is in the middle
+  while(tx_buff->slot[queue_idx].next_slot < TX_BUFF_NUM_SLOTS){
+    if(tx_buff->slot[queue_idx].next_slot == idx){
+      tx_buff->slot[queue_idx].next_slot = tx_buff->slot[idx].next_slot;
+      tx_buffer_free_slot(tx_buff, idx);
+    }
+  }
+  //case D- slot is not in queue
+}
+
 void pending_action(struct transmit_buffer *tx_buff){
   TRACE("\tbuffer_transmit: pending_action:\n");
   switch(tx_buff->pdg_action.action){
@@ -187,6 +220,12 @@ void pending_action(struct transmit_buffer *tx_buff){
 }
 
 void try_insert_slot_in_queue(struct transmit_buffer *tx_buff, uint8_t idx, uint8_t priority){
+  //0- verify slot idx
+  if(idx >= TX_BUFF_NUM_SLOTS){
+    //POSSIBLE USAGE ERROR: what to do?
+    return;
+  }
+
   //1- verify slot status
   if(tx_buff->slot[idx].status != ST_RESERVED){
     //POSSIBLE USAGE ERROR: what to do?
@@ -202,7 +241,7 @@ void try_insert_slot_in_queue(struct transmit_buffer *tx_buff, uint8_t idx, uint
     //Save this action as pending and quit
     tx_buff->pdg_action.action = ADD_QUEUE;
     tx_buff->pdg_action.idx = idx;
-    TRACE("\tbuffer_transmit: send_slot:  BUFFER BUSY. ACTION SAVED AS PENDING\n");
+    TRACE("\tbuffer_transmit: try_insert_slot_in_queue:  BUFFER BUSY. ACTION SAVED AS PENDING\n");
     tx_buff->semaphore_queue--;	return;
   }
 
@@ -213,4 +252,38 @@ void try_insert_slot_in_queue(struct transmit_buffer *tx_buff, uint8_t idx, uint
   pending_action(tx_buff);
 
   tx_buff->semaphore_queue--;
+}
+
+void try_extract_slot_from_queue(struct transmit_buffer *tx_buff, uint8_t idx){
+  //0- verify slot idx
+  if(idx >= TX_BUFF_NUM_SLOTS){
+    //POSSIBLE USAGE ERROR: what to do?
+    return;
+  }
+
+  //1- verify atomic operation
+  if(++tx_buff->semaphore_queue > 1){
+    //We are interrupting another function which also attemps to modify the queue.
+    //Save this action as pending and quit
+    tx_buff->pdg_action.action = RMV_QUEUE;
+    tx_buff->pdg_action.idx = idx;
+    TRACE("\tbuffer_transmit: try_extract_slot_from_queue:  BUFFER BUSY. ACTION SAVED AS PENDING\n");
+    tx_buff->semaphore_queue--;	return;
+  }
+
+  //2- extract slot from queue
+  extract_slot_from_queue(tx_buff, idx);
+  
+  //3- execute pending action on queue
+  pending_action(tx_buff);
+
+  tx_buff->semaphore_queue--;
+}
+
+/* CAUTION: slot must be out from Tx queue before setting it as free */
+void tx_buffer_free_slot(struct transmit_buffer *tx_buff, uint8_t idx) {
+  tx_buff->slot[idx].length = 0;
+  tx_buff->slot[idx].status = ST_FREE;
+  tx_buff->slot[idx].priority = 0;
+  tx_buff->slot[idx].next_slot = TX_BUFF_NUM_SLOTS;
 }

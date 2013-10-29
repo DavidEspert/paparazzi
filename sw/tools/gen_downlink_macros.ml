@@ -192,7 +192,8 @@ module Gen_onboard = struct
     end else
       fprintf h "%s downlink_send_%s(%s%s, %s%s){%s" f_type s trans_type trans_name dev_type dev_name eol;
 
-    fprintf h "\tuint8_t buff_idx;%s" eol;
+(*    fprintf h "\tuint8_t buff_idx;%s" eol;*)
+    fprintf h "\tuint8_t temp_buffer[256];%s" eol;
     if (f_type <> "#define") then begin
       fprintf h "\tuint8_t hd_len = %s->header_len();%s" trans_name eol;
       fprintf h "\tuint8_t tl_len = %s->tail_len();%s" trans_name eol;
@@ -200,8 +201,6 @@ module Gen_onboard = struct
       fprintf h "\tuint8_t hd_len = %s##_header_len();%s" trans_name eol;
       fprintf h "\tuint8_t tl_len = %s##_tail_len();%s" trans_name eol;
     end;
-(*    fprintf h "\tdev->i1 = 1;%s" eol;
-    fprintf h "\tdev->i1 += 1;%s" eol;*)
     fprintf h "%s" eol;
 
 (** DEBUG init *)
@@ -210,11 +209,49 @@ module Gen_onboard = struct
     fprintf h "%s" eol;
 (** DEBUG end*)
 
-    fprintf h "\t/* 1.- Try to get a slot in device's buffer */%s" eol;
+    fprintf h "\t/* 1.- Check if there is space enough in device's buffer */%s" eol;
     if (f_type <> "#define") then
-      fprintf h "\tif(dev->get_tx_slot((%s+hd_len+tl_len), &buff_idx) == TX_BUFF_TRUE){%s" data_len1 eol
+      fprintf h "\tif(dev->checkFreeSpace(%s + hd_len + tl_len)){%s" data_len1 eol
     else
-      fprintf h "\tif(dev->get_tx_slot((%s+hd_len+tl_len), &buff_idx) == TX_BUFF_TRUE){%s" data_len2 eol;
+      fprintf h "\tif(dev->checkFreeSpace(%s + hd_len + tl_len)){%s" data_len2 eol;
+    fprintf h "%s" eol;
+
+    fprintf h "\t  /* 2.- set message HEADER in temporary buffer (in depends on transport layer) */%s" eol;
+    if (f_type <> "#define") then
+      fprintf h "\t  %s->header(temp_buffer, %s, DL_%s);%s" trans_name data_len1 s eol
+    else
+      fprintf h "\t  %s##_header(temp_buffer, %s, DL_%s);%s" trans_name data_len2 s eol;
+    fprintf h "%s" eol;
+
+    fprintf h "\t  /* 3.- set message DATA in temporary buffer */%s" eol;
+    if List.length fields > 0 then begin
+      fprintf h "\t  downlink_data_%s_pack((temp_buffer+hd_len), " s;
+      print_parameters_macro_header h fields;
+      fprintf h ");%s" eol;
+    end;
+    fprintf h "%s" eol;
+
+    fprintf h "\t  /* 4.- set message TAIL in temporary buffer (in depends on transport layer) */%s" eol;
+    if (f_type <> "#define") then
+      fprintf h "\t  %s->tail(temp_buffer, %s);%s" trans_name data_len1 eol
+    else
+      fprintf h "\t  %s##_tail(tem_buffer, %s);%s" trans_name data_len2 eol;
+    fprintf h "%s" eol;
+
+    fprintf h "\t  /* 5.- put message in device's buffer */%s" eol;
+    if (f_type <> "#define") then
+      fprintf h "\t  for(uint8_t i = 0; i < (%s + hd_len + tl_len); i++)%s" data_len1 eol
+    else
+      fprintf h "\t  for(uint8_t i = 0; i < (%s + hd_len + tl_len); i++)%s" data_len2 eol;
+    fprintf h "\t    dev->transmit(temp_buffer[i]);%s" eol;
+    fprintf h "\t}%s" eol;
+    fprintf h "}\n\n"
+
+(*    fprintf h "\t/* 1.- Try to get a slot in device's buffer */%s" eol;
+    if (f_type <> "#define") then
+      fprintf h "\tif(dev->get_tx_slot((%s + hd_len + tl_len), &buff_idx) == TX_BUFF_TRUE){%s" data_len1 eol
+    else
+      fprintf h "\tif(dev->get_tx_slot((%s + hd_len + tl_len), &buff_idx) == TX_BUFF_TRUE){%s" data_len2 eol;
     fprintf h "\t  uint8_t *buff = dev->get_buff_pointer(buff_idx);%s" eol;
     fprintf h "%s" eol;
 
@@ -238,9 +275,9 @@ module Gen_onboard = struct
       fprintf h "\t  %s->tail(buff, %s);%s" trans_name data_len1 eol
     else
       fprintf h "\t  %s##_tail(buff, %s);%s" trans_name data_len2 eol;
-    fprintf h "\t  dev->send_slot(buff_idx, 0);%s" eol;
+    fprintf h "\t  dev->sendMessage(buff_idx, 0);%s" eol;
     fprintf h "\t}%s" eol;
-    fprintf h "}\n\n"
+    fprintf h "}\n\n"*)
 
 
   let print_null_downlink_macro = fun h f_type trans_type trans_name dev_type dev_name eol {name=s; fields = fields} ->

@@ -24,6 +24,16 @@
 #define NONE 0
 #define ADD_QUEUE 1
 #define	RMV_QUEUE 2
+
+//Declaration of initialized buffer: i.e. 'struct transmit_buffer tx_buff = INITIALIZED_TX_BUFFER;'
+#define INITIALIZED_TX_BUFFER { \
+    .slot[0 ... (TX_BUFF_NUM_SLOTS-1)] = { .length = 0, .status = ST_FREE, .priority = 0, .next_slot = TX_BUFF_NUM_SLOTS}, \
+    .first_output = TX_BUFF_NUM_SLOTS, \
+    .semaphore_get = 0, \
+    .semaphore_queue = 0, \
+    .pdg_action.action = NONE \
+}
+
 struct pending_action {
   uint8_t	action;
   uint8_t	idx;
@@ -31,6 +41,7 @@ struct pending_action {
 
 struct transmit_slot {
   uint8_t	buffer[MAX_DATA_LENGTH];
+  uint8_t	length;
   uint8_t	status;
   uint8_t	priority;
   uint8_t	next_slot;
@@ -48,9 +59,11 @@ struct transmit_buffer {
 
 
 void tx_buffer_init(struct transmit_buffer *tx_buff);
-uint8_t get_tx_slot(struct transmit_buffer *tx_buff, uint8_t length, uint8_t *idx);
-uint8_t * get_buff_pointer(struct transmit_buffer *tx_buff, uint8_t idx);
-void fill_buffer(struct transmit_buffer *tx_buff, uint8_t idx, uint8_t offset, uint8_t *origin, uint8_t length);
+uint8_t tx_buffer_get_slot(struct transmit_buffer *tx_buff, uint8_t length, uint8_t *idx);
+uint8_t * tx_buffer_get_slot_pointer(struct transmit_buffer *tx_buff, uint8_t idx);
+//void fill_buffer(struct transmit_buffer *tx_buff, uint8_t idx, uint8_t offset, uint8_t *origin, uint8_t length);
 void try_insert_slot_in_queue(struct transmit_buffer *tx_buff, uint8_t idx, uint8_t priority);
+void try_extract_slot_from_queue(struct transmit_buffer *tx_buff, uint8_t idx);
+void tx_buffer_free_slot(struct transmit_buffer *tx_buff, uint8_t idx);
 
 #endif // _TRANSMIT_BUFFER_H_
