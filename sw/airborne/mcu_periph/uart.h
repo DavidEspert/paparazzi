@@ -104,7 +104,7 @@ extern void uart0_sendMessage(uint8_t *buff, uint8_t length);
 #define UART0SendMessage() {}
 
 //CheckFreeSpace (inline and non-inline)
-extern void uart0_checkFreeSpace(uint8_t length);
+extern bool_t uart0_checkFreeSpace(uint8_t length);
 //static inline void UART0CheckFreeSpace(uint8_t length) { uart_check_free_space(&uart0, length); }
 #define UART0CheckFreeSpace(_x) uart_check_free_space(&uart0, _x)
 
@@ -136,7 +136,7 @@ extern void uart1_sendMessage(uint8_t *buff, uint8_t length);
 #define UART1SendMessage() {}
 
 //CheckFreeSpace (inline and non-inline)
-extern void uart1_checkFreeSpace(uint8_t length);
+extern bool_t uart1_checkFreeSpace(uint8_t length);
 //static inline void UART1CheckFreeSpace(uint8_t length) { uart_check_free_space(&uart1, length); }
 #define UART1CheckFreeSpace(_x) uart_check_free_space(&uart1, _x)
 
@@ -168,7 +168,7 @@ extern void uart2_sendMessage(uint8_t *buff, uint8_t length);
 #define UART2SendMessage() {}
 
 //CheckFreeSpace (inline and non-inline)
-extern void uart2_checkFreeSpace(uint8_t length);
+extern bool_t uart2_checkFreeSpace(uint8_t length);
 //static inline void UART2CheckFreeSpace(uint8_t length) { uart_check_free_space(&uart2, length); }
 #define UART2CheckFreeSpace(_x) uart_check_free_space(&uart2, _x)
 
@@ -200,7 +200,7 @@ extern void uart3_sendMessage(uint8_t *buff, uint8_t length);
 #define UART3SendMessage() {}
 
 //CheckFreeSpace (inline and non-inline)
-extern void uart3_checkFreeSpace(uint8_t length);
+extern bool_t uart3_checkFreeSpace(uint8_t length);
 //static inline void UART3CheckFreeSpace(uint8_t length) { uart_check_free_space(&uart3, length); }
 #define UART3CheckFreeSpace(_x) uart_check_free_space(&uart3, _x)
 
@@ -232,7 +232,7 @@ extern void uart4_sendMessage(uint8_t *buff, uint8_t length);
 #define UART4SendMessage() {}
 
 //CheckFreeSpace (inline and non-inline)
-extern void uart4_checkFreeSpace(uint8_t length);
+extern bool_t uart4_checkFreeSpace(uint8_t length);
 //static inline void UART4CheckFreeSpace(uint8_t length) { uart_check_free_space(&uart4, length); }
 #define UART4CheckFreeSpace(_x) uart_check_free_space(&uart4, _x)
 
@@ -264,7 +264,7 @@ extern void uart5_sendMessage(uint8_t *buff, uint8_t length);
 #define UART5SendMessage() {}
 
 //CheckFreeSpace (inline and non-inline)
-extern void uart5_checkFreeSpace(uint8_t length);
+extern bool_t uart5_checkFreeSpace(uint8_t length);
 //static inline void UART5CheckFreeSpace(uint8_t length) { uart_check_free_space(&uart5, length); }
 #define UART5CheckFreeSpace(_x) uart_check_free_space(&uart5, _x)
 
@@ -296,7 +296,7 @@ extern void uart6_sendMessage(uint8_t *buff, uint8_t length);
 #define UART6SendMessage() {}
 
 //CheckFreeSpace (inline and non-inline)
-extern void uart6_checkFreeSpace(uint8_t length);
+extern bool_t uart6_checkFreeSpace(uint8_t length);
 //static inline void UART6CheckFreeSpace(uint8_t length) { uart_check_free_space(&uart6, length); }
 #define UART6CheckFreeSpace(_x) uart_check_free_space(&uart6, _x)
 

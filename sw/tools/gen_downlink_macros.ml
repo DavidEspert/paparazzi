@@ -249,9 +249,9 @@ module Gen_onboard = struct
 
     fprintf h "\t/* 1.- Try to get a slot in device's buffer */%s" eol;
     if (f_type <> "#define") then
-      fprintf h "\tif(dev->get_tx_slot((%s + hd_len + tl_len), &buff_idx) == TX_BUFF_TRUE){%s" data_len1 eol
+      fprintf h "\tif(dev->get_tx_slot((%s + hd_len + tl_len), &buff_idx) == TRUE){%s" data_len1 eol
     else
-      fprintf h "\tif(dev->get_tx_slot((%s + hd_len + tl_len), &buff_idx) == TX_BUFF_TRUE){%s" data_len2 eol;
+      fprintf h "\tif(dev->get_tx_slot((%s + hd_len + tl_len), &buff_idx) == TRUE){%s" data_len2 eol;
     fprintf h "\t  uint8_t *buff = dev->get_buff_pointer(buff_idx);%s" eol;
     fprintf h "%s" eol;
 

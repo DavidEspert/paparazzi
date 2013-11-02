@@ -6,21 +6,55 @@
 #define TRACE    printf
 //#define TRACE    //
 
+uint8_t counter = 0;
 
 // I2C ------------------------------------------------------------------------
 void dev_I2C_sendMessage(struct i2c_periph *i2c, struct transmit_buffer *tx_buff, uint8_t idx, uint8_t priority) {
-  uint8_t temp;
+  uint8_t first_send;
   //Insert message in transmit queue
   try_insert_slot_in_queue(tx_buff, idx, priority);
+  
+  /* TEST 0: Send nothing */
 
-  //This is bullshit. 
-  while(tx_buff->first_output < TX_BUFF_NUM_SLOTS){
-    tx_buff->slot[tx_buff->first_output].status = ST_SENDING; //freeze this message as first output
-      temp = tx_buff->first_output;
-      tx_buff->first_output = tx_buff->slot[tx_buff->first_output].next_slot;
-      tx_buffer_free_slot(tx_buff, temp);
-      TRACE("\tdevice: dev_UART_sendMessage:  message from slot %u passed to UART\n", tx_buff->first_output);
+  /* TEST 1: Send everything 
+  first_send = tx_buff->first_send;
+  tx_buff->slot[first_send].status = ST_SENDING; //freeze this message as first output
+  tx_buff->slot[first_send].status = ST_READY;
+  TRACE("\tdevice: dev_I2C_sendMessage:  message from slot %u passed to I2C\n", first_send);
+  tx_buffer_try_free_slot(tx_buff, first_send); */
+
+  /* TEST 2: Send 1msg every 4msgs */
+  /* message 0 has priority 0 (8bytes)
+   * message 1 has priority 1 (21bytes)
+   * message 2 has priority 0 (8bytes)
+   * message 3 has priority 1 (21bytes)
+   * After that the order in memory must be:   0,1,2,3
+   * After that the order in TX queue must be: 1,3,0,2
+   * First message is send: 1
+   * message 4 has priority 0 (8bytes)
+   * After that the order in memory must be:   0,4,2,3
+   * After that the order in TX queue must be: 3,0,2,4
+   */ 
+  if(++counter == 4) {
+    counter = 0;
+    first_send = tx_buff->first_send;
+    tx_buff->slot[first_send].status = ST_SENDING; //freeze this message as first output
+    tx_buff->slot[first_send].status = ST_READY;
+    TRACE("\n\tdevice: dev_I2C_sendMessage:  MESSAGE FROM SLOT %u HAS BEEN SENT\n", first_send);
+    tx_buffer_try_free_slot(tx_buff, first_send);
   }
+
+/*
+  //This is bullshit.
+  first_send = tx_buff->first_send;
+//  while(first_send < TX_BUFF_NUM_SLOTS){
+    tx_buff->slot[first_send].status = ST_SENDING; //freeze this message as first output
+    tx_buff->slot[first_send].status = ST_READY;
+    TRACE("\tdevice: dev_I2C_sendMessage:  message from slot %u passed to I2C\n", first_send);
+    tx_buffer_try_free_slot(tx_buff, first_send);
+//    first_send = tx_buff->first_send;
+//  }
+*/
 }
 
 

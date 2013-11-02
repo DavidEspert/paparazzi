@@ -10,24 +10,25 @@
 
 // UART ------------------------------------------------------------------------
 void dev_UART_sendMessage(struct uart_periph *uart, struct transmit_buffer *tx_buff, uint8_t idx, uint8_t priority) {
-  uint8_t temp;
+  uint8_t first_send;
   //Insert message in transmit queue
   try_insert_slot_in_queue(tx_buff, idx, priority);
 
   //Insert as messages as possible in uart's Fifo.
-  while(tx_buff->first_output < TX_BUFF_NUM_SLOTS){
-    tx_buff->slot[tx_buff->first_output].status = ST_SENDING; //freeze this message as first output
-    if(uart_check_free_space(uart, tx_buff->slot[tx_buff->first_output].length)){
-      for(uint8_t i= 0; i < tx_buff->slot[tx_buff->first_output].length; i++)
-	uart_transmit(uart, tx_buff->slot[tx_buff->first_output].buffer[i]);
+  first_send = tx_buff->first_send;
+  while(first_send < TX_BUFF_NUM_SLOTS){
+    tx_buff->slot[first_send].status = ST_SENDING; //freeze this message as first output
+    if(uart_check_free_space(uart, tx_buff->slot[first_send].length)){
+      for(uint8_t i= 0; i < tx_buff->slot[first_send].length; i++)
+	uart_transmit(uart, tx_buff->buffer[ (tx_buff->slot[first_send].init + i) ]);
       //message is sent. Free this slot
-      temp = tx_buff->first_output;
-      tx_buff->first_output = tx_buff->slot[tx_buff->first_output].next_slot;
-      tx_buffer_free_slot(tx_buff, temp);
-      TRACE("\tdevice: dev_UART_sendMessage:  message from slot %u passed to UART\n", tx_buff->first_output);
+      tx_buff->slot[first_send].status = ST_READY;
+      TRACE("\tdevice: dev_UART_sendMessage:  message from slot %u passed to UART\n", tx_buff->first_send);
+      tx_buffer_try_free_slot(tx_buff, first_send);
+      first_send = tx_buff->first_send;
     }
     else{
-      tx_buff->slot[tx_buff->first_output].status = ST_READY; //Unfreeze this message as first output
+      tx_buff->slot[tx_buff->first_send].status = ST_READY; //Unfreeze this message as first output
       break;
     }
   }

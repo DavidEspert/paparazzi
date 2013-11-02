@@ -435,7 +435,7 @@ void reporting_task( void ) {
   /** initialisation phase during boot */
   if (boot) {
 //    DOWNLINK_SEND_BOOT(DefaultChannel, DefaultDevice);
-    for(uint8_t i=0; i < 6; i++){
+    for(uint8_t i=0; i < 8; i++){
       downlink_send_BOOT(&PprzTransport, &dev_I2C1, &version);
       downlink_send_RC(&PprzTransport, &dev_I2C1, RADIO_CONTROL_NB_CHANNEL, radio_control.values);
     }

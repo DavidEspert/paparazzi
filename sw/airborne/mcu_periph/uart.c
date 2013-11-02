@@ -57,7 +57,7 @@ struct uart_periph uart0;
 
 void uart0_transmit(uint8_t data)			{ uart_transmit(&uart0, data); }
 void uart0_sendMessage(uint8_t *buff, uint8_t length)	{ uart_sendMessage(&uart0, buff, length); }
-void uart0_checkFreeSpace(uint8_t length)		{ uart_check_free_space(&uart0, length); }
+bool_t uart0_checkFreeSpace(uint8_t length)		{ uart_check_free_space(&uart0, length); }
 #endif
 
 #ifdef USE_UART1
@@ -65,7 +65,7 @@ struct uart_periph uart1;
 
 void uart1_transmit(uint8_t data)			{ uart_transmit(&uart1, data);}
 void uart1_sendMessage(uint8_t *buff, uint8_t length)	{ uart_sendMessage(&uart1, buff, length); }
-void uart1_checkFreeSpace(uint8_t length)		{ uart_check_free_space(&uart1, length); }
+bool_t uart1_checkFreeSpace(uint8_t length)		{ uart_check_free_space(&uart1, length); }
 #endif
 
 #ifdef USE_UART2
@@ -73,7 +73,7 @@ struct uart_periph uart2;
 
 void uart2_transmit(uint8_t data)			{ uart_transmit(&uart2, data);}
 void uart2_sendMessage(uint8_t *buff, uint8_t length)	{ uart_sendMessage(&uart2, buff, length); }
-void uart2_checkFreeSpace(uint8_t length)		{ uart_check_free_space(&uart2, length); }
+bool_t uart2_checkFreeSpace(uint8_t length)		{ uart_check_free_space(&uart2, length); }
 #endif
 
 #ifdef USE_UART3
@@ -81,7 +81,7 @@ struct uart_periph uart3;
 
 void uart3_transmit(uint8_t data)			{ uart_transmit(&uart3, data);}
 void uart3_sendMessage(uint8_t *buff, uint8_t length)	{ uart_sendMessage(&uart3, buff, length); }
-void uart3_checkFreeSpace(uint8_t length)		{ uart_check_free_space(&uart3, length); }
+bool_t uart3_checkFreeSpace(uint8_t length)		{ uart_check_free_space(&uart3, length); }
 #endif
 
 #ifdef USE_UART4
@@ -89,7 +89,7 @@ struct uart_periph uart4;
 
 void uart4_transmit(uint8_t data)			{ uart_transmit(&uart4, data);}
 void uart4_sendMessage(uint8_t *buff, uint8_t length)	{ uart_sendMessage(&uart4, buff, length); }
-void uart4_checkFreeSpace(uint8_t length)		{ uart_check_free_space(&uart4, length); }
+bool_t uart4_checkFreeSpace(uint8_t length)		{ uart_check_free_space(&uart4, length); }
 #endif
 
 #ifdef USE_UART5
@@ -97,7 +97,7 @@ struct uart_periph uart5;
 
 void uart5_transmit(uint8_t data)			{ uart_transmit(&uart5, data);}
 void uart5_sendMessage(uint8_t *buff, uint8_t length)	{ uart_sendMessage(&uart5, buff, length); }
-void uart5_checkFreeSpace(uint8_t length)		{ uart_check_free_space(&uart5, length); }
+bool_t uart5_checkFreeSpace(uint8_t length)		{ uart_check_free_space(&uart5, length); }
 #endif
 
 #ifdef USE_UART6
@@ -105,5 +105,5 @@ struct uart_periph uart6;
 
 void uart6_transmit(uint8_t data)			{ uart_transmit(&uart6, data);}
 void uart6_sendMessage(uint8_t *buff, uint8_t length)	{ uart_sendMessage(&uart6, buff, length); }
-void uart6_checkFreeSpace(uint8_t length)		{ uart_check_free_space(&uart6, length); }
+bool_t uart6_checkFreeSpace(uint8_t length)		{ uart_check_free_space(&uart6, length); }
 #endif
