@@ -25,6 +25,7 @@
 
 #include "firmwares/rotorcraft/stabilization.h"
 #include "firmwares/rotorcraft/stabilization/stabilization_attitude_rc_setpoint.h"
+#include "firmwares/rotorcraft/stabilization/stabilization_attitude_quat_transformations.h"
 
 #include <stdio.h>
 #include "math/pprz_algebra_float.h"
@@ -64,6 +65,46 @@ int32_t stabilization_att_ff_cmd[COMMANDS_NB];
 #define GAIN_PRESCALER_D 48
 #define GAIN_PRESCALER_I 48
 
+#if DOWNLINK
+#include "subsystems/datalink/telemetry.h"
+
+static void send_att(void) { //FIXME really use this message here ?
+  struct Int32Rates* body_rate = stateGetBodyRates_i();
+  struct Int32Eulers* att = stateGetNedToBodyEulers_i();
+  DOWNLINK_SEND_STAB_ATTITUDE_INT(DefaultChannel, DefaultDevice,
+      &(body_rate->p), &(body_rate->q), &(body_rate->r),
+      &(att->phi), &(att->theta), &(att->psi),
+      &stab_att_sp_euler.phi,
+      &stab_att_sp_euler.theta,
+      &stab_att_sp_euler.psi,
+      &stabilization_att_sum_err.phi,
+      &stabilization_att_sum_err.theta,
+      &stabilization_att_sum_err.psi,
+      &stabilization_att_fb_cmd[COMMAND_ROLL],
+      &stabilization_att_fb_cmd[COMMAND_PITCH],
+      &stabilization_att_fb_cmd[COMMAND_YAW],
+      &stabilization_att_ff_cmd[COMMAND_ROLL],
+      &stabilization_att_ff_cmd[COMMAND_PITCH],
+      &stabilization_att_ff_cmd[COMMAND_YAW],
+      &stabilization_cmd[COMMAND_ROLL],
+      &stabilization_cmd[COMMAND_PITCH],
+      &stabilization_cmd[COMMAND_YAW]);
+}
+
+static void send_att_ref(void) {
+  struct Int32Quat* quat = stateGetNedToBodyQuat_i();
+  DOWNLINK_SEND_AHRS_REF_QUAT(DefaultChannel, DefaultDevice,
+      &stab_att_ref_quat.qi,
+      &stab_att_ref_quat.qx,
+      &stab_att_ref_quat.qy,
+      &stab_att_ref_quat.qz,
+      &(quat->qi),
+      &(quat->qx),
+      &(quat->qy),
+      &(quat->qz));
+}
+#endif
+
 void stabilization_attitude_init(void) {
 
   stabilization_attitude_ref_init();
@@ -81,6 +122,11 @@ void stabilization_attitude_enter(void) {
 
   INT32_QUAT_ZERO(stabilization_att_sum_err_quat);
   INT_EULERS_ZERO(stabilization_att_sum_err);
+
+#if DOWNLINK
+  register_periodic_telemetry(DefaultPeriodic, "STAB_ATTITUDE", send_att);
+  register_periodic_telemetry(DefaultPeriodic, "STAB_AHRS_REF_QUAT", send_att_ref);
+#endif
 }
 
 void stabilization_attitude_set_failsafe_setpoint(void) {
@@ -92,85 +138,27 @@ void stabilization_attitude_set_failsafe_setpoint(void) {
   PPRZ_ITRIG_SIN(stab_att_sp_quat.qz, heading2);
 }
 
-void stabilization_attitude_set_cmd_i(struct Int32Eulers *sp_cmd) {
-  // copy euler setpoint for debugging
-  memcpy(&stab_att_sp_euler, sp_cmd, sizeof(struct Int32Eulers));
+void stabilization_attitude_set_rpy_setpoint_i(struct Int32Eulers *rpy) {
+  // stab_att_sp_euler.psi still used in ref..
+  memcpy(&stab_att_sp_euler, rpy, sizeof(struct Int32Eulers));
 
-  /// @todo calc sp_quat in fixed-point
+  quat_from_rpy_cmd_i(&stab_att_sp_quat, &stab_att_sp_euler);
+}
 
-  /* orientation vector describing simultaneous rotation of roll/pitch */
-  struct FloatVect3 ov;
-  ov.x = ANGLE_FLOAT_OF_BFP(sp_cmd->phi);
-  ov.y = ANGLE_FLOAT_OF_BFP(sp_cmd->theta);
-  ov.z = 0.0;
-  /* quaternion from that orientation vector */
-  struct FloatQuat q_rp;
-  FLOAT_QUAT_OF_ORIENTATION_VECT(q_rp, ov);
+void stabilization_attitude_set_earth_cmd_i(struct Int32Vect2 *cmd, int32_t heading) {
+  // stab_att_sp_euler.psi still used in ref..
+  stab_att_sp_euler.psi = heading;
 
-  const float psi_sp = ANGLE_FLOAT_OF_BFP(sp_cmd->psi);
+  // compute sp_euler phi/theta for debugging/telemetry
+  /* Rotate horizontal commands to body frame by psi */
+  int32_t psi = stateGetNedToBodyEulers_i()->psi;
+  int32_t s_psi, c_psi;
+  PPRZ_ITRIG_SIN(s_psi, psi);
+  PPRZ_ITRIG_COS(c_psi, psi);
+  stab_att_sp_euler.phi = (-s_psi * cmd->x + c_psi * cmd->y) >> INT32_TRIG_FRAC;
+  stab_att_sp_euler.theta = -(c_psi * cmd->x + s_psi * cmd->y) >> INT32_TRIG_FRAC;
 
-  /// @todo optimize yaw angle calculation
-
-  /*
-   * Instead of using the psi setpoint angle to rotate around the body z-axis,
-   * calculate the real angle needed to align the projection of the body x-axis
-   * onto the horizontal plane with the psi setpoint.
-   *
-   * angle between two vectors a and b:
-   * angle = atan2(norm(cross(a,b)), dot(a,b)) * sign(dot(cross(a,b), n))
-   * where n is the thrust vector (i.e. both a and b lie in that plane)
-   */
-  const struct FloatVect3 xaxis = {1.0, 0.0, 0.0};
-  const struct FloatVect3 zaxis = {0.0, 0.0, 1.0};
-  struct FloatVect3 a;
-  FLOAT_QUAT_VMULT(a, q_rp, xaxis);
-
-  // desired heading vect in earth x-y plane
-  struct FloatVect3 psi_vect;
-  psi_vect.x = cosf(psi_sp);
-  psi_vect.y = sinf(psi_sp);
-  psi_vect.z = 0.0;
-  // normal is the direction of the thrust vector
-  struct FloatVect3 normal;
-  FLOAT_QUAT_VMULT(normal, q_rp, zaxis);
-
-  // projection of desired heading onto body x-y plane
-  // b = v - dot(v,n)*n
-  float dot = FLOAT_VECT3_DOT_PRODUCT(psi_vect, normal);
-  struct FloatVect3 dotn;
-  FLOAT_VECT3_SMUL(dotn, normal, dot);
-
-  // b = v - dot(v,n)*n
-  struct FloatVect3 b;
-  FLOAT_VECT3_DIFF(b, psi_vect, dotn);
-
-  dot = FLOAT_VECT3_DOT_PRODUCT(a, b);
-  struct FloatVect3 cross;
-  VECT3_CROSS_PRODUCT(cross, a, b);
-  // norm of the cross product
-  float nc = FLOAT_VECT3_NORM(cross);
-  // angle = atan2(norm(cross(a,b)), dot(a,b))
-  float yaw2 = atan2(nc, dot) / 2.0;
-
-  // negative angle if needed
-  // sign(dot(cross(a,b), n)
-  float dot_cross_ab = FLOAT_VECT3_DOT_PRODUCT(cross, normal);
-  if (dot_cross_ab < 0) {
-    yaw2 = -yaw2;
-  }
-
-  /* quaternion with yaw command */
-  struct FloatQuat q_yaw;
-  QUAT_ASSIGN(q_yaw, cosf(yaw2), 0.0, 0.0, sinf(yaw2));
-
-  /* final setpoint: apply roll/pitch, then yaw around resulting body z-axis */
-  struct FloatQuat q_sp;
-  FLOAT_QUAT_COMP(q_sp, q_yaw, q_rp);
-  FLOAT_QUAT_NORMALIZE(q_sp);
-  FLOAT_QUAT_WRAP_SHORTEST(q_sp);
-
-  /* convert to fixed point */
-  QUAT_BFP_OF_REAL(stab_att_sp_quat, q_sp);
+  quat_from_earth_cmd_i(&stab_att_sp_quat, cmd, heading);
 }
 
 #define OFFSET_AND_ROUND(_a, _b) (((_a)+(1<<((_b)-1)))>>(_b))

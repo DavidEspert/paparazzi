@@ -25,6 +25,7 @@
 
 #include "firmwares/rotorcraft/stabilization.h"
 #include "firmwares/rotorcraft/stabilization/stabilization_attitude_rc_setpoint.h"
+#include "firmwares/rotorcraft/stabilization/stabilization_attitude_quat_transformations.h"
 
 #include <stdio.h>
 #include "math/pprz_algebra_float.h"
@@ -35,9 +36,10 @@
 struct FloatAttitudeGains stabilization_gains[STABILIZATION_ATTITUDE_GAIN_NB];
 
 struct FloatQuat stabilization_att_sum_err_quat;
-struct FloatEulers stabilization_att_sum_err_eulers;
+struct FloatEulers stabilization_att_sum_err;
 
 struct FloatRates last_body_rate;
+struct FloatRates body_rate_d;
 
 float stabilization_att_fb_cmd[COMMANDS_NB];
 float stabilization_att_ff_cmd[COMMANDS_NB];
@@ -89,6 +91,50 @@ static const float psi_ddgain_surface[] = STABILIZATION_ATTITUDE_PSI_DDGAIN_SURF
 
 #define IERROR_SCALE 1024
 
+#if DOWNLINK
+#include "subsystems/datalink/telemetry.h"
+
+static void send_att(void) {
+  struct FloatRates* body_rate = stateGetBodyRates_f();
+  struct FloatEulers* att = stateGetNedToBodyEulers_f();
+  DOWNLINK_SEND_STAB_ATTITUDE_FLOAT(DefaultChannel, DefaultDevice,
+                                    &(body_rate->p), &(body_rate->q), &(body_rate->r),
+                                    &(att->phi), &(att->theta), &(att->psi),
+                                    &stab_att_sp_euler.phi,
+                                    &stab_att_sp_euler.theta,
+                                    &stab_att_sp_euler.psi,
+                                    &stabilization_att_sum_err.phi,
+                                    &stabilization_att_sum_err.theta,
+                                    &stabilization_att_sum_err.psi,
+                                    &stabilization_att_fb_cmd[COMMAND_ROLL],
+                                    &stabilization_att_fb_cmd[COMMAND_PITCH],
+                                    &stabilization_att_fb_cmd[COMMAND_YAW],
+                                    &stabilization_att_ff_cmd[COMMAND_ROLL],
+                                    &stabilization_att_ff_cmd[COMMAND_PITCH],
+                                    &stabilization_att_ff_cmd[COMMAND_YAW],
+                                    &stabilization_cmd[COMMAND_ROLL],
+                                    &stabilization_cmd[COMMAND_PITCH],
+                                    &stabilization_cmd[COMMAND_YAW],
+                                    &body_rate_d.p, &body_rate_d.q, &body_rate_d.r);
+}
+
+static void send_att_ref(void) {
+  DOWNLINK_SEND_STAB_ATTITUDE_REF_FLOAT(DefaultChannel, DefaultDevice,
+                                        &stab_att_sp_euler.phi,
+                                        &stab_att_sp_euler.theta,
+                                        &stab_att_sp_euler.psi,
+                                        &stab_att_ref_euler.phi,
+                                        &stab_att_ref_euler.theta,
+                                        &stab_att_ref_euler.psi,
+                                        &stab_att_ref_rate.p,
+                                        &stab_att_ref_rate.q,
+                                        &stab_att_ref_rate.r,
+                                        &stab_att_ref_accel.p,
+                                        &stab_att_ref_accel.q,
+                                        &stab_att_ref_accel.r);
+}
+#endif
+
 void stabilization_attitude_init(void) {
 
   stabilization_attitude_ref_init();
@@ -108,8 +154,14 @@ void stabilization_attitude_init(void) {
   }
 
   FLOAT_QUAT_ZERO( stabilization_att_sum_err_quat );
-  FLOAT_EULERS_ZERO( stabilization_att_sum_err_eulers );
+  FLOAT_EULERS_ZERO( stabilization_att_sum_err );
   FLOAT_RATES_ZERO( last_body_rate );
+  FLOAT_RATES_ZERO( body_rate_d );
+
+#if DOWNLINK
+  register_periodic_telemetry(DefaultPeriodic, "STAB_ATTITUDE", send_att);
+  register_periodic_telemetry(DefaultPeriodic, "STAB_ATTITUDE_REF", send_att_ref);
+#endif
 }
 
 void stabilization_attitude_gain_schedule(uint8_t idx)
@@ -130,7 +182,7 @@ void stabilization_attitude_enter(void) {
   stabilization_attitude_ref_enter();
 
   FLOAT_QUAT_ZERO( stabilization_att_sum_err_quat );
-  FLOAT_EULERS_ZERO( stabilization_att_sum_err_eulers );
+  FLOAT_EULERS_ZERO( stabilization_att_sum_err );
 }
 
 void stabilization_attitude_set_failsafe_setpoint(void) {
@@ -142,75 +194,21 @@ void stabilization_attitude_set_failsafe_setpoint(void) {
   stab_att_sp_quat.qz = sinf(heading2);
 }
 
-void stabilization_attitude_set_cmd_i(struct Int32Eulers *sp_cmd) {
-  EULERS_FLOAT_OF_BFP(stab_att_sp_euler, *sp_cmd);
+void stabilization_attitude_set_rpy_setpoint_i(struct Int32Eulers *rpy) {
+  // copy euler setpoint for debugging
+  EULERS_FLOAT_OF_BFP(stab_att_sp_euler, *rpy);
 
-  /* orientation vector describing simultaneous rotation of roll/pitch */
-  struct FloatVect3 ov;
-  ov.x = stab_att_sp_euler.phi;
-  ov.y = stab_att_sp_euler.theta;
-  ov.z = 0.0;
-  /* quaternion from that orientation vector */
-  struct FloatQuat q_rp;
-  FLOAT_QUAT_OF_ORIENTATION_VECT(q_rp, ov);
+  quat_from_rpy_cmd_f(&stab_att_sp_quat, &stab_att_sp_euler);
+}
 
-  /// @todo optimize yaw angle calculation
+void stabilization_attitude_set_earth_cmd_i(struct Int32Vect2 *cmd, int32_t heading) {
+  struct FloatVect2 cmd_f;
+  cmd_f.x = ANGLE_FLOAT_OF_BFP(cmd->x);
+  cmd_f.y = ANGLE_FLOAT_OF_BFP(cmd->y);
+  float heading_f;
+  heading_f = ANGLE_FLOAT_OF_BFP(heading);
 
-  /*
-   * Instead of using the psi setpoint angle to rotate around the body z-axis,
-   * calculate the real angle needed to align the projection of the body x-axis
-   * onto the horizontal plane with the psi setpoint.
-   *
-   * angle between two vectors a and b:
-   * angle = atan2(norm(cross(a,b)), dot(a,b)) * sign(dot(cross(a,b), n))
-   * where n is the thrust vector (i.e. both a and b lie in that plane)
-   */
-  const struct FloatVect3 xaxis = {1.0, 0.0, 0.0};
-  const struct FloatVect3 zaxis = {0.0, 0.0, 1.0};
-  struct FloatVect3 a;
-  FLOAT_QUAT_VMULT(a, q_rp, xaxis);
-
-  // desired heading vect in earth x-y plane
-  struct FloatVect3 psi_vect;
-  psi_vect.x = cosf(stab_att_sp_euler.psi);
-  psi_vect.y = sinf(stab_att_sp_euler.psi);
-  psi_vect.z = 0.0;
-  // normal is the direction of the thrust vector
-  struct FloatVect3 normal;
-  FLOAT_QUAT_VMULT(normal, q_rp, zaxis);
-
-  // projection of desired heading onto body x-y plane
-  // b = v - dot(v,n)*n
-  float dot = FLOAT_VECT3_DOT_PRODUCT(psi_vect, normal);
-  struct FloatVect3 dotn;
-  FLOAT_VECT3_SMUL(dotn, normal, dot);
-
-  // b = v - dot(v,n)*n
-  struct FloatVect3 b;
-  FLOAT_VECT3_DIFF(b, psi_vect, dotn);
-  dot = FLOAT_VECT3_DOT_PRODUCT(a, b);
-  struct FloatVect3 cross;
-  VECT3_CROSS_PRODUCT(cross, a, b);
-  // norm of the cross product
-  float nc = FLOAT_VECT3_NORM(cross);
-  // angle = atan2(norm(cross(a,b)), dot(a,b))
-  float yaw2 = atan2(nc, dot) / 2.0;
-
-  // negative angle if needed
-  // sign(dot(cross(a,b), n)
-  float dot_cross_ab = FLOAT_VECT3_DOT_PRODUCT(cross, normal);
-  if (dot_cross_ab < 0) {
-    yaw2 = -yaw2;
-  }
-
-  /* quaternion with yaw command */
-  struct FloatQuat q_yaw;
-  QUAT_ASSIGN(q_yaw, cosf(yaw2), 0.0, 0.0, sinf(yaw2));
-
-  /* final setpoint: apply roll/pitch, then yaw around resulting body z-axis */
-  FLOAT_QUAT_COMP(stab_att_sp_quat, q_yaw, q_rp);
-  FLOAT_QUAT_NORMALIZE(stab_att_sp_quat);
-  FLOAT_QUAT_WRAP_SHORTEST(stab_att_sp_quat);
+  quat_from_earth_cmd_f(&stab_att_sp_quat, &cmd_f, heading_f);
 }
 
 #ifndef GAIN_PRESCALER_FF
@@ -302,7 +300,6 @@ void stabilization_attitude_run(bool_t enable_integrator) {
   struct FloatRates* body_rate = stateGetBodyRates_f();
   RATES_DIFF(rate_err, stab_att_ref_rate, *body_rate);
   /* rate_d error               */
-  struct FloatRates body_rate_d;
   RATES_DIFF(body_rate_d, *body_rate, last_body_rate);
   RATES_COPY(last_body_rate, *body_rate);
 
@@ -317,11 +314,11 @@ void stabilization_attitude_run(bool_t enable_integrator) {
     FLOAT_QUAT_COMP(new_sum_err, stabilization_att_sum_err_quat, scaled_att_err);
     FLOAT_QUAT_NORMALIZE(new_sum_err);
     FLOAT_QUAT_COPY(stabilization_att_sum_err_quat, new_sum_err);
-    FLOAT_EULERS_OF_QUAT(stabilization_att_sum_err_eulers, stabilization_att_sum_err_quat);
+    FLOAT_EULERS_OF_QUAT(stabilization_att_sum_err, stabilization_att_sum_err_quat);
   } else {
     /* reset accumulator */
     FLOAT_QUAT_ZERO( stabilization_att_sum_err_quat );
-    FLOAT_EULERS_ZERO( stabilization_att_sum_err_eulers );
+    FLOAT_EULERS_ZERO( stabilization_att_sum_err );
   }
 
   attitude_run_ff(stabilization_att_ff_cmd, &stabilization_gains[gain_idx], &stab_att_ref_accel);

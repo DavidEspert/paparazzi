@@ -1,8 +1,16 @@
 # Hey Emacs, this is a -*- makefile -*-
 
+telemetry_CFLAGS = -DUSE_$(MODEM_PORT)
+telemetry_CFLAGS += -D$(MODEM_PORT)_BAUD=$(MODEM_BAUD)
+telemetry_CFLAGS += -DDOWNLINK -DDOWNLINK_DEVICE=$(MODEM_PORT) -DPPRZ_UART=$(MODEM_PORT)
+telemetry_CFLAGS += -DDOWNLINK_TRANSPORT=PprzTransport -DDATALINK=PPRZ
+telemetry_srcs = subsystems/datalink/downlink.c subsystems/datalink/pprz_transport.c
 
-ap.CFLAGS += -DUSE_$(MODEM_PORT)
-ap.CFLAGS += -D$(MODEM_PORT)_BAUD=$(MODEM_BAUD)
+ap.CFLAGS += $(telemetry_CFLAGS)
+ap.srcs += $(telemetry_srcs) $(SRC_FIRMWARE)/datalink.c
+
+fbw.CFLAGS += $(telemetry_CFLAGS)
+fbw.srcs += $(telemetry_srcs)
 
 ap.CFLAGS += -DDOWNLINK -DDOWNLINK_FBW_DEVICE=$(MODEM_PORT) -DDOWNLINK_AP_DEVICE=$(MODEM_PORT) -DPPRZ_UART=$(MODEM_PORT)
 ap.CFLAGS += -DDOWNLINK_TRANSPORT=PprzTransport -DDATALINK=PPRZ

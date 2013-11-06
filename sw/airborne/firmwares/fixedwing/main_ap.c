@@ -30,6 +30,8 @@
 
 #define MODULES_C
 
+#define ABI_C
+
 #include <math.h>
 
 #include "firmwares/fixedwing/main_ap.h"
@@ -51,7 +53,8 @@
 #if USE_AHRS_ALIGNER
 #include "subsystems/ahrs/ahrs_aligner.h"
 #endif
-#if USE_BAROMETER
+#include "subsystems/air_data.h"
+#if USE_BARO_BOARD
 #include "subsystems/sensors/baro.h"
 #endif
 #include "subsystems/ins.h"
@@ -70,10 +73,10 @@
 
 // datalink & telemetry
 #include "subsystems/datalink/datalink.h"
+#include "subsystems/datalink/telemetry.h"
 #include "subsystems/settings.h"
 #include "subsystems/datalink/xbee.h"
 #include "subsystems/datalink/w5100.h"
-#include "firmwares/fixedwing/ap_downlink.h"
 #include "messages2.h"
 #include "mcu_periph/device.h"
 #include "subsystems/datalink/transport2.h"
@@ -84,11 +87,12 @@
 #if defined RADIO_CONTROL || defined RADIO_CONTROL_AUTO1
 #include "rc_settings.h"
 #endif
+#include "subsystems/abi.h"
 
 #include "led.h"
 
 #ifdef USE_NPS
-#include "nps_autopilot_fixedwing.h"
+#include "nps_autopilot.h"
 #endif
 
 /* Default trim commands for roll, pitch and yaw */
@@ -136,30 +140,27 @@ static inline void on_accel_event( void );
 static inline void on_mag_event( void );
 volatile uint8_t ahrs_timeout_counter = 0;
 
+//FIXME not the correct place
+static void send_fliter_status(void) {
+  uint8_t mde = 3;
+  if (ahrs.status == AHRS_UNINIT) mde = 2;
+  if (ahrs_timeout_counter > 10) mde = 5;
+  uint16_t val = 0;
+  DOWNLINK_SEND_STATE_FILTER_STATUS(DefaultChannel, DefaultDevice, &mde, &val);
+}
+
 #endif // USE_AHRS && USE_IMU
 
 #if USE_GPS
 static inline void on_gps_solution( void );
 #endif
 
-#if USE_BAROMETER
-static inline void on_baro_abs_event( void );
-static inline void on_baro_dif_event( void );
-#endif
-
 // what version is this ????
 static const uint16_t version = 1;
-
-static uint8_t  mcu1_status;
 
 #if defined RADIO_CONTROL || defined RADIO_CONTROL_AUTO1
 static uint8_t  mcu1_ppm_cpt;
 #endif
-
-/** Supply current in milliAmpere.
- * This the ap copy of the measurement from fbw
- */
-static int32_t current;	// milliAmpere
 
 
 tid_t modules_tid;     ///< id for modules_periodic_task() timer
@@ -199,7 +200,12 @@ void init_ap( void ) {
   ahrs_init();
 #endif
 
-#if USE_BAROMETER
+#if USE_AHRS && USE_IMU
+  register_periodic_telemetry(DefaultPeriodic, "STATE_FILTER_STATUS", send_fliter_status);
+#endif
+
+  air_data_init();
+#if USE_BARO_BOARD
   baro_init();
 #endif
 
@@ -384,8 +390,7 @@ static inline void telecommand_task( void ) {
 #endif
   }
   mode_changed |= mcu1_status_update();
-  if ( mode_changed )
-    PERIODIC_SEND_PPRZ_MODE(DefaultChannel, DefaultDevice);
+  if ( mode_changed ) autopilot_send_mode();
 
 #if defined RADIO_CONTROL || defined RADIO_CONTROL_AUTO1
   /** In AUTO1 mode, compute roll setpoint and pitch setpoint from
@@ -443,7 +448,8 @@ void reporting_task( void ) {
   }
   /** then report periodicly */
   else {
-    PeriodicSendAp(DefaultChannel, DefaultDevice);
+    //PeriodicSendAp(DefaultChannel, DefaultDevice);
+    periodic_telemetry_send_Ap();
   }
 }
 
@@ -467,15 +473,14 @@ void navigation_task( void ) {
       if (pprz_mode == PPRZ_MODE_AUTO2 || pprz_mode == PPRZ_MODE_HOME) {
         last_pprz_mode = pprz_mode;
         pprz_mode = PPRZ_MODE_GPS_OUT_OF_ORDER;
-        PERIODIC_SEND_PPRZ_MODE(DefaultChannel, DefaultDevice);
+        autopilot_send_mode();
         gps_lost = TRUE;
       }
     } else if (gps_lost) { /* GPS is ok */
       /** If aircraft was in failsafe mode, come back in previous mode */
       pprz_mode = last_pprz_mode;
       gps_lost = FALSE;
-
-      PERIODIC_SEND_PPRZ_MODE(DefaultChannel, DefaultDevice);
+      autopilot_send_mode();
     }
   }
 #endif /* GPS && FAILSAFE_DELAY_WITHOUT_GPS */
@@ -492,11 +497,9 @@ void navigation_task( void ) {
   CallTCAS();
 #endif
 
-#ifndef PERIOD_NAVIGATION_0 // If not sent periodically (in default 0 mode)
+#ifndef PERIOD_NAVIGATION_Ap_0 // If not sent periodically (in default 0 mode)
   SEND_NAVIGATION(DefaultChannel, DefaultDevice);
 #endif
-
-  SEND_CAM(DefaultChannel, DefaultDevice);
 
   /* The nav task computes only nav_altitude. However, we are interested
      by desired_altitude (= nav_alt+alt_shift) in any case.
@@ -590,7 +593,7 @@ void sensors_task( void ) {
   ahrs_propagate();
 #endif
 
-#if USE_BAROMETER
+#if USE_BARO_BOARD
   baro_periodic();
 #endif
 
@@ -660,8 +663,8 @@ void event_task_ap( void ) {
   GpsEvent(on_gps_solution);
 #endif /* USE_GPS */
 
-#if USE_BAROMETER
-  BaroEvent(on_baro_abs_event, on_baro_dif_event);
+#if USE_BARO_BOARD
+  BaroEvent();
 #endif
 
   DatalinkEvent();
@@ -792,14 +795,3 @@ static inline void on_mag_event(void)
 
 #endif // USE_AHRS
 
-#if USE_BAROMETER
-
-static inline void on_baro_abs_event( void ) {
-  ins_update_baro();
-}
-
-static inline void on_baro_dif_event( void ) {
-
-}
-
-#endif // USE_BAROMETER

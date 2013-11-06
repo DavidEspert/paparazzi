@@ -147,7 +147,6 @@
   </section>
 
   <section name="INS" prefix="INS_">
-    <define name="BARO_SENS" value="22.4" integer="16"/>
   </section>
 
  <section name="GUIDANCE_V" prefix="GUIDANCE_V_">
@@ -159,10 +158,6 @@
    <define name="HOVER_KP" value="276"/>
    <define name="HOVER_KD" value="455"/>
    <define name="HOVER_KI" value="100"/>
-   <!-- 1.5m/s for full stick : BOOZ_SPEED_I_OF_F(1.5) / (MAX_PPRZ/2) -->
-   <define name="RC_CLIMB_COEF" value="163"/>
-   <!-- BOOZ_SPEED_I_OF_F(1.5) * 20% -->
-   <define name="RC_CLIMB_DEAD_BAND" value="160000"/>
    <define name="GUIDANCE_V_NOMINAL_HOVER_THROTTLE" value="0.9"/>
   </section>
 
@@ -185,6 +180,7 @@
  <section name="SIMULATOR" prefix="NPS_">
    <define name="ACTUATOR_NAMES" value="{&quot;front_motor&quot;, &quot;back_motor&quot;, &quot;right_motor&quot;, &quot;left_motor&quot;}"/>
    <define name="JSBSIM_INIT" value="&quot;reset00&quot;"/>
+   <define name="JSBSIM_MODEL" value="&quot;simple_quad&quot;"/>
    <define name="SENSORS_PARAMS" value="&quot;nps_sensors_params_booz2_a1.h&quot;"/>
  </section>
 

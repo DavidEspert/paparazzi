@@ -36,12 +36,10 @@
 #include "mcu_periph/i2c.h"
 #include "led.h"
 #include "mcu_periph/uart.h"
+#include "subsystems/abi.h"
 #include "messages.h"
 #include "subsystems/datalink/downlink.h"
 
-#ifndef DOWNLINK_DEVICE
-#define DOWNLINK_DEVICE DOWNLINK_AP_DEVICE
-#endif
 
 #if !defined(SENSOR_SYNC_SEND) && !defined(USE_BARO_BMP)
 #warning set SENSOR_SYNC_SEND to use baro_bmp
@@ -50,7 +48,6 @@
 #ifndef BMP_I2C_DEV
 #define BMP_I2C_DEV i2c0
 #endif
-
 
 #define BARO_BMP_R 0.5
 #define BARO_BMP_SIGMA2 0.1
@@ -91,6 +88,9 @@ void baro_bmp_event(void) {
     float tmp = baro_bmp.pressure / 101325.0; // pressure at sea level
     tmp = pow(tmp, 0.190295);
     baro_bmp_alt = 44330 * (1.0 - tmp);
+
+    float pressure = (float)baro_bmp.pressure;
+    AbiSendMsgBARO_ABS(BARO_BMP_SENDER_ID, &pressure);
 
 #ifdef SENSOR_SYNC_SEND
     DOWNLINK_SEND_BMP_STATUS(DefaultChannel, DefaultDevice, &baro_bmp.up,

@@ -36,6 +36,19 @@
 #include "math/pprz_trig_int.h"
 #include <stdlib.h>
 
+
+struct Uint8Vect3 {
+  uint8_t x;
+  uint8_t y;
+  uint8_t z;
+};
+
+struct Int8Vect3 {
+  int8_t x;
+  int8_t y;
+  int8_t z;
+};
+
 struct Uint16Vect3 {
   uint16_t x;
   uint16_t y;
@@ -217,6 +230,13 @@ struct Int64Vect3 {
     int32_t n2 = (v).x*(v).x + (v).y*(v).y; \
     INT32_SQRT(n, n2);                  \
   }
+
+#define INT32_VECT2_NORMALIZE(_v,_frac) {				\
+    int32_t n;								\
+    INT32_VECT2_NORM(n, _v);						\
+    INT32_VECT2_SCALE_2(_v, _v, BFP_OF_REAL((1.),_frac) , n);		\
+  }
+
 
 #define INT32_VECT2_RSHIFT(_o, _i, _r) { \
   (_o).x = ((_i).x >> (_r)); \

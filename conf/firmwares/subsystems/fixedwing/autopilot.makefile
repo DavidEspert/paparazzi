@@ -35,9 +35,6 @@ $(TARGET).CFLAGS 	+= -DBOARD_CONFIG=$(BOARD_CFG)
 $(TARGET).CFLAGS 	+= -DPERIPHERALS_AUTO_INIT
 $(TARGET).CFLAGS 	+= $(FIXEDWING_INC)
 
-# would be better to auto-generate this
-$(TARGET).CFLAGS 	+= -DFIRMWARE=FIXEDWING
-
 $(TARGET).srcs 	+= mcu.c
 $(TARGET).srcs 	+= $(SRC_ARCH)/mcu_arch.c
 
@@ -79,6 +76,11 @@ $(TARGET).srcs += math/pprz_geodetic_int.c math/pprz_geodetic_float.c math/pprz_
 #
 $(TARGET).srcs += mcu_periph/i2c.c
 $(TARGET).srcs += $(SRC_ARCH)/mcu_periph/i2c_arch.c
+
+#
+# Telemetry
+#
+$(TARGET).srcs += subsystems/datalink/telemetry.c
 
 ######################################################################
 ##
@@ -147,6 +149,7 @@ fbw_srcs		+= $(SRC_FIRMWARE)/fbw_downlink.c
 ##
 
 ap_CFLAGS 		+= -DAP
+ap_CFLAGS 		+= -DDefaultPeriodic='&telemetry_Ap'
 ap_srcs 		+= $(SRC_FIRMWARE)/main_ap.c
 ap_srcs 		+= $(SRC_FIRMWARE)/autopilot.c
 ap_srcs			+= $(SRC_FIRMWARE)/ap_downlink.c
@@ -154,17 +157,11 @@ ap_srcs 		+= state.c
 ap_srcs 		+= subsystems/settings.c
 ap_srcs 		+= $(SRC_ARCH)/subsystems/settings_arch.c
 
+# AIR DATA
+ap_srcs += subsystems/air_data.c
+
 # BARO
-ifeq ($(BOARD), umarim)
-ifeq ($(BOARD_VERSION), 1.0)
-ap_srcs 	+= boards/umarim/baro_board.c
-ap_CFLAGS += -DUSE_I2C1 -DUSE_ADS1114_1
-ap_CFLAGS += -DADS1114_I2C_DEV=i2c1
-ap_srcs 	+= peripherals/ads1114.c
-endif
-else ifeq ($(BOARD), lisa_l)
-ap_CFLAGS += -DUSE_I2C2
-endif
+include $(CFG_SHARED)/baro_board.makefile
 
 # ahrs frequencies if configured
 ifdef AHRS_PROPAGATE_FREQUENCY
@@ -192,8 +189,8 @@ sim.srcs 		+= $(fbw_srcs) $(ap_srcs)
 sim.CFLAGS 		+= -DSITL
 sim.srcs 		+= $(SRC_ARCH)/sim_ap.c
 
-sim.CFLAGS 		+= -DDOWNLINK -DDOWNLINK_TRANSPORT=IvyTransport
-sim.srcs 		+= subsystems/datalink/downlink.c  $(SRC_FIRMWARE)/datalink.c $(SRC_ARCH)/ivy_transport.c
+sim.CFLAGS 		+= -DDOWNLINK -DDOWNLINK_TRANSPORT=IvyTransport -DDefaultPeriodic='&telemetry_Ap'
+sim.srcs 		+= subsystems/datalink/telemetry.c subsystems/datalink/downlink.c $(SRC_FIRMWARE)/datalink.c $(SRC_ARCH)/ivy_transport.c
 
 # GJN Addition during development...
 sim.srcs		+= mcu_periph/transmit_buffer.c subsystems/datalink/transport_pprz.c
@@ -240,7 +237,7 @@ jsbsim.srcs 		+= $(SIMDIR)/sim_ac_jsbsim.c $(SIMDIR)/sim_ac_fw.c $(SIMDIR)/sim_a
 jsbsim.CFLAGS 		+= -I/usr/include $(shell pkg-config glib-2.0 --cflags)
 jsbsim.LDFLAGS		+= $(shell pkg-config glib-2.0 --libs) -lglibivy -lm
 
-jsbsim.CFLAGS 		+= -DDOWNLINK -DDOWNLINK_TRANSPORT=IvyTransport
+jsbsim.CFLAGS 		+= -DDOWNLINK -DDOWNLINK_TRANSPORT=IvyTransport -DDefaultPeriodic='&telemetry_Ap'
 jsbsim.srcs 		+= subsystems/datalink/downlink.c $(SRC_FIRMWARE)/datalink.c $(SRC_ARCH)/ivy_transport.c
 
 jsbsim.srcs 		+= $(SRC_ARCH)/jsbsim_hw.c $(SRC_ARCH)/jsbsim_ir.c $(SRC_ARCH)/jsbsim_gps.c $(SRC_ARCH)/jsbsim_ahrs.c $(SRC_ARCH)/jsbsim_transport.c
