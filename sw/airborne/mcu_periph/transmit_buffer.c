@@ -7,12 +7,11 @@
  * The use of semaphores is required.
  */
 
-#define _TRANSMIT_BUFFER_DEBUG_
+// #define _TRANSMIT_BUFFER_DEBUG_
 
 #ifdef _TRANSMIT_BUFFER_DEBUG_
-#include <stdio.h> //for printf. Remove after debugging!
-#define TRACE    printf
-//#define TRACE(fmt,...)    printf(fmt)
+#include <stdio.h>
+#define TRACE(...) fprintf (stderr, __VA_ARGS__); fflush(stdout);
 #define DEBUG_PRINT_BUFFER_SEND { \
   uint8_t i = tx_buff->first_send; \
   TRACE("\tBuffer SEND order (slot):    \t{"); \
@@ -58,25 +57,29 @@
 }
 
 #else
-#define TRACE	// 
-//#define TRACE(fmt,args...)
+#define TRACE(...)
 #define DEBUG_PRINT_BUFFER_SEND {}
 #define DEBUG_PRINT_BUFFER_MEM {}
 #endif //_TRANSMIT_BUFFER_DEBUG_
 
+//Private functions
+void tx_buffer_insert_slot(struct transmit_buffer *tx_buff, uint8_t idx);
+bool_t tx_buffer_extract_slot(struct transmit_buffer *tx_buff, uint8_t idx);
+void tx_buffer_flush_slot(struct transmit_buffer *tx_buff, uint8_t idx);
+void pending_action(struct transmit_buffer *tx_buff);
 
 /*
 struct transmit_buffer tx_buff ={
   .slot[0 ... (TX_BUFF_NUM_SLOTS-1)] = { .status = ST_FREE, .init = 0, .length = 0, .priority = 0, .next_send = TX_BUFF_NUM_SLOTS, .next_mem = TX_BUFF_NUM_SLOTS}, \
   .first_send = TX_BUFF_NUM_SLOTS,
   .first_mem = TX_BUFF_NUM_SLOTS,
-  .semaphore_get = 0,
+  .semaphore_get_mem = 0,
   .semaphore_queue = 0,
   .pdg_action.action = NONE
 };
 */
 
-bool_t tx_buffer_get_slot(struct transmit_buffer *tx_buff, uint8_t length, uint8_t *idx){
+bool_t tx_buffer_get_slot_mem(struct transmit_buffer *tx_buff, uint8_t length, uint8_t *idx){
   uint8_t slot_idx = 0;
   uint8_t slot_idx2 = tx_buff->first_mem;
 //  uint8_t sec = 0; //security iteration counter (should be not necessary)
@@ -88,21 +91,24 @@ bool_t tx_buffer_get_slot(struct transmit_buffer *tx_buff, uint8_t length, uint8
   } candidate = { BUFFER_LENGTH, BUFFER_LENGTH, TX_BUFF_NUM_SLOTS, TX_BUFF_NUM_SLOTS};
 
   //0- verify atomic operation
-  if(++tx_buff->semaphore_get > 1) {
-    //We are interrupting another 'get_tx_slot' call
+  if(++tx_buff->semaphore_get_mem > 1) {
+    //We are interrupting another 'tx_buffer_get_slot_mem' call
     //this action cannot be saved as pending since it has to return an id: so, just quit as action failed
-    TRACE("\tbuffer_transmit: get_tx_slot:  INTERRUPTING --> QUIT\n"); DEBUG_PRINT_BUFFER_MEM; DEBUG_PRINT_BUFFER_SEND;
-    tx_buff->semaphore_get--;
+    TRACE("\tbuffer_transmit: tx_buffer_get_slot_mem:  INTERRUPTING --> QUIT\n"); DEBUG_PRINT_BUFFER_MEM; DEBUG_PRINT_BUFFER_SEND;
+    tx_buff->semaphore_get_mem--;
     return FALSE;
   }
 
   //1- verify data length
-/* NOTE: This verification has no sense with 'length' of uint8_t type and BUFFER_LENGTH = 255.
+  if(length == 0){ 
+    tx_buff->semaphore_get_mem--;	return FALSE;
+  }
+/* NOTE: This verification has no sense with 'length' defined as uint8_t type and BUFFER_LENGTH = 255.
  *       Using uint16_t would have sense but still it would not be necessary. 
     if(length > BUFFER_LENGTH){ 
     //(this step is not necessary but it saves time in case of 'length > BUFFER_LENGTH'
-    TRACE("\tbuffer_transmit: get_tx_slot:  LENGTH EXCEEDED --> QUIT\n"); DEBUG_PRINT_BUFFER_MEM; DEBUG_PRINT_BUFFER_SEND;
-    tx_buff->semaphore_get--;	return FALSE;
+    TRACE("\tbuffer_transmit: tx_buffer_get_slot_mem:  LENGTH EXCEEDED --> QUIT\n"); DEBUG_PRINT_BUFFER_MEM; DEBUG_PRINT_BUFFER_SEND;
+    tx_buff->semaphore_get_mem--;	return FALSE;
   }
 */
   //2- try to get a slot
@@ -111,8 +117,8 @@ bool_t tx_buffer_get_slot(struct transmit_buffer *tx_buff, uint8_t length, uint8
 
   if(slot_idx == TX_BUFF_NUM_SLOTS){
     //Buffer is full
-    TRACE("\tbuffer_transmit: get_tx_slot:  ANY SLOT AVAILABLE --> QUIT\n"); DEBUG_PRINT_BUFFER_MEM; DEBUG_PRINT_BUFFER_SEND;
-    tx_buff->semaphore_get--;	return FALSE;
+    TRACE("\tbuffer_transmit: tx_buffer_get_slot_mem:  ANY SLOT AVAILABLE --> QUIT\n"); DEBUG_PRINT_BUFFER_MEM; DEBUG_PRINT_BUFFER_SEND;
+    tx_buff->semaphore_get_mem--;	return FALSE;
   }
 
   // slot available!
@@ -123,17 +129,17 @@ bool_t tx_buffer_get_slot(struct transmit_buffer *tx_buff, uint8_t length, uint8
   //3.1- There is any slot in memory
   if(slot_idx2 == TX_BUFF_NUM_SLOTS) {
     if(tx_buff->first_send != TX_BUFF_NUM_SLOTS) {
-      //If this happens there is an internal error in buffer management. FIX IT!
+      //This should never happen. If it happens there is an internal error in buffer management. FIX IT!
       //Error. first_mem indicates empty buffer but first_send indicates non-empty buffer!
       tx_buffer_init(tx_buff);
-      TRACE("\tbuffer_transmit: get_tx_slot:\n\t\tERROR!!!! Unmatched 'firt_mem - first_send')\n"); DEBUG_PRINT_BUFFER_MEM; DEBUG_PRINT_BUFFER_SEND;
+      TRACE("\tbuffer_transmit: tx_buffer_get_slot_mem:\n\t\tERROR!!!! Unmatched 'firt_mem - first_send')\n"); DEBUG_PRINT_BUFFER_MEM; DEBUG_PRINT_BUFFER_SEND;
       return FALSE;
     }
     candidate.init =		0;
     candidate.length =		BUFFER_LENGTH;
     candidate.prev_mem =	TX_BUFF_NUM_SLOTS;
     candidate.next_mem =	TX_BUFF_NUM_SLOTS;
-    //TRACE("\tbuffer_transmit: get_tx_slot:  candidate found : init = %u, length available = %u, previous slot = %u, next slot = %u\n", candidate.init, candidate.length, candidate.prev_mem, candidate.next_mem);
+    //TRACE("\tbuffer_transmit: tx_buffer_get_slot_mem:  candidate found : init = %u, length available = %u, previous slot = %u, next slot = %u\n", candidate.init, candidate.length, candidate.prev_mem, candidate.next_mem);
     goto end;
   }
   //3.2- There is a hole at the beginning
@@ -142,7 +148,7 @@ bool_t tx_buffer_get_slot(struct transmit_buffer *tx_buff, uint8_t length, uint8
     candidate.length =		tx_buff->slot[slot_idx2].init;
     candidate.prev_mem =	TX_BUFF_NUM_SLOTS;
     candidate.next_mem =	slot_idx2;// = tx_buff->first_mem;
-    //TRACE("\tbuffer_transmit: get_tx_slot:  candidate found : init = %u, length available = %u, previous slot = %u, next slot = %u\n", candidate.init, candidate.length, candidate.prev_mem, candidate.next_mem);
+    //TRACE("\tbuffer_transmit: tx_buffer_get_slot_mem:  candidate found : init = %u, length available = %u, previous slot = %u, next slot = %u\n", candidate.init, candidate.length, candidate.prev_mem, candidate.next_mem);
   }
   //3.3- Check holes after the existing slots
   while (slot_idx2 < TX_BUFF_NUM_SLOTS) {
@@ -154,7 +160,7 @@ bool_t tx_buffer_get_slot(struct transmit_buffer *tx_buff, uint8_t length, uint8
     //look for the smallest suitable hole in memory. Leave bigger ones for bigger messages
     if (hole_length >= length && hole_length < candidate.length) {
 //    if (hole_length >= length) {
-//      TRACE("\tbuffer_transmit: get_tx_slot:  candidate found : init = %u, length available = %u, previous slot = %u, next slot = %u\n", hole_init, hole_length, slot_idx2, next_mem);
+//      TRACE("\tbuffer_transmit: tx_buffer_get_slot_mem:  candidate found : init = %u, length available = %u, previous slot = %u, next slot = %u\n", hole_init, hole_length, slot_idx2, next_mem);
 //      if(hole_length < candidate.length) {
 	candidate.init =		hole_init;
 	candidate.length =	hole_length;
@@ -168,7 +174,7 @@ bool_t tx_buffer_get_slot(struct transmit_buffer *tx_buff, uint8_t length, uint8
       //Security counter. This should never happen!!!
       //If this happens there is an internal error in buffer management. FIX IT!
       tx_buffer_init(tx_buff);
-      TRACE("\tbuffer_transmit: get_tx_slot:  ERROR!!!! 'next_mem' MAKES AN INFINITE LOOP\n"); DEBUG_PRINT_BUFFER_MEM; DEBUG_PRINT_BUFFER_SEND;
+      TRACE("\tbuffer_transmit: tx_buffer_get_slot_mem:  ERROR!!!! 'next_mem' MAKES AN INFINITE LOOP\n"); DEBUG_PRINT_BUFFER_MEM; DEBUG_PRINT_BUFFER_SEND;
       return FALSE;
     }*/
   }
@@ -185,12 +191,12 @@ end:
     tx_buff->slot[slot_idx].next_mem =	candidate.next_mem;
 
     *idx = slot_idx;
-    TRACE("\tbuffer_transmit: get_tx_slot:  ASSIGNED SLOT %u (MESSAGE LENGTH = %u)\n", slot_idx, length); DEBUG_PRINT_BUFFER_MEM;
-    tx_buff->semaphore_get--;	return TRUE;
+    TRACE("\tbuffer_transmit: tx_buffer_get_slot_mem:  ASSIGNED SLOT %u (MESSAGE LENGTH = %u)\n", slot_idx, length); DEBUG_PRINT_BUFFER_MEM;
+    tx_buff->semaphore_get_mem--;	return TRUE;
   }
   else {
-    TRACE("\tbuffer_transmit: get_tx_slot:  NO MEMORY AVAILABLE (MESSAGE LENGTH = %u) --> QUIT\n", length); DEBUG_PRINT_BUFFER_MEM; DEBUG_PRINT_BUFFER_SEND;
-    tx_buff->semaphore_get--;	return FALSE;
+    TRACE("\tbuffer_transmit: tx_buffer_get_slot_mem:  NO MEMORY AVAILABLE (MESSAGE LENGTH = %u) --> QUIT\n", length); DEBUG_PRINT_BUFFER_MEM; DEBUG_PRINT_BUFFER_SEND;
+    tx_buff->semaphore_get_mem--;	return FALSE;
   }
 }
 
@@ -199,9 +205,13 @@ uint8_t * tx_buffer_get_slot_pointer(struct transmit_buffer *tx_buff, uint8_t id
   return &(tx_buff->buffer[(tx_buff->slot[idx].init)]);
 }
 
-void fill_buffer(struct transmit_buffer *tx_buff, uint8_t idx, uint8_t offset, uint8_t *origin, uint8_t length){
+uint8_t tx_buffer_get_slot_data(struct transmit_buffer *tx_buff, uint8_t slot_idx, uint8_t byte_idx){
+  return (tx_buff->buffer[(tx_buff->slot[slot_idx].init + byte_idx)]);
+}
+
+void tx_buffer_fill(struct transmit_buffer *tx_buff, uint8_t idx, uint8_t offset, uint8_t *origin, uint8_t length){
   //0- verify slot index
-  //if(idx >= TX_BUFF_NUM_SLOTS) return;
+  if(idx >= TX_BUFF_NUM_SLOTS) return;
 
   //1- verify slot status
   if(tx_buff->slot[idx].status != ST_RESERVED){
@@ -218,7 +228,7 @@ void fill_buffer(struct transmit_buffer *tx_buff, uint8_t idx, uint8_t offset, u
   memcpy(&(tx_buff->buffer[(tx_buff->slot[idx].init + offset)]), origin, length);
 }
   
-void insert_slot_in_queue(struct transmit_buffer *tx_buff, uint8_t idx){
+void tx_buffer_insert_slot(struct transmit_buffer *tx_buff, uint8_t idx){
   uint8_t queue_idx = tx_buff->first_send;
   uint8_t queue_idx_previous = TX_BUFF_NUM_SLOTS;
 //  uint8_t sec = 0; //security iteration counter (should be not necessary)
@@ -229,7 +239,7 @@ void insert_slot_in_queue(struct transmit_buffer *tx_buff, uint8_t idx){
   //1- verify slot status
   if(tx_buff->slot[idx].status != ST_RESERVED){
     //POSSIBLE USAGE ERROR: what to do?
-    TRACE("\tbuffer_transmit: insert_slot_in_queue:  SLOT %u IS BEING SENT, FREE OR ALREADY READY\n", idx); DEBUG_PRINT_BUFFER_SEND;
+    TRACE("\tbuffer_transmit: tx_buffer_insert:  SLOT %u IS BEING SENT, FREE OR ALREADY READY\n", idx); DEBUG_PRINT_BUFFER_SEND;
     return;
   }
 
@@ -239,7 +249,7 @@ void insert_slot_in_queue(struct transmit_buffer *tx_buff, uint8_t idx){
     tx_buff->slot[idx].next_send =		TX_BUFF_NUM_SLOTS;
     tx_buff->slot[idx].status =			ST_READY;
     tx_buff->first_send =			idx;
-    TRACE("\tbuffer_transmit: insert_slot_in_queue:  EMPTY QUEUE. SLOT %u INSERTED IN FIRST PLACE (PRIORITY = %u)\n", idx, tx_buff->slot[idx].priority); DEBUG_PRINT_BUFFER_SEND;
+    TRACE("\tbuffer_transmit: tx_buffer_insert:  EMPTY QUEUE. SLOT %u INSERTED IN FIRST PLACE (PRIORITY = %u)\n", idx, tx_buff->slot[idx].priority); DEBUG_PRINT_BUFFER_SEND;
     return;
   }
 
@@ -253,14 +263,14 @@ void insert_slot_in_queue(struct transmit_buffer *tx_buff, uint8_t idx){
       tx_buff->slot[idx].next_send =		TX_BUFF_NUM_SLOTS;
       tx_buff->slot[idx].status =		ST_READY;
       tx_buff->slot[queue_idx].next_send =	idx;
-      TRACE("\tbuffer_transmit: insert_slot_in_queue:  SLOT %u INSERTED AT THE END (PRIORITY = %u)\n", idx, tx_buff->slot[idx].priority); DEBUG_PRINT_BUFFER_SEND;
+      TRACE("\tbuffer_transmit: tx_buffer_insert:  SLOT %u INSERTED AT THE END (PRIORITY = %u)\n", idx, tx_buff->slot[idx].priority); DEBUG_PRINT_BUFFER_SEND;
       return;
     }
 /*    if(++sec == TX_BUFF_NUM_SLOTS){
       //Security counter. This should never happen!!!
       //If this happens there is an internal error in buffer management. FIX IT!
       tx_buffer_init(tx_buff);
-      TRACE("\tbuffer_transmit: insert_slot_in_queue:  ERROR!!!! QUEUE MAKES A LOOP (INFINITE QUEUE)\n"); DEBUG_PRINT_BUFFER_SEND;
+      TRACE("\tbuffer_transmit: tx_buffer_insert:  ERROR!!!! QUEUE MAKES A LOOP (INFINITE QUEUE)\n"); DEBUG_PRINT_BUFFER_SEND;
       return;
     }*/
   }
@@ -268,7 +278,7 @@ void insert_slot_in_queue(struct transmit_buffer *tx_buff, uint8_t idx){
   if(tx_buff->slot[queue_idx].status != ST_READY){
     //If this happens there is an internal error in buffer management. FIX IT!
     tx_buffer_init(tx_buff);
-    TRACE("\tbuffer_transmit: insert_slot_in_queue:  ERROR!!!! QUEUE CONTAINS A NON READY MESSAGE\n"); DEBUG_PRINT_BUFFER_SEND;
+    TRACE("\tbuffer_transmit: tx_buffer_insert:  ERROR!!!! QUEUE CONTAINS A NON READY MESSAGE\n"); DEBUG_PRINT_BUFFER_SEND;
     return;
   }
   
@@ -277,15 +287,15 @@ void insert_slot_in_queue(struct transmit_buffer *tx_buff, uint8_t idx){
   tx_buff->slot[idx].status =			ST_READY;
   if(queue_idx_previous < TX_BUFF_NUM_SLOTS) {
     tx_buff->slot[queue_idx_previous].next_send = idx;
-    TRACE("\tbuffer_transmit: insert_slot_in_queue:  SLOT %u INSERTED IN THE MIDDLE (PRIORITY = %u)\n", idx, tx_buff->slot[idx].priority); DEBUG_PRINT_BUFFER_SEND;
+    TRACE("\tbuffer_transmit: tx_buffer_insert:  SLOT %u INSERTED IN THE MIDDLE (PRIORITY = %u)\n", idx, tx_buff->slot[idx].priority); DEBUG_PRINT_BUFFER_SEND;
   }
   else {
     tx_buff->first_send =			idx;
-    TRACE("\tbuffer_transmit: insert_slot_in_queue:  SLOT %u INSERTED IN FIRST PLACE (PRIORITY = %u)\n", idx, tx_buff->slot[idx].priority); DEBUG_PRINT_BUFFER_SEND;
+    TRACE("\tbuffer_transmit: tx_buffer_insert:  SLOT %u INSERTED IN FIRST PLACE (PRIORITY = %u)\n", idx, tx_buff->slot[idx].priority); DEBUG_PRINT_BUFFER_SEND;
   }
 }
 
-bool_t extract_slot_from_queue(struct transmit_buffer *tx_buff, uint8_t idx){
+bool_t tx_buffer_extract_slot(struct transmit_buffer *tx_buff, uint8_t idx){
   uint8_t queue_idx = tx_buff->first_send;
 //  uint8_t sec = 0; //security iteration counter (should be not necessary)
 
@@ -328,11 +338,12 @@ bool_t extract_slot_from_queue(struct transmit_buffer *tx_buff, uint8_t idx){
 end:
   TRACE("\tbuffer_transmit: extract_slot_from_queue:  SLOT %u EXTRACTED FROM QUEUE\n", idx); DEBUG_PRINT_BUFFER_SEND;
   tx_buff->slot[idx].next_send = TX_BUFF_NUM_SLOTS;
+  tx_buff->slot[idx].status =	 ST_RESERVED;
   return TRUE;
 }
 
 /* CAUTION: slot must be out from Tx queue before setting it as free */
-void tx_buffer_free_slot(struct transmit_buffer *tx_buff, uint8_t idx){
+void tx_buffer_flush_slot(struct transmit_buffer *tx_buff, uint8_t idx){
   //this function is called after 'extract_slot_from_queue'. Thus, since slot
   //'idx' is no longer in transmit queue, we just must take care of memory.
   uint8_t slot_idx = tx_buff->first_mem;
@@ -385,16 +396,12 @@ void pending_action(struct transmit_buffer *tx_buff){
   switch(tx_buff->pdg_action.action){
     case ADD_QUEUE:
       TRACE("\tbuffer_transmit: pending_action: ADD slot %u in QUEUE\n", tx_buff->pdg_action.idx);
-      insert_slot_in_queue(tx_buff, tx_buff->pdg_action.idx);
-      break;
-    case RMV_QUEUE:
-      TRACE("\tbuffer_transmit: pending_action: REMOVE slot %u from QUEUE\n", tx_buff->pdg_action.idx);
-      extract_slot_from_queue(tx_buff, tx_buff->pdg_action.idx);
+      tx_buffer_insert_slot(tx_buff, tx_buff->pdg_action.idx);
       break;
     case FREE_SLOT:
       TRACE("\tbuffer_transmit: pending_action: FREE slot %u\n", tx_buff->pdg_action.idx);
-      if(extract_slot_from_queue(tx_buff, tx_buff->pdg_action.idx))
-	tx_buffer_free_slot(tx_buff, tx_buff->pdg_action.idx);
+      if(tx_buffer_extract_slot(tx_buff, tx_buff->pdg_action.idx))
+	tx_buffer_flush_slot(tx_buff, tx_buff->pdg_action.idx);
       break;
     default:
       break;
@@ -402,7 +409,7 @@ void pending_action(struct transmit_buffer *tx_buff){
   tx_buff->pdg_action.action = NONE;
 }
 
-void try_insert_slot_in_queue(struct transmit_buffer *tx_buff, uint8_t idx, uint8_t priority){
+void tx_buffer_try_insert_slot(struct transmit_buffer *tx_buff, uint8_t idx, uint8_t priority){
   //0- verify slot index
   if(idx >= TX_BUFF_NUM_SLOTS){
     //POSSIBLE USAGE ERROR: what to do?
@@ -424,12 +431,12 @@ void try_insert_slot_in_queue(struct transmit_buffer *tx_buff, uint8_t idx, uint
     //Save this action as pending and quit
     tx_buff->pdg_action.action = ADD_QUEUE;
     tx_buff->pdg_action.idx = idx;
-    TRACE("\tbuffer_transmit: try_insert_slot_in_queue:  BUFFER BUSY. ACTION SAVED AS PENDING\n");
+    TRACE("\tbuffer_transmit: tx_buffer_try_insert_slot:  BUFFER BUSY. ACTION SAVED AS PENDING\n");
     tx_buff->semaphore_queue--;	return;
   }
 
   //4- insert slot in queue
-  insert_slot_in_queue(tx_buff, idx);
+  tx_buffer_insert_slot(tx_buff, idx);
   
   //5- execute pending action on queue
   pending_action(tx_buff);
@@ -437,33 +444,35 @@ void try_insert_slot_in_queue(struct transmit_buffer *tx_buff, uint8_t idx, uint
   tx_buff->semaphore_queue--;
 }
 
-void try_extract_slot_from_queue(struct transmit_buffer *tx_buff, uint8_t idx){
+bool_t tx_buffer_try_extract_slot(struct transmit_buffer *tx_buff, uint8_t idx){
+  bool_t result;
+
   //0- verify slot idx
   if(idx >= TX_BUFF_NUM_SLOTS){
     //POSSIBLE USAGE ERROR: what to do?
-    return;
+    return FALSE;
   }
 
   //1- verify atomic operation
   if(++tx_buff->semaphore_queue > 1){
     //We are interrupting another function which also attemps to modify the queue.
-    //Save this action as pending and quit
-    tx_buff->pdg_action.action = RMV_QUEUE;
-    tx_buff->pdg_action.idx = idx;
-    TRACE("\tbuffer_transmit: try_extract_slot_from_queue:  BUFFER BUSY. ACTION SAVED AS PENDING\n");
-    tx_buff->semaphore_queue--;	return;
+    //this action cannot be saved as pending since it has to return TRUE or FALSE: so, just quit as action failed
+    TRACE("\tbuffer_transmit: tx_buffer_try_extract_slot:  INTERRUPTING --> QUIT\n"); DEBUG_PRINT_BUFFER_MEM; DEBUG_PRINT_BUFFER_SEND;
+    tx_buff->semaphore_queue--;
+    return FALSE;
   }
 
   //2- extract slot from queue
-  extract_slot_from_queue(tx_buff, idx);
+  result = tx_buffer_extract_slot(tx_buff, idx);
   
   //3- execute pending action on queue
   pending_action(tx_buff);
 
   tx_buff->semaphore_queue--;
+  return result;
 }
 
-void tx_buffer_try_free_slot(struct transmit_buffer *tx_buff, uint8_t idx){
+void tx_buffer_try_flush_slot(struct transmit_buffer *tx_buff, uint8_t idx){
   //0- verify slot idx
   if(idx >= TX_BUFF_NUM_SLOTS){
     //POSSIBLE USAGE ERROR: what to do?
@@ -476,14 +485,13 @@ void tx_buffer_try_free_slot(struct transmit_buffer *tx_buff, uint8_t idx){
     //Save this action as pending and quit
     tx_buff->pdg_action.action = FREE_SLOT;
     tx_buff->pdg_action.idx = idx;
-    TRACE("\tbuffer_transmit: tx_buffer_try_free_slot:  BUFFER BUSY. ACTION SAVED AS PENDING\n");
+    TRACE("\tbuffer_transmit: tx_buffer_try_flush_slot:  BUFFER BUSY. ACTION SAVED AS PENDING\n");
     tx_buff->semaphore_queue--;	return;
   }
 
   //2- extract slot from queue and set it free
-//  extract_slot_from_queue(tx_buff, idx);
-  if(extract_slot_from_queue(tx_buff, idx))
-  { tx_buffer_free_slot(tx_buff, idx); }
+  if(tx_buffer_extract_slot(tx_buff, idx))
+  { tx_buffer_flush_slot(tx_buff, idx); }
   
   //3- execute pending action on queue
   pending_action(tx_buff);
@@ -491,12 +499,51 @@ void tx_buffer_try_free_slot(struct transmit_buffer *tx_buff, uint8_t idx){
   tx_buff->semaphore_queue--;
 }
 
+void tx_buffer_try_free_slot(struct transmit_buffer *tx_buff, uint8_t idx){
+  if(tx_buff->slot[idx].status == ST_SENDING)	tx_buff->slot[idx].status = ST_SENT;
+  
+  tx_buffer_try_flush_slot(tx_buff, idx);
+}
+
+bool_t tx_buffer_get_slot_send(struct transmit_buffer *tx_buff, uint8_t *idx){
+  uint8_t queue_idx = tx_buff->first_send;
+
+  //0- verify atomic operation
+  if(++tx_buff->semaphore_queue > 1) {
+    //We are interrupting another function which also attemps to modify the queue.
+    //this action cannot be saved as pending since it has to return an idx: so, just quit as action failed
+    TRACE("\tbuffer_transmit: tx_buffer_get_slot_send:  INTERRUPTING --> QUIT\n");
+    tx_buff->semaphore_queue--;	return FALSE;
+  }
+
+  //1- try to get a slot
+  while(queue_idx < TX_BUFF_NUM_SLOTS && (tx_buff->slot[queue_idx].status == ST_SENDING || tx_buff->slot[queue_idx].status == ST_SENT))
+    queue_idx++;
+
+  if(queue_idx == TX_BUFF_NUM_SLOTS){
+    //No more messages
+    TRACE("\tbuffer_transmit: tx_buffer_get_slot_send:  ANY SLOT IN QUEUE --> QUIT\n"); DEBUG_PRINT_BUFFER_SEND;
+    tx_buff->semaphore_queue--;	return FALSE;
+  }
+
+  tx_buff->slot[queue_idx].status =	ST_SENDING;
+  *idx = queue_idx;
+  TRACE("\tbuffer_transmit: tx_buffer_get_slot_send:  PASSED SLOT %u to device\n", queue_idx); DEBUG_PRINT_BUFFER_SEND;
+  tx_buff->semaphore_queue--;	return TRUE;
+}
+
 void tx_buffer_init(struct transmit_buffer *tx_buff) {
-  for (uint8_t idx = 0; idx < TX_BUFF_NUM_SLOTS; idx++)
-    tx_buffer_free_slot(tx_buff, idx);
+  for (uint8_t idx = 0; idx < TX_BUFF_NUM_SLOTS; idx++) {
+    tx_buff->slot[idx].init =		0;
+    tx_buff->slot[idx].length =		0;
+    tx_buff->slot[idx].priority =	0;
+    tx_buff->slot[idx].next_send =	TX_BUFF_NUM_SLOTS;
+    tx_buff->slot[idx].next_mem =	TX_BUFF_NUM_SLOTS;
+    tx_buff->slot[idx].status =		ST_FREE;
+  }
   tx_buff->first_send =			TX_BUFF_NUM_SLOTS;
   tx_buff->first_mem =			TX_BUFF_NUM_SLOTS;
-  tx_buff->semaphore_get =		0;
+  tx_buff->semaphore_get_mem =		0;
   tx_buff->semaphore_queue =		0;
   tx_buff->pdg_action.action =		NONE;
 }

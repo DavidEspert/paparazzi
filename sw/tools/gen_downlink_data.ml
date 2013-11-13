@@ -180,17 +180,17 @@ module Gen_onboard = struct
     match fields with
       (Basic t, _, _)::fields -> print_memcpy_var h name fields
       | (Array (t,varname), s, _)::fields ->
-	fprintf h "\tmemcpy((buff+DOWNLINK_DATA_%s_LENGTH_CNST), _%s, (%s));\n" name s ("_"^Syntax.sizeof (Array(t, varname)))
+	fprintf h "  memcpy((buff+DOWNLINK_DATA_%s_LENGTH_CNST), _%s, (%s));\n" name s ("_"^Syntax.sizeof (Array(t, varname)))
       | [] -> ()
 
   let print_field2 = fun h (t, name, (_f: format option)) ->
     match t with
         Basic _ ->
-          fprintf h "\t%s   \t%s;\n" (c_type (Syntax.nameof t)) name
+          fprintf h "  %s   \t%s;\n" (c_type (Syntax.nameof t)) name
       | Array (t, varname) ->
         let _s = Syntax.sizeof (Basic t) in
-        fprintf h "\tuint8_t   \t%s;\n" (Syntax.length_name varname);
-        fprintf h "/*\t%s[]   \t%s;*/\n" (c_type (Syntax.nameof (Basic t))) name
+        fprintf h "  uint8_t   \t%s;\n" (Syntax.length_name varname);
+        fprintf h "/*%s[] \t%s;*/\n" (c_type (Syntax.nameof (Basic t))) name
 
 (*  let print_field = fun h (t, name, (_f: format option)) ->
     match t with
@@ -236,15 +236,9 @@ module Gen_onboard = struct
   (* Prints parameters in function body *)
   let print_parameter_function_body h = function
   (Array (t, varname), s, _) ->
-  	fprintf h "\tpacket.%s = _%s;\n" (Syntax.length_name s) (Syntax.length_name s);
-  	fprintf h "/*\tpacket.%s = _%s;*/\n" s s;
-    | (t, s, _) -> fprintf h "\tpacket.%s = *_%s;\n" s s
-
-  let print_parameters_function_body h = function
-  [] -> ()
-    | f::fields ->
-      print_parameter_function_body h f;
-      List.iter (fun f -> fprintf h; print_parameter_function_body h f) fields
+  	fprintf h "  packet.%s = _%s;\n" (Syntax.length_name s) (Syntax.length_name s);
+  	fprintf h "/*  packet.%s = _%s;*/\n" s s
+    | (t, s, _) -> fprintf h "  packet.%s = *_%s;\n" s s
 
   let rec fields_count = fun fields size ->
     match fields with
@@ -256,11 +250,11 @@ module Gen_onboard = struct
   (** Prints data struct *)
   let print_data_struct = fun h {name=s; fields = fields} ->
     let size_full = size_fields_full fields 0 in
-    fprintf h "#define DOWNLINK_DATA_%s_LENGTH     \t(%s)\n" s size_full;
+    fprintf h "#define DOWNLINK_DATA_%s_LENGTH        (%s)\n" s size_full;
     let size_cnst = size_fields_cnst fields 0 in
-    fprintf h "#define DOWNLINK_DATA_%s_LENGTH_CNST\t(%s)\n" s size_cnst;
+    fprintf h "#define DOWNLINK_DATA_%s_LENGTH_CNST   (%s)\n" s size_cnst;
     let size_var = size_fields_var fields in
-    fprintf h "#define DOWNLINK_DATA_%s_LENGTH_VAR \t(%s)\n" s size_var;
+    fprintf h "#define DOWNLINK_DATA_%s_LENGTH_VAR    (%s)\n" s size_var;
     (*let num_of_fields = fields_count fields 0 in
     fprintf h "//#define MSG_PPRZ_DATA_%s_FIELDS (%d)\n" s num_of_fields;*)
     fprintf h "struct downlink_data_%s {\n" s;
@@ -272,25 +266,25 @@ module Gen_onboard = struct
     if List.length fields > 0 then begin
       fprintf h "static inline void downlink_data_%s_pack(uint8_t *buff, " s;
       print_parameters_function_header h fields;
-      fprintf h "){ \n";
+      fprintf h "){\n";
 
-(** DEBUG init *)
+(** DEBUG init
       fprintf h "\tuint8_t msg_len = %s;\n" (size_of_message_full2 fields);
-      fprintf h "\tprintf(\"\\tdownlink_data_%s_pack (id %%d): data_len = %%u\\n\", DL_%s, msg_len);\n\n" s s;
-(** DEBUG end *)
+      fprintf h "\_DOWNLINK_DATA_TRACE_(\"\\tdownlink_data_%s_pack (id %%d): data_len = %%u\\n\", DL_%s_ID, msg_len);\n\n" s s;
+    DEBUG end *)
 
-      fprintf h "\tstruct downlink_data_%s\tpacket;\n\n" s;
-      print_parameters_function_body h fields;
+      fprintf h "  struct downlink_data_%s     packet;\n\n" s;
+      List.iter (print_parameter_function_body h) fields;
       fprintf h "\n";
-      fprintf h "\tmemcpy(buff, &packet, DOWNLINK_DATA_%s_LENGTH_CNST);\n" s;
+      fprintf h "  memcpy(buff, &packet, DOWNLINK_DATA_%s_LENGTH_CNST);\n" s;
       print_memcpy_var h s fields;
       fprintf h "}\n\n"
     end else
-      fprintf h "/*static inline void downlink_data_%s_pack(uint8_t *buff){}*/\n\n" s
+      fprintf h "/*static inline void downlink_data_%s_pack(const uint8_t *buff){}*/\n\n" s
 
   (** Prints data_encode function PACKET DOESN'T INCLUDE VARIABLE LENGTH PARAMETERS
   let print_data_encode_function = fun h {name=s; fields = fields} ->
-      fprintf h "static inline void downlink_data_%s_encode(uint8_t *buff, struct downlink_data_%s *packet, uint8_t packet_len){ \n" s s;
+      fprintf h "static inline void downlink_data_%s_encode(const uint8_t *buff, struct downlink_data_%s *packet, uint8_t packet_len){ \n" s s;
       fprintf h "\n\tmemcpy(buff, packet, packet_len);\n}\n\n"*)
 
   (** Prints data_pack struct-pack-encode *)
@@ -318,7 +312,7 @@ module Gen_onboard = struct
       if m.id < 0 || m.id > 255 then begin
         fprintf stderr "Error: message %s has id %d but should be between 0 and 255\n" m.name m.id; exit 1;
       end
-      else fprintf h "#define DL_%s %d\n" m.name m.id
+      else fprintf h "#define DL_%s_ID  %d\n" m.name m.id
     ) messages;
     fprintf h "#define DL_MSG_%s_NB %d\n\n" class_ (List.length messages)
 
@@ -403,11 +397,12 @@ let () =
     Printf.fprintf h "#include <stdint.h>\n";
     Printf.fprintf h "#include <string.h> //required for memcpy\n\n\n";
 
-    Printf.fprintf h "#include <stdio.h> //for printf. Remove after debugging!\n\n\n";
+(**    Printf.fprintf h "//#define _DOWNLINK_DATA_DEBUG_\n\n";
+    Printf.fprintf h "#ifdef _DOWNLINK_DATA_DEBUG_\n#include <stdio.h> //for printf. Remove after debugging!\n#define _DOWNLINK_DATA_TRACE_(...) fprintf (stderr, __VA_ARGS__); fflush(stdout);\n#else\n#define _DOWNLINK_DATA_TRACE_(...)\n#endif\n";*)
 
     (** Data structs declaration *)
     (*Printf.fprintf h "#ifdef DOWNLINK\n";*)
-    Gen_onboard.print_enum h class_name messages;
+    (*Gen_onboard.print_enum h class_name messages;*)
     (*Gen_onboard.print_lengths_array h class_name messages;*)
     Gen_onboard.print_lengths_ordered h messages;
     List.iter (Gen_onboard.print_data_pack h) messages;

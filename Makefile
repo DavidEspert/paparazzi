@@ -90,18 +90,20 @@ XSENS_XML = $(CONF)/xsens_MTi-G.xml
 #
 # generated header files
 #
-MESSAGES_H=$(STATICINCLUDE)/messages.h
-MESSAGES2_H=$(STATICINCLUDE)/messages2.h
+MESSAGES_H=$(STATICINCLUDE)/messages2.h
+MESSAGES2_H=$(STATICINCLUDE)/messages.h
 MESSAGES3_H=$(STATICINCLUDE)/messages_data.h
-UBX_PROTOCOL_H=$(STATICINCLUDE)/ubx_protocol.h
+UBX_PROTOCOL_H=$(STATICINCLUDE)/ubx_protocol2.h
+UBX_PROTOCOL2_H=$(STATICINCLUDE)/ubx_protocol.h
+UBX_PROTOCOL3_H=$(STATICINCLUDE)/ubx_protocol_data.h
 MTK_PROTOCOL_H=$(STATICINCLUDE)/mtk_protocol.h
 XSENS_PROTOCOL_H=$(STATICINCLUDE)/xsens_protocol.h
-DL_PROTOCOL_H=$(STATICINCLUDE)/dl_protocol.h
-DL_PROTOCOL2_H=$(STATICINCLUDE)/dl_protocol2.h
+DL_PROTOCOL_H=$(STATICINCLUDE)/dl_protocol2.h
+DL_PROTOCOL2_H=$(STATICINCLUDE)/dl_protocol.h
 DL_PROTOCOL3_H=$(STATICINCLUDE)/dl_protocol_data.h
 ABI_MESSAGES_H=$(STATICINCLUDE)/abi_messages.h
 
-GEN_HEADERS = $(MESSAGES_H) $(MESSAGES2_H) $(MESSAGES3_H) $(UBX_PROTOCOL_H) $(MTK_PROTOCOL_H) $(XSENS_PROTOCOL_H) $(DL_PROTOCOL_H) $(DL_PROTOCOL2_H) $(DL_PROTOCOL3_H) $(ABI_MESSAGES_H)
+GEN_HEADERS = $(MESSAGES_H) $(MESSAGES2_H) $(MESSAGES3_H) $(UBX_PROTOCOL_H) $(UBX_PROTOCOL2_H) $(UBX_PROTOCOL3_H) $(MTK_PROTOCOL_H) $(XSENS_PROTOCOL_H) $(DL_PROTOCOL_H) $(DL_PROTOCOL2_H) $(DL_PROTOCOL3_H) $(ABI_MESSAGES_H)
 
 
 all: ground_segment ext lpctools
@@ -198,6 +200,20 @@ $(UBX_PROTOCOL_H) : $(UBX_XML) tools
 	@echo GENERATE $@
 	$(eval $@_TMP := $(shell $(MKTEMP)))
 	$(Q)PAPARAZZI_SRC=$(PAPARAZZI_SRC) PAPARAZZI_HOME=$(PAPARAZZI_HOME) $(TOOLS)/gen_ubx.out $< > $($@_TMP)
+	$(Q)mv $($@_TMP) $@
+	$(Q)chmod a+r $@
+
+$(UBX_PROTOCOL2_H) : $(UBX_XML) tools
+	@echo GENERATE $@
+	$(eval $@_TMP := $(shell $(MKTEMP)))
+	$(Q)PAPARAZZI_SRC=$(PAPARAZZI_SRC) PAPARAZZI_HOME=$(PAPARAZZI_HOME) $(TOOLS)/gen_ubx_macros.out $< > $($@_TMP)
+	$(Q)mv $($@_TMP) $@
+	$(Q)chmod a+r $@
+
+$(UBX_PROTOCOL3_H) : $(UBX_XML) tools
+	@echo GENERATE $@
+	$(eval $@_TMP := $(shell $(MKTEMP)))
+	$(Q)PAPARAZZI_SRC=$(PAPARAZZI_SRC) PAPARAZZI_HOME=$(PAPARAZZI_HOME) $(TOOLS)/gen_ubx_data.out $< > $($@_TMP)
 	$(Q)mv $($@_TMP) $@
 	$(Q)chmod a+r $@
 

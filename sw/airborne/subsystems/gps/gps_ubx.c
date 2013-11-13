@@ -55,7 +55,10 @@
 
 #define GpsUartRunning GpsLink(TxRunning)
 
+
 struct GpsUbx gps_ubx;
+
+struct Ubx_Header ubx_hd = { .sync1 = UBX_SYNC1, .sync2 = UBX_SYNC2 };
 
 void gps_impl_init(void) {
    gps_ubx.status = UNINIT;
@@ -64,7 +67,6 @@ void gps_impl_init(void) {
    gps_ubx.error_last = GPS_UBX_ERR_NONE;
    gps_ubx.have_velned = 0;
 }
-
 
 void gps_ubx_read_message(void) {
 
@@ -246,7 +248,8 @@ void gps_ubx_parse( uint8_t c ) {
 
 void ubxsend_cfg_rst(uint16_t bbr , uint8_t reset_mode) {
 #ifdef GPS_LINK
-  UbxSend_CFG_RST(bbr, reset_mode, 0x00);
+//   UbxSend_CFG_RST(bbr, reset_mode, 0x00);
+  ubx_send_CFG_RST(bbr, reset_mode, 0x00);
 #endif /* else less harmful for HITL */
 }
 

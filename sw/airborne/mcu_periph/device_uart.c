@@ -9,70 +9,65 @@
 
 
 // UART ------------------------------------------------------------------------
-void dev_UART_sendMessage(struct uart_periph *uart, struct transmit_buffer *tx_buff, uint8_t idx, uint8_t priority) {
-  uint8_t first_send;
-  //Insert message in transmit queue
-  try_insert_slot_in_queue(tx_buff, idx, priority);
-
-  //Insert as messages as possible in uart's Fifo.
-  first_send = tx_buff->first_send;
-  while(first_send < TX_BUFF_NUM_SLOTS){
-    tx_buff->slot[first_send].status = ST_SENDING; //freeze this message as first output
-    if(uart_check_free_space(uart, tx_buff->slot[first_send].length)){
-      for(uint8_t i= 0; i < tx_buff->slot[first_send].length; i++)
-	uart_transmit(uart, tx_buff->buffer[ (tx_buff->slot[first_send].init + i) ]);
-      //message is sent. Free this slot
-      tx_buff->slot[first_send].status = ST_READY;
-      TRACE("\tdevice: dev_UART_sendMessage:  message from slot %u passed to UART\n", tx_buff->first_send);
-      tx_buffer_try_free_slot(tx_buff, first_send);
-      first_send = tx_buff->first_send;
-    }
-    else{
-      tx_buff->slot[tx_buff->first_send].status = ST_READY; //Unfreeze this message as first output
-      break;
-    }
-  }
-}
-
-
-
 #ifdef USE_UART0
-struct transmit_buffer uart0_tx_buff = INITIALIZED_TX_BUFFER;
-
-uint8_t dev_UART0_get_tx_slot(uint8_t length, uint8_t *idx)			{ return tx_buffer_get_slot(&uart0_tx_buff, length, idx); }
-uint8_t * dev_UART0_get_buff_pointer(uint8_t idx)				{ return tx_buffer_get_slot_pointer(&uart0_tx_buff, idx); }
-void dev_UART0_sendMessage(uint8_t idx, uint8_t priority)			{ dev_UART_sendMessage(&uart0, &uart0_tx_buff, idx, priority); }
-
 struct device dev_UART0 = {
-//  .init = &uart0_init,
-//  .checkFreeSpace =	&uart0_checkFreeSpace,
-//  .transmit =		&uart0_transmit,
-  .get_tx_slot =	&dev_UART0_get_tx_slot,
-  .get_buff_pointer =	&dev_UART0_get_buff_pointer,
-  .sendMessage =	&dev_UART0_sendMessage
+  .checkFreeSpace =     &uart0_checkFreeSpace,
+  .get_buff_pointer =   &uart0_get_buff_pointer,
+  .packMessage =        &uart0_packMessage,
+  .sendMessage =        &uart0_sendMessage
 };
 #endif
 
 #ifdef USE_UART1
-struct device dev_UART1;
+struct device dev_UART1 = {
+  .checkFreeSpace =     &uart1_checkFreeSpace,
+  .get_buff_pointer =   &uart1_get_buff_pointer,
+  .packMessage =        &uart1_packMessage,
+  .sendMessage =        &uart1_sendMessage
+};
 #endif // USE_UART1
 
 #ifdef USE_UART2
-struct device dev_UART2;
+struct device dev_UART2 = {
+  .checkFreeSpace =     &uart2_checkFreeSpace,
+  .get_buff_pointer =   &uart2_get_buff_pointer,
+  .packMessage =        &uart2_packMessage,
+  .sendMessage =        &uart2_sendMessage
+};
 #endif // USE_UART2
 
 #ifdef USE_UART3
-struct device dev_UART3;
+struct device dev_UART3 = {
+  .checkFreeSpace =     &uart3_checkFreeSpace,
+  .get_buff_pointer =   &uart3_get_buff_pointer,
+  .packMessage =        &uart3_packMessage,
+  .sendMessage =        &uart3_sendMessage
+};
 #endif // USE_UART3
 
 #ifdef USE_UART4
-struct device dev_UART4;
+struct device dev_UART4 = {
+  .checkFreeSpace =     &uart4_checkFreeSpace,
+  .get_buff_pointer =   &uart4_get_buff_pointer,
+  .packMessage =        &uart4_packMessage,
+  .sendMessage =        &uart4_sendMessage
+};
 #endif // USE_UART4
 
 #ifdef USE_UART5
-struct device dev_UART5;
+struct device dev_UART5 = {
+  .checkFreeSpace =     &uart5_checkFreeSpace,
+  .get_buff_pointer =   &uart5_get_buff_pointer,
+  .packMessage =        &uart5_packMessage,
+  .sendMessage =        &uart5_sendMessage
+};
 #endif // USE_UART5
 
 #ifdef USE_UART6
-struct device dev_UART6;
+struct device dev_UART6 = {
+  .checkFreeSpace =     &uart6_checkFreeSpace,
+  .get_buff_pointer =   &uart6_get_buff_pointer,
+  .packMessage =        &uart6_packMessage,
+  .sendMessage =        &uart6_sendMessage
+};
 #endif // USE_UART6

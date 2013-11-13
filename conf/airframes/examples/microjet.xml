@@ -166,7 +166,7 @@
   <firmware name="fixedwing">
     <target name="sim" 			board="pc" />
     <target name="jsbsim"       board="pc"/>
-    <target name="ap" 			board="tiny_1.1"/>
+    <target name="ap" 			board="tiny_2.11"/>
 
     <define name="AGR_CLIMB" />
     <define name="LOITER_TRIM" />
@@ -175,7 +175,7 @@
 
     <!-- Communication -->
     <subsystem name="telemetry" 	type="transparent">
-      <configure name="MODEM_BAUD" 		value="B9600"/>
+      <configure name="MODEM_BAUD" 		value="B57600"/>
     </subsystem>
 
     <subsystem name="control"/>

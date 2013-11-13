@@ -15,14 +15,16 @@
 #include "std.h"
 
 struct device{
-//	void (*init)(void);
-	bool_t (*checkFreeSpace)(uint8_t length);
-	void (*transmit)(uint8_t data);
-	uint8_t (*get_tx_slot)(uint8_t length, uint8_t *idx);
-	uint8_t* (*get_buff_pointer)(uint8_t idx);
-	void (*sendMessage)(uint8_t idx, uint8_t priority);
+  bool_t   (*checkFreeSpace)(uint8_t length, uint8_t *idx);
+  uint8_t* (*get_buff_pointer)(uint8_t idx);
+  void     (*packMessage)(uint8_t idx, uint8_t offset, uint8_t *origin, uint8_t length);
+  void     (*sendMessage)(uint8_t idx, uint8_t priority);
 };
 
+
+#ifdef USE_SIM_UART
+extern struct device dev_SIM_UART;
+#endif /* USE_SIM_UART */
 
 #ifdef USE_UART0
 extern struct device dev_UART0;
@@ -64,5 +66,6 @@ extern struct device dev_I2C1;
 
 #ifdef USE_I2C3
 #endif /* USE_I2C3 */
+
 
 #endif//_DEVICE_DRIVER_H_

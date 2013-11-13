@@ -102,11 +102,11 @@ void dl_parse_msg(void) {
   }
 #endif
 
-  if (msg_id == DL_PING) {
-    DOWNLINK_SEND_PONG(DefaultChannel, DefaultDevice)
+  if (msg_id == DL_PING_ID) {
+    DOWNLINK_SEND_PONG(DefaultChannel, DefaultDevice);
   } else
 #ifdef TRAFFIC_INFO
-  if (msg_id == DL_ACINFO && DL_ACINFO_ac_id(dl_buffer) != AC_ID) {
+  if (msg_id == DL_ACINFO_ID && DL_ACINFO_ac_id(dl_buffer) != AC_ID) {
     uint8_t id = DL_ACINFO_ac_id(dl_buffer);
     float ux = MOfCm(DL_ACINFO_utm_east(dl_buffer));
     float uy = MOfCm(DL_ACINFO_utm_north(dl_buffer));
@@ -119,7 +119,7 @@ void dl_parse_msg(void) {
   } else
 #endif
 #ifdef NAV
-  if (msg_id == DL_MOVE_WP && DL_MOVE_WP_ac_id(dl_buffer) == AC_ID) {
+  if (msg_id == DL_MOVE_WP_ID && DL_MOVE_WP_ac_id(dl_buffer) == AC_ID) {
     uint8_t wp_id = DL_MOVE_WP_wp_id(dl_buffer);
     float a = MOfCm(DL_MOVE_WP_alt(dl_buffer));
 
@@ -137,13 +137,13 @@ void dl_parse_msg(void) {
     utm.east = waypoints[wp_id].x + nav_utm_east0;
     utm.north = waypoints[wp_id].y + nav_utm_north0;
     DOWNLINK_SEND_WP_MOVED(DefaultChannel, DefaultDevice, &wp_id, &utm.east, &utm.north, &a, &nav_utm_zone0);
-  } else if (msg_id == DL_BLOCK && DL_BLOCK_ac_id(dl_buffer) == AC_ID) {
+  } else if (msg_id == DL_BLOCK_ID && DL_BLOCK_ac_id(dl_buffer) == AC_ID) {
     nav_goto_block(DL_BLOCK_block_id(dl_buffer));
     SEND_NAVIGATION(DefaultChannel, DefaultDevice);
   } else
 #endif /** NAV */
 #ifdef WIND_INFO
-  if (msg_id == DL_WIND_INFO && DL_WIND_INFO_ac_id(dl_buffer) == AC_ID) {
+  if (msg_id == DL_WIND_INFO_ID && DL_WIND_INFO_ac_id(dl_buffer) == AC_ID) {
     struct FloatVect2 wind;
     wind.x = DL_WIND_INFO_north(dl_buffer);
     wind.y = DL_WIND_INFO_east(dl_buffer);
@@ -180,12 +180,12 @@ void dl_parse_msg(void) {
   } else
 #endif
 #ifdef DlSetting
-  if (msg_id == DL_SETTING && DL_SETTING_ac_id(dl_buffer) == AC_ID) {
+  if (msg_id == DL_SETTING_ID && DL_SETTING_ac_id(dl_buffer) == AC_ID) {
     uint8_t i = DL_SETTING_index(dl_buffer);
     float val = DL_SETTING_value(dl_buffer);
     DlSetting(i, val);
     DOWNLINK_SEND_DL_VALUE(DefaultChannel, DefaultDevice, &i, &val);
-  } else if (msg_id == DL_GET_SETTING && DL_GET_SETTING_ac_id(dl_buffer) == AC_ID) {
+  } else if (msg_id == DL_GET_SETTING_ID && DL_GET_SETTING_ac_id(dl_buffer) == AC_ID) {
     uint8_t i = DL_GET_SETTING_index(dl_buffer);
     float val = settings_get_value(i);
     DOWNLINK_SEND_DL_VALUE(DefaultChannel, DefaultDevice, &i, &val);

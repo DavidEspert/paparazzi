@@ -1,5 +1,6 @@
+#include <stdarg.h>
 #include "transport2.h"
-#include "generated/airframe.h" // AC_ID is required
+//#include "generated/airframe.h" // AC_ID is required
 
 #define STX_PPRZ_TX  0x99
 
@@ -16,11 +17,11 @@
 
 //Structs definition
 struct header{
-  uint8_t	stx;
-  uint8_t	length;
-  //uint8_t	timestamp;
-  uint8_t	ac_id;
-  uint8_t	msg_id;
+  uint8_t       stx;
+  uint8_t       length;
+  //uint8_t     timestamp;
+//  uint8_t       ac_id;
+//  uint8_t       msg_id;
 };
 
 struct tail{
@@ -31,7 +32,7 @@ struct tail{
 
 //Transport functions declaration
 uint8_t pprz_header_len(void);
-void pprz_header(uint8_t *buff, uint8_t msg_data_length, uint8_t msg_id);
+void pprz_header(uint8_t *buff, uint8_t msg_data_length);
 uint8_t pprz_tail_len(void);
 void pprz_tail(uint8_t *buff, uint8_t msg_data_length);
 void pprz_parse(void);
@@ -39,58 +40,48 @@ void pprz_parse(void);
 
 //Public transport struct: API
 /*static*/struct DownlinkTransport PprzTransport = {
-  .header_len =	&pprz_header_len,
-  .header =	&pprz_header,
-  .tail_len =	&pprz_tail_len,
-  .tail =	&pprz_tail,
-  .parse =	&pprz_parse,
+  .header_len = &pprz_header_len,
+  .header =     &pprz_header,
+  .tail_len =   &pprz_tail_len,
+  .tail =       &pprz_tail,
+  .parse =      &pprz_parse,
   .msg_received = PPRZ_TRANS_FALSE
 };
 /*static struct DownlinkTransport PprzTransport = { pprz_header_len, pprz_header, pprz_tail_len, pprz_tail};*/
 
-/*static*/struct DownlinkTransport XBeeTransport = {
-  .header_len =	&pprz_header_len,
-  .header =	&pprz_header,
-  .tail_len =	&pprz_tail_len,
-  .tail =	&pprz_tail,
-  .parse =	&pprz_parse,
+/*struct DownlinkTransport XBeeTransport = {
+  .header_len = &pprz_header_len,
+  .header =     &pprz_header,
+  .tail_len =   &pprz_tail_len,
+  .tail =       &pprz_tail,
+  .parse =      &pprz_parse,
   .msg_received = PPRZ_TRANS_FALSE
-};
+};*/
 
-/*static*/struct DownlinkTransport IvyTransport = {
+/*struct DownlinkTransport IvyTransport = {
   .header_len =	&pprz_header_len,
-  .header =	&pprz_header,
-  .tail_len =	&pprz_tail_len,
-  .tail =	&pprz_tail,
-  .parse =	&pprz_parse,
+  .header =     &pprz_header,
+  .tail_len =   &pprz_tail_len,
+  .tail =       &pprz_tail,
+  .parse =      &pprz_parse,
   .msg_received = PPRZ_TRANS_FALSE
-};
+};*/
 
 
 
 
 uint8_t pprz_header_len(void){
 // return sizeof(struct header);  
-  return 4;
+  return 2;
 }
 
-void pprz_header(uint8_t *buff, uint8_t msg_data_length, uint8_t msg_id){
-  // msg_length stands for "data length"
-  // frame_length is the length of frame under chksum analysis. This is
-  // frame = {AC_ID, MSG_ID, MESSAGE, CK_A, CK_B}
-
+void pprz_header(uint8_t *buff, uint8_t msg_data_length){
+  // 'header.length' is the length of frame under chksum analysis. This is
+  // frame = {STX, len, MESSAGE, CK_A, CK_B}
+  
   //set header
-  buff[0] = STX_PPRZ_TX;
-  buff[1] = msg_data_length + 4; // 2+msg_length+2
-  buff[2] = AC_ID;
-  buff[3] = msg_id;
-
-/*  //set header
-  ((struct header *)buff)->stx = STX_PPRZ_TX;
-  ((struct header *)buff)->length = msg_data_length + 4; // 2+msg_length+2
-  ((struct header *)buff)->ac_id = AC_ID;
-  ((struct header *)buff)->msg_id = msg_id;
-*/
+  buff[0] = STX_PPRZ_TX;                //((struct header *)buff)->stx = STX_PPRZ_TX;
+  buff[1] = msg_data_length + 4;        //((struct header *)buff)->length = msg_data_length+2;
 }
 
 uint8_t pprz_tail_len(void){
@@ -99,21 +90,20 @@ uint8_t pprz_tail_len(void){
 }
 
 void pprz_tail(uint8_t *buff, uint8_t msg_data_length){
-  // Calculate checksum from AC_ID to the end
+  // Calculate data checksum
   struct tail tl;
+  int i;
+
   tl.ck_a = buff[1];
   tl.ck_b = buff[1];
 
-  for(int i = 2; i < (2 + msg_data_length); i++){
+  for(i = 2; i < (2 + msg_data_length); i++){
     tl.ck_a += buff[i];
     tl.ck_b += tl.ck_a;
   }
   
-  buff[4+msg_data_length] = tl.ck_a;
-  buff[5+msg_data_length] = tl.ck_b;
-//  ((struct tail *)(buff + sizeof(struct header) + msg_data_length))->ck_a = tl.ck_a;
-//  ((struct tail *)(buff + sizeof(struct header) + msg_data_length))->ck_b = tl.ck_b;
-  
+  buff[i++] = tl.ck_a; //((struct tail *)(buff + sizeof(struct header) + msg_data_length))->ck_a = tl.ck_a;
+  buff[i]   = tl.ck_b; //((struct tail *)(buff + sizeof(struct header) + msg_data_length))->ck_b = tl.ck_b;
 }
 
 void pprz_parse(void) {

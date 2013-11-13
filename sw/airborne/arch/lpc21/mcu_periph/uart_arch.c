@@ -72,7 +72,7 @@ void uart_periph_set_bits_stop_parity(struct uart_periph* p __attribute__((unuse
   // TBD
 }
 
-void uart_transmit(struct uart_periph* p, uint8_t data ) {
+/*void uart_transmit(struct uart_periph* p, uint8_t data ) {
   uint16_t temp;
   unsigned cpsr;
 
@@ -100,11 +100,42 @@ void uart_transmit(struct uart_periph* p, uint8_t data ) {
   cpsr = disableIRQ();                              // disable global interrupts
   ((uartRegs_t *)(p->reg_addr))->ier |= UIER_ETBEI; // enable TX interrupts
   restoreIRQ(cpsr);                                 // restore global interrupts
+}*/
+
+//uart_sendMessage: Insert message from 'slot_idx' in transmit queue according to its priority
+void uart_sendMessage(struct uart_periph *p, uint8_t slot_idx, uint8_t priority) {
+  unsigned cpsr;
+
+  //Insert message in transmit queue
+  tx_buffer_try_insert_slot(&(p->tx_buff), slot_idx, priority);
+
+  //Start transmition
+  cpsr = disableIRQ();                                // disable global interrupts
+  ((uartRegs_t *)(p->reg_addr))->ier &= ~UIER_ETBEI;  // disable TX interrupts
+  restoreIRQ(cpsr);                                   // restore global interrupts
+
+  // check if in process of sending data
+  if (p->tx_running) {
+    // Nothing to do
+  } else {
+    if( tx_buffer_get_slot_send(&(p->tx_buff), &(p->tx_slot_idx)) ){
+      // set running flag and get a message to send
+      p->tx_running = 1;
+      p->tx_byte_idx = 0;
+      ((uartRegs_t *)(p->reg_addr))->thr = tx_buffer_get_slot_data(&(p->tx_buff), p->tx_slot_idx, p->tx_byte_idx++);
+    }
+  }
+
+  cpsr = disableIRQ();                              // disable global interrupts
+  ((uartRegs_t *)(p->reg_addr))->ier |= UIER_ETBEI; // enable TX interrupts
+  restoreIRQ(cpsr);                                 // restore global interrupts
 }
 
 static inline void uart_ISR(struct uart_periph* p)
 {
   uint8_t iid;
+  uint8_t msg_length;
+
   // loop until not more interrupt sources
   while (((iid = ((uartRegs_t *)(p->reg_addr))->iir) & UIIR_NO_INT) == 0)
   {
@@ -134,21 +165,26 @@ static inline void uart_ISR(struct uart_periph* p)
         break;
 
       case UIIR_THRE_INT:               // Transmit Holding Register Empty
+	msg_length = p->tx_buff.slot[p->tx_slot_idx].length;
         while (((uartRegs_t *)(p->reg_addr))->lsr & ULSR_THRE)
         {
-          // check if more data to send
-          if (p->tx_insert_idx != p->tx_extract_idx)
-          {
-            ((uartRegs_t *)(p->reg_addr))->thr = p->tx_buf[p->tx_extract_idx];
-            p->tx_extract_idx++;
-            p->tx_extract_idx %= UART_TX_BUFFER_SIZE;
-          }
-          else
-          {
-            // no
-            p->tx_running = 0;       // clear running flag
-            break;
-          }
+          // check if more data to send in actual message
+	  if( p->tx_byte_idx < msg_length)
+	    ((uartRegs_t *)(p->reg_addr))->thr = tx_buffer_get_slot_data(&(p->tx_buff), p->tx_slot_idx, p->tx_byte_idx++);
+	  else{
+	    //message ended. Free space
+	    tx_buffer_try_free_slot(&(p->tx_buff), p->tx_slot_idx);
+	    // check if there is a new message
+	    if( tx_buffer_get_slot_send(&(p->tx_buff), &(p->tx_slot_idx)) ){
+	      msg_length = p->tx_buff.slot[p->tx_slot_idx].length;
+	      p->tx_byte_idx = 0;
+	      ((uartRegs_t *)(p->reg_addr))->thr = tx_buffer_get_slot_data(&(p->tx_buff), p->tx_slot_idx, p->tx_byte_idx++);
+	    }
+	    else{
+	      p->tx_running = 0;       // clear running flag
+	      break;
+	    } 
+	  }	  
         }
 
         break;

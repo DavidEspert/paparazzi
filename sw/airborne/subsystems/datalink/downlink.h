@@ -33,6 +33,7 @@
 #include "generated/modules.h"
 #include "messages.h"
 #include "generated/airframe.h" // AC_ID is required
+#include "mcu_periph/device.h"
 
 #if defined SITL
 
@@ -44,6 +45,7 @@
 /** Software In The Loop simulation uses IVY bus directly as the transport layer */
 #include "ivy_transport.h"
 #endif
+#define DefaultDevice &dev_SIM_UART
 
 #else /** SITL */
 
@@ -64,18 +66,34 @@
 
 #endif /** !SITL */
 
+
+
+
+
+
+
+#define __join(_y, _x) _y##_x
+#define _join(_y, _x) __join(_y, _x)
+#define join(_chan, _fun) _join(_chan, _fun)
+
 #ifndef DefaultChannel
-#define DefaultChannel DOWNLINK_TRANSPORT
+//#define DefaultChannel DOWNLINK_TRANSPORT
+//i.e. built '& PprzTransport' from PprzTransport
+#define var_adr(_x) (& _x)
+#define DefaultChannel var_adr(DOWNLINK_TRANSPORT)
 #endif
 
 // FIXME are DOWNLINK_AP|FBW_DEVICE distinction really necessary ?
 // by default use AP_DEVICE if nothing is set ?
 #ifndef DOWNLINK_DEVICE
+//i.e. built &dev_UART0 from UART1
+//#define DOWNLINK_DEVICE join(&dev_, DOWNLINK_AP_DEVICE)
 #define DOWNLINK_DEVICE DOWNLINK_AP_DEVICE
 #endif
 
 #ifndef DefaultDevice
-#define DefaultDevice DOWNLINK_DEVICE
+#define DefaultDevice2 DOWNLINK_DEVICE
+#define DefaultDevice join(&dev_, DefaultDevice2)
 #endif
 
 /** Counter of messages not sent because of unavailibity of the output buffer*/

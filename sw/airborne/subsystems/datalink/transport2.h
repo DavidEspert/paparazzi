@@ -56,15 +56,15 @@
 
 struct DownlinkTransport
 {
-	uint8_t (*header_len)(void);
-	void (*header)(uint8_t *buff, uint8_t msg_data_length, uint8_t msg_id);
-	uint8_t (*tail_len)(void);
-	void (*tail)(uint8_t *buff, uint8_t msg_data_length);
-	void (*parse)(void);
-	// message received flag
-	volatile bool_t msg_received;
-	// overrun and error flags
-	uint8_t ovrn, error;
+  uint8_t (*header_len)(void);
+  void (*header)(uint8_t *buff, uint8_t msg_data_length);
+  uint8_t (*tail_len)(void);
+  void (*tail)(uint8_t *buff, uint8_t msg_data_length);
+  void (*parse)(void);
+  // message received flag
+  volatile bool_t msg_received;
+  // overrun and error flags
+  uint8_t ovrn, error;
 };
 
 // declaration of developed transport layer structs

@@ -189,15 +189,13 @@ sim.srcs 		+= $(fbw_srcs) $(ap_srcs)
 sim.CFLAGS 		+= -DSITL
 sim.srcs 		+= $(SRC_ARCH)/sim_ap.c
 
-sim.CFLAGS 		+= -DDOWNLINK -DDOWNLINK_TRANSPORT=IvyTransport -DDefaultPeriodic='&telemetry_Ap'
+sim.CFLAGS 		+= -DDOWNLINK -DDOWNLINK_TRANSPORT=PprzTransport -DDefaultPeriodic='&telemetry_Ap'
 sim.srcs 		+= subsystems/datalink/telemetry.c subsystems/datalink/downlink.c $(SRC_FIRMWARE)/datalink.c $(SRC_ARCH)/ivy_transport.c
 
 # GJN Addition during development...
 sim.srcs		+= mcu_periph/transmit_buffer.c subsystems/datalink/transport_pprz.c
-# sim.CFLAGS 		+= -DUSE_UART0
-# sim.srcs		+= mcu_periph/device_uart.c mcu_periph/uart.c $(SRC_ARCH)/mcu_periph/uart_arch.c
-sim.CFLAGS 		+= -DUSE_I2C1
-sim.srcs		+= mcu_periph/device_i2c.c
+sim.CFLAGS 		+= -DUSE_SIM_UART
+sim.srcs		+= mcu_periph/device_simUart.c
 # ... end of GJN Addition
 
 sim.srcs 		+= $(SRC_ARCH)/sim_gps.c $(SRC_ARCH)/sim_adc_generic.c
