@@ -3,7 +3,6 @@
 
 #include <stdint.h>
 #include "std.h"	//required for bool_t definition
-#include <string.h>	//required for memcpy
 
 //Buffer status
   //enum tx_buff_status {ST_FREE, ST_RESERVED, ST_READY, ST_SENDING}
@@ -14,7 +13,7 @@
 #define ST_SENT 5
 
 //num of slots available (1 slot --> 1 message)
-#define TX_BUFF_NUM_SLOTS	10
+#define TX_BUFF_NUM_SLOTS	32
 #define BUFFER_LENGTH		255
 
 //identifiers for pending actions
@@ -38,12 +37,12 @@ struct pending_action {
 };
 
 struct transmit_slot {
-  uint8_t	status;		// message status {FREE, RESERVED, READY or SENDING}
-  uint8_t	init;		// position of first message byte in buffer
-  uint8_t	length;		// message length
-  uint8_t	priority;	// message priority
-  uint8_t	next_send;	// index of next slot to be sent
-  uint8_t	next_mem;	// index of next slot in memory
+  uint8_t	status;         // message status {FREE, RESERVED, READY or SENDING}
+  uint8_t	init;           // position of first message byte in buffer
+  uint8_t	length;         // message length
+  uint8_t	priority;       // message priority
+  uint8_t	next_send;      // index of next slot to be sent
+  uint8_t	next_mem;       // index of next slot in memory
 //  transmit_slot *next_buff;  (use next_slot instead)
 };
 

@@ -30,6 +30,7 @@
 
 #include "mcu_periph/uart.h"
 #include "armVIC.h"
+#include <string.h> //required for memcpy
 
 static inline void uart_disable_interrupts(struct uart_periph* p) {
   // disable interrups
@@ -102,12 +103,18 @@ void uart_periph_set_bits_stop_parity(struct uart_periph* p __attribute__((unuse
   restoreIRQ(cpsr);                                 // restore global interrupts
 }*/
 
-//uart_sendMessage: Insert message from 'slot_idx' in transmit queue according to its priority
-void uart_sendMessage(struct uart_periph *p, uint8_t slot_idx, uint8_t priority) {
+//uart_sendMessage:     Save transaction 'trans' in 'slot_idx' and insert slot in
+//                      transmit queue according to its priority
+void uart_sendMessage(struct uart_periph *p, uint8_t slot_idx, void *trans, uint8_t priority) {
+// NOTE: 'void *trans' should actually be a 'struct uart_transaction *trans' but the addressed
+// struct could be stored in a dynamic memory space without alignment. Thus, pointer
+// is defined as void and alignment is solved after extraction from queue by copying from
+// the possible unaligned origin to a local aligned 'struct uart_transaction'.
   unsigned cpsr;
 
-  //Insert message in transmit queue
-  tx_buffer_try_insert_slot(&(p->tx_buff), slot_idx, priority);
+  //Insert transaction in transmit queue
+  transmit_queue_insert_slot(&(p->tx_queue), slot_idx, trans, priority);
+
 
   //Start transmition
   cpsr = disableIRQ();                                // disable global interrupts
@@ -118,11 +125,12 @@ void uart_sendMessage(struct uart_periph *p, uint8_t slot_idx, uint8_t priority)
   if (p->tx_running) {
     // Nothing to do
   } else {
-    if( tx_buffer_get_slot_send(&(p->tx_buff), &(p->tx_slot_idx)) ){
+    if( transmit_queue_extract_slot(&(p->tx_queue), &(p->trans_p)) ){
+      memcpy(&(p->trans), (p->trans_p), sizeof(struct uart_transaction));
       // set running flag and get a message to send
       p->tx_running = 1;
       p->tx_byte_idx = 0;
-      ((uartRegs_t *)(p->reg_addr))->thr = tx_buffer_get_slot_data(&(p->tx_buff), p->tx_slot_idx, p->tx_byte_idx++);
+      ((uartRegs_t *)(p->reg_addr))->thr = *( (REG_8*) ((REG_8*)p->trans.data + p->tx_byte_idx++) );
     }
   }
 
@@ -134,7 +142,6 @@ void uart_sendMessage(struct uart_periph *p, uint8_t slot_idx, uint8_t priority)
 static inline void uart_ISR(struct uart_periph* p)
 {
   uint8_t iid;
-  uint8_t msg_length;
 
   // loop until not more interrupt sources
   while (((iid = ((uartRegs_t *)(p->reg_addr))->iir) & UIIR_NO_INT) == 0)
@@ -165,26 +172,26 @@ static inline void uart_ISR(struct uart_periph* p)
         break;
 
       case UIIR_THRE_INT:               // Transmit Holding Register Empty
-	msg_length = p->tx_buff.slot[p->tx_slot_idx].length;
         while (((uartRegs_t *)(p->reg_addr))->lsr & ULSR_THRE)
         {
           // check if more data to send in actual message
-	  if( p->tx_byte_idx < msg_length)
-	    ((uartRegs_t *)(p->reg_addr))->thr = tx_buffer_get_slot_data(&(p->tx_buff), p->tx_slot_idx, p->tx_byte_idx++);
-	  else{
-	    //message ended. Free space
-	    tx_buffer_try_free_slot(&(p->tx_buff), p->tx_slot_idx);
-	    // check if there is a new message
-	    if( tx_buffer_get_slot_send(&(p->tx_buff), &(p->tx_slot_idx)) ){
-	      msg_length = p->tx_buff.slot[p->tx_slot_idx].length;
-	      p->tx_byte_idx = 0;
-	      ((uartRegs_t *)(p->reg_addr))->thr = tx_buffer_get_slot_data(&(p->tx_buff), p->tx_slot_idx, p->tx_byte_idx++);
-	    }
-	    else{
-	      p->tx_running = 0;       // clear running flag
-	      break;
-	    } 
-	  }	  
+          if(p->tx_byte_idx < p->trans.length) {
+            ((uartRegs_t *)(p->reg_addr))->thr = *( (REG_8*) ((REG_8*)p->trans.data + p->tx_byte_idx++) );
+          }
+          else{
+            //message ended. Callback
+            p->trans.callback(p->trans_p);
+            // check if there is a new message
+            if( transmit_queue_extract_slot(&(p->tx_queue), &(p->trans_p)) ){
+              memcpy(&(p->trans), (p->trans_p), sizeof(struct uart_transaction));
+              p->tx_byte_idx = 0;
+              ((uartRegs_t *)(p->reg_addr))->thr = *( (REG_8*) ((REG_8*)p->trans.data + p->tx_byte_idx++) );
+            }
+            else{
+              p->tx_running = 0;       // clear running flag
+              return;
+            } 
+          }       
         }
 
         break;

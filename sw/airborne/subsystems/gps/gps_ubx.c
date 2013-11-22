@@ -28,6 +28,7 @@
 /* currently needed to get nav_utm_zone0 */
 #include "subsystems/navigation/common_nav.h"
 #include "math/pprz_geodetic_float.h"
+#include "mcu_periph/dynamic_buffer.h"
 #endif
 
 /* parser status */
@@ -58,7 +59,6 @@
 
 struct GpsUbx gps_ubx;
 
-struct Ubx_Header ubx_hd = { .sync1 = UBX_SYNC1, .sync2 = UBX_SYNC2 };
 
 void gps_impl_init(void) {
    gps_ubx.status = UNINIT;
@@ -252,5 +252,12 @@ void ubxsend_cfg_rst(uint16_t bbr , uint8_t reset_mode) {
   ubx_send_CFG_RST(bbr, reset_mode, 0x00);
 #endif /* else less harmful for HITL */
 }
+
+//UBX message header and callback
+struct Ubx_Header ubx_hd = { .sync1 = UBX_SYNC1, .sync2 = UBX_SYNC2 };
+void ubx_callback(void *slot_ptr) {
+  dynamic_buffer_free_slot_pointer(&dynamic_buff, (uint8_t*)slot_ptr);
+}
+
 
 

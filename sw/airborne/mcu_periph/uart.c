@@ -27,27 +27,15 @@
 #endif
 
 
-//uart_get_buff_pointer: Returns a pointer to the message indexed with 'slot_idx'
-uint8_t * uart_get_buff_pointer(struct uart_periph *uart, uint8_t slot_idx) {
-  return tx_buffer_get_slot_pointer(&(uart->tx_buff), slot_idx);
-}
-#define UART_GET_BUFF_POINTER(_uart, _slot_idx)                         tx_buffer_get_slot_pointer(&(_uart->tx_buff, _slot_idx))
-
-//uart_packMessage: copy 'length' bytes from 'origin' to slot 'slot_idx' with an offset (offset refers to slot).
-void uart_packMessage(struct uart_periph *uart, uint8_t slot_idx, uint8_t offset, uint8_t *origin, uint8_t length) {
-  tx_buffer_fill(&(uart->tx_buff), slot_idx, offset, origin, length);
-}
-#define UART_PACK_MESSAGE(_uart, _slot_idx, _offset, _origin, _length)  tx_buffer_fill(&(_uart->tx_buff), _slot_idx, _offset, _origin, _length)
-
-
 #ifdef USE_UART0
 struct uart_periph uart0;
 
-// void uart0_transmit(uint8_t data)                                       { uart_transmit(&uart0, data); }
-void uart0_sendMessage(uint8_t slot_idx, uint8_t priority)              { uart_sendMessage(&uart0, slot_idx, priority); }
-bool_t uart0_checkFreeSpace(uint8_t length, uint8_t *slot_idx)          { return uart_check_free_space(&uart0, length, slot_idx); }
-uint8_t * uart0_get_buff_pointer(uint8_t slot_idx)                      { return uart_get_buff_pointer(&uart0, slot_idx); }
-void uart0_packMessage(uint8_t slot_idx, uint8_t offset, uint8_t *origin, uint8_t length) { uart_packMessage(&uart0, slot_idx, offset, origin, length); }
+bool_t  uart0_CheckFreeSpace(uint8_t *slot_idx)                                  { return UART0CheckFreeSpace(slot_idx); }
+uint8_t uart0_TransactionLen(void)                                               { return UART0TransactionLen(); }
+void    uart0_TransactionPack(struct uart_transaction *trans, void* data, uint8_t length, void (*callback)(void*))
+                                                                                 { UART0TransactionPack(trans, data, length, callback); }
+void    uart0_FreeSpace(uint8_t slot_idx)                                        { UART0FreeSpace(slot_idx); }
+void    uart0_SendMessage(uint8_t slot_idx, void* trans, uint8_t priority)       { UART0SendMessage(slot_idx, trans, priority); }
 
 #if DOWNLINK
 static void send_uart0_err(void) {
@@ -65,11 +53,12 @@ static void send_uart0_err(void) {
 #ifdef USE_UART1
 struct uart_periph uart1;
 
-// void uart1_transmit(uint8_t data)                                       { uart_transmit(&uart1, data); }
-void uart1_sendMessage(uint8_t slot_idx, uint8_t priority)              { uart_sendMessage(&uart1, slot_idx, priority); }
-bool_t uart1_checkFreeSpace(uint8_t length, uint8_t *slot_idx)          { return uart_check_free_space(&uart1, length, slot_idx); }
-uint8_t * uart1_get_buff_pointer(uint8_t slot_idx)                      { return uart_get_buff_pointer(&uart1, slot_idx); }
-void uart1_packMessage(uint8_t slot_idx, uint8_t offset, uint8_t *origin, uint8_t length) { uart_packMessage(&uart1, slot_idx, offset, origin, length); }
+bool_t  uart1_CheckFreeSpace(uint8_t *slot_idx)                                  { return UART1CheckFreeSpace(slot_idx); }
+uint8_t uart1_TransactionLen(void)                                               { return UART1TransactionLen(); }
+void    uart1_TransactionPack(struct uart_transaction *trans, void* data, uint8_t length, void (*callback)(void*))
+                                                                                 { UART1TransactionPack(trans, data, length, callback); }
+void    uart1_FreeSpace(uint8_t slot_idx)                                        { UART1FreeSpace(slot_idx); }
+void    uart1_SendMessage(uint8_t slot_idx, void* trans, uint8_t priority)       { UART1SendMessage(slot_idx, trans, priority); }
 
 #if DOWNLINK
 static void send_uart1_err(void) {
@@ -87,11 +76,12 @@ static void send_uart1_err(void) {
 #ifdef USE_UART2
 struct uart_periph uart2;
 
-// void uart2_transmit(uint8_t data)                                       { uart_transmit(&uart2, data); }
-void uart2_sendMessage(uint8_t slot_idx, uint8_t priority)              { uart_sendMessage(&uart2, slot_idx, priority); }
-bool_t uart2_checkFreeSpace(uint8_t length, uint8_t *slot_idx)          { return uart_check_free_space(&uart2, length, slot_idx); }
-uint8_t * uart2_get_buff_pointer(uint8_t slot_idx)                      { return uart_get_buff_pointer(&uart2, slot_idx); }
-void uart2_packMessage(uint8_t slot_idx, uint8_t offset, uint8_t *origin, uint8_t length) { uart_packMessage(&uart2, slot_idx, offset, origin, length); }
+bool_t  uart2_CheckFreeSpace(uint8_t *slot_idx)                                  { return UART2CheckFreeSpace(slot_idx); }
+uint8_t uart2_TransactionLen(void)                                               { return UART2TransactionLen(); }
+void    uart2_TransactionPack(struct uart_transaction *trans, void* data, uint8_t length, void (*callback)(void*))
+                                                                                 { UART2TransactionPack(trans, data, length, callback); }
+void    uart2_FreeSpace(uint8_t slot_idx)                                        { UART2FreeSpace(slot_idx); }
+void    uart2_SendMessage(uint8_t slot_idx, void* trans, uint8_t priority)       { UART2SendMessage(slot_idx, trans, priority); }
 
 #if DOWNLINK
 static void send_uart2_err(void) {
@@ -109,11 +99,12 @@ static void send_uart2_err(void) {
 #ifdef USE_UART3
 struct uart_periph uart3;
 
-// void uart3_transmit(uint8_t data)                                       { uart_transmit(&uart3, data); }
-void uart3_sendMessage(uint8_t slot_idx, uint8_t priority)              { uart_sendMessage(&uart3, slot_idx, priority); }
-bool_t uart3_checkFreeSpace(uint8_t length, uint8_t *slot_idx)          { return uart_check_free_space(&uart3, length, slot_idx); }
-uint8_t * uart3_get_buff_pointer(uint8_t slot_idx)                      { return uart_get_buff_pointer(&uart3 slot_idx); }
-void uart3_packMessage(uint8_t slot_idx, uint8_t offset, uint8_t *origin, uint8_t length) { uart_packMessage(&uart3, slot_idx, offset, origin, length); }
+bool_t  uart3_CheckFreeSpace(uint8_t *slot_idx)                                  { return UART3CheckFreeSpace(slot_idx); }
+uint8_t uart3_TransactionLen(void)                                               { return UART3TransactionLen(); }
+void    uart3_TransactionPack(struct uart_transaction *trans, void* data, uint8_t length, void (*callback)(void*))
+                                                                                 { UART3TransactionPack(trans, data, length, callback); }
+void    uart3_FreeSpace(uint8_t slot_idx)                                        { UART3FreeSpace(slot_idx); }
+void    uart3_SendMessage(uint8_t slot_idx, void* trans, uint8_t priority)       { UART3SendMessage(slot_idx, trans, priority); }
 
 #if DOWNLINK
 static void send_uart3_err(void) {
@@ -131,11 +122,12 @@ static void send_uart3_err(void) {
 #ifdef USE_UART4
 struct uart_periph uart4;
 
-// void uart4_transmit(uint8_t data)                                       { uart_transmit(&uart4, data); }
-void uart4_sendMessage(uint8_t slot_idx, uint8_t priority)              { uart_sendMessage(&uart4, slot_idx, priority); }
-bool_t uart4_checkFreeSpace(uint8_t length, uint8_t *slot_idx)          { return uart_check_free_space(&uart4, length, slot_idx); }
-uint8_t * uart4_get_buff_pointer(uint8_t slot_idx)                      { return uart_get_buff_pointer(&uart4, slot_idx); }
-void uart4_packMessage(uint8_t slot_idx, uint8_t offset, uint8_t *origin, uint8_t length) { uart_packMessage(&uart4, slot_idx, offset, origin, length); }
+bool_t  uart4_CheckFreeSpace(uint8_t *slot_idx)                                  { return UART4CheckFreeSpace(slot_idx); }
+uint8_t uart4_TransactionLen(void)                                               { return UART4TransactionLen(); }
+void    uart4_TransactionPack(struct uart_transaction *trans, void* data, uint8_t length, void (*callback)(void*))
+                                                                                 { UART4TransactionPack(trans, data, length, callback); }
+void    uart4_FreeSpace(uint8_t slot_idx)                                        { UART4FreeSpace(slot_idx); }
+void    uart4_SendMessage(uint8_t slot_idx, void* trans, uint8_t priority)       { UART4SendMessage(slot_idx, trans, priority); }
 
 #if DOWNLINK
 static void send_uart4_err(void) {
@@ -153,11 +145,12 @@ static void send_uart4_err(void) {
 #ifdef USE_UART5
 struct uart_periph uart5;
 
-// void uart5_transmit(uint8_t data)                                       { uart_transmit(&uart5, data); }
-void uart5_sendMessage(uint8_t slot_idx, uint8_t priority)              { uart_sendMessage(&uart5, slot_idx, priority); }
-bool_t uart5_checkFreeSpace(uint8_t length, uint8_t *slot_idx)          { return uart_check_free_space(&uart5, length, slot_idx); }
-uint8_t * uart5get_buff_pointer(uint8_t slot_idx)                      { return uart_get_buff_pointer(&uart5, slot_idx); }
-void uart5_packMessage(uint8_t slot_idx, uint8_t offset, uint8_t *origin, uint8_t length) { uart_packMessage(&uart5, slot_idx, offset, origin, length); }
+bool_t  uart5_CheckFreeSpace(uint8_t *slot_idx)                                  { return UART5CheckFreeSpace(slot_idx); }
+uint8_t uart5_TransactionLen(void)                                               { return UART5TransactionLen(); }
+void    uart5_TransactionPack(struct uart_transaction *trans, void* data, uint8_t length, void (*callback)(void*))
+                                                                                 { UART5TransactionPack(trans, data, length, callback); }
+void    uart5_FreeSpace(uint8_t slot_idx)                                        { UART5FreeSpace(slot_idx); }
+void    uart5_SendMessage(uint8_t slot_idx, void* trans, uint8_t priority)       { UART5SendMessage(slot_idx, trans, priority); }
 
 #if DOWNLINK
 static void send_uart5_err(void) {
@@ -175,11 +168,12 @@ static void send_uart5_err(void) {
 #ifdef USE_UART6
 struct uart_periph uart6;
 
-// void uart6_transmit(uint8_t data)                                       { uart_transmit(&uart6, data); }
-void uart6_sendMessage(uint8_t slot_idx, uint8_t priority)              { uart_sendMessage(&uart6, slot_idx, priority); }
-bool_t uart6_checkFreeSpace(uint8_t length, uint8_t *slot_idx)          { return uart_check_free_space(&uart6, length, slot_idx); }
-uint8_t * uart6_get_buff_pointer(uint8_t slot_idx)                      { return uart_get_buff_pointer(&uart6, slot_idx); }
-void uart6_packMessage(uint8_t slot_idx, uint8_t offset, uint8_t *origin, uint8_t length) { uart_packMessage(&uart6, slot_idx, offset, origin, length); }
+bool_t  uart6_CheckFreeSpace(uint8_t *slot_idx)                                  { return UART6CheckFreeSpace(slot_idx); }
+uint8_t uart6_TransactionLen(void)                                               { return UART6TransactionLen(); }
+void    uart6_TransactionPack(struct uart_transaction *trans, void* data, uint8_t length, void (*callback)(void*))
+                                                                                 { UART6TransactionPack(trans, data, length, callback); }
+void    uart6_FreeSpace(uint8_t slot_idx)                                        { UART6FreeSpace(slot_idx); }
+void    uart6_SendMessage(uint8_t slot_idx, void* trans, uint8_t priority)       { UART6SendMessage(slot_idx, trans, priority); }
 
 #if DOWNLINK
 static void send_uart6_err(void) {
@@ -238,11 +232,8 @@ static void send_uart_err(void) {
 void uart_periph_init(struct uart_periph* p) {
   p->rx_insert_idx = 0;
   p->rx_extract_idx = 0;
-  tx_buffer_init(&(p->tx_buff));
-  p->tx_slot_idx = 0;
+  transmit_queue_init(&(p->tx_queue));
   p->tx_byte_idx = 0;
-//  p->tx_insert_idx = 0;
-//  p->tx_extract_idx = 0;
   p->tx_running = FALSE;
   p->ore = 0;
   p->ne_err = 0;
@@ -254,16 +245,11 @@ void uart_periph_init(struct uart_periph* p) {
 #endif
 }
 
-//uart_check_free_space: Get a slot for sending data. If a slot is available, 'slot_idx' will be filled with its index.
-bool_t uart_check_free_space(struct uart_periph* p, uint8_t len, uint8_t *slot_idx) {
-  LED_TOGGLE(3);
-  return tx_buffer_get_slot_mem(&(p->tx_buff), len, slot_idx);
+uint8_t uart_transaction_length(void) {
+  return uart_transaction_length_inline();
 }
 
-uint8_t uart_getch(struct uart_periph* p) {
-  uint8_t ret = p->rx_buf[p->rx_extract_idx];
-  p->rx_extract_idx = (p->rx_extract_idx + 1) % UART_RX_BUFFER_SIZE;
-  return ret;
+void uart_transaction_pack(struct uart_transaction *trans, void* data, uint8_t length, void (*callback)(void*)) {
+  uart_transaction_pack_inline(trans, data, length, callback);
 }
-
 

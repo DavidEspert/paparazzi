@@ -38,40 +38,40 @@
 #ifndef DOWNLINK_TRANSPORT_H
 #define DOWNLINK_TRANSPORT_H
 
-//#define _USE_INLINE_TRANSPORT_
-#ifdef _USE_INLINE_TRANSPORT_
+// #include <inttypes.h>
+// #include "std.h"
+// #include <stdint.h>
+#ifndef TRANSPORT_PAYLOAD_LEN
+#define TRANSPORT_PAYLOAD_LEN 256
+#endif
 
-//transport_X_inline.h contain the same functions than transport_X.c but defined as 'static inline'.
-// So, the user can directly call the functions without requiring any 'Transport2' struct.
-#include "transport_pprz_inline.h"
-#include "transport_xbee_inline.h"
-#include "transport_ivy_inline.h"
-#include "transport_default_inline.h"
-
-#else
-
-#include <inttypes.h>
-#include "std.h"
-//#include <stdint.h>
-
-struct DownlinkTransport
-{
-  uint8_t (*header_len)(void);
-  void (*header)(uint8_t *buff, uint8_t msg_data_length);
-  uint8_t (*tail_len)(void);
-  void (*tail)(uint8_t *buff, uint8_t msg_data_length);
-  void (*parse)(void);
+/** Generic Rx Payload struct */
+struct PayloadTransport {
+  // payload buffer
+  uint8_t payload[TRANSPORT_PAYLOAD_LEN];
+  // payload length
+  volatile uint8_t payload_len;
   // message received flag
   volatile bool_t msg_received;
   // overrun and error flags
   uint8_t ovrn, error;
 };
 
-// declaration of developed transport layer structs
-extern struct DownlinkTransport PprzTransport;
-extern struct DownlinkTransport XBeeTransport;
-extern struct DownlinkTransport IvyTransport;
+/** Generic Transport interface */
+struct DownlinkTransport
+{
+  // TX functions
+  uint8_t (*header_len)(void);
+  void (*header)(uint8_t *buff, uint8_t msg_data_length);
+  uint8_t (*tail_len)(void);
+  void (*tail)(uint8_t *buff, uint8_t msg_data_length);
+  // RX functions
+  void (*parse)(uint8_t c);
+  void (*parse_payload)(void);
+};
 
-#endif // _USE_INLINE_TRANSPORT_
+#include "transport_pprz.h"
+// #include "transport_xbee.h"
+// #include "transport_ivy.h"
 
 #endif /* DOWNLINK_TRANSPORT_H */

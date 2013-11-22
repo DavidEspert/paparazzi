@@ -1,73 +1,79 @@
-#include "device.h"
-#include "uart.h"
-#include "transmit_buffer.h"
+#include "device_uart.h"
 
-#include <stdio.h> //for printf. Remove after debugging!
-
-#define TRACE    printf
-//#define TRACE    //
+void dev_uart_transaction_pack(void* trans, void* data, uint8_t length, void (*callback)(void*));
+void dev_uart_transaction_pack(void* trans, void* data, uint8_t length, void (*callback)(void*))
+{ dev_uart_transaction_pack_inline(trans, data, length, callback); }
 
 
 // UART ------------------------------------------------------------------------
 #ifdef USE_UART0
 struct device dev_UART0 = {
-  .checkFreeSpace =     &uart0_checkFreeSpace,
-  .get_buff_pointer =   &uart0_get_buff_pointer,
-  .packMessage =        &uart0_packMessage,
-  .sendMessage =        &uart0_sendMessage
+  .check_free_space =      &uart0_CheckFreeSpace,
+  .free_space       =      &uart0_FreeSpace,
+  .transaction_len =       &uart_transaction_length,
+  .transaction_pack =      &dev_uart_transaction_pack,
+  .sendMessage =           &uart0_SendMessage
 };
 #endif
 
 #ifdef USE_UART1
 struct device dev_UART1 = {
-  .checkFreeSpace =     &uart1_checkFreeSpace,
-  .get_buff_pointer =   &uart1_get_buff_pointer,
-  .packMessage =        &uart1_packMessage,
-  .sendMessage =        &uart1_sendMessage
+  .check_free_space =      &uart1_CheckFreeSpace,
+  .free_space       =      &uart1_FreeSpace,
+  .transaction_len =       &uart_transaction_length,
+  .transaction_pack =      &dev_uart_transaction_pack,
+  .sendMessage =           &uart1_SendMessage
 };
 #endif // USE_UART1
 
 #ifdef USE_UART2
 struct device dev_UART2 = {
-  .checkFreeSpace =     &uart2_checkFreeSpace,
-  .get_buff_pointer =   &uart2_get_buff_pointer,
-  .packMessage =        &uart2_packMessage,
-  .sendMessage =        &uart2_sendMessage
+  .check_free_space =      &uart2_CheckFreeSpace,
+  .free_space       =      &uart2_FreeSpace,
+  .transaction_len =       &uart_transaction_length,
+  .transaction_pack =      &dev_uart_transaction_pack,
+  .sendMessage =           &uart2_SendMessage
 };
 #endif // USE_UART2
 
 #ifdef USE_UART3
 struct device dev_UART3 = {
-  .checkFreeSpace =     &uart3_checkFreeSpace,
-  .get_buff_pointer =   &uart3_get_buff_pointer,
-  .packMessage =        &uart3_packMessage,
-  .sendMessage =        &uart3_sendMessage
+  .check_free_space =      &uart3_CheckFreeSpace,
+  .free_space       =      &uart3_FreeSpace,
+  .transaction_len =       &uart_transaction_length,
+  .transaction_pack =      &dev_uart_transaction_pack,
+  .sendMessage =           &uart3_SendMessage
 };
 #endif // USE_UART3
 
 #ifdef USE_UART4
 struct device dev_UART4 = {
-  .checkFreeSpace =     &uart4_checkFreeSpace,
-  .get_buff_pointer =   &uart4_get_buff_pointer,
-  .packMessage =        &uart4_packMessage,
-  .sendMessage =        &uart4_sendMessage
+  .check_free_space =      &uart4_CheckFreeSpace,
+  .free_space       =      &uart4_FreeSpace,
+  .transaction_len =       &uart_transaction_length,
+  .transaction_pack =      &dev_uart_transaction_pack,
+  .sendMessage =           &uart4_SendMessage
 };
 #endif // USE_UART4
 
 #ifdef USE_UART5
 struct device dev_UART5 = {
-  .checkFreeSpace =     &uart5_checkFreeSpace,
-  .get_buff_pointer =   &uart5_get_buff_pointer,
-  .packMessage =        &uart5_packMessage,
-  .sendMessage =        &uart5_sendMessage
+  .check_free_space =      &uart5_CheckFreeSpace,
+  .free_space       =      &uart5_FreeSpace,
+  .transaction_len =       &uart_transaction_length,
+  .transaction_pack =      &dev_uart_transaction_pack,
+  .sendMessage =           &uart5_SendMessage
 };
 #endif // USE_UART5
 
 #ifdef USE_UART6
 struct device dev_UART6 = {
-  .checkFreeSpace =     &uart6_checkFreeSpace,
-  .get_buff_pointer =   &uart6_get_buff_pointer,
-  .packMessage =        &uart6_packMessage,
-  .sendMessage =        &uart6_sendMessage
+  .check_free_space =      &uart6_CheckFreeSpace,
+  .free_space       =      &uart6_FreeSpace,
+  .transaction_len =       &uart_transaction_length,
+  .transaction_pack =      &dev_uart_transaction_pack,
+  .sendMessage =           &uart6_SendMessage
 };
+
+
 #endif // USE_UART6

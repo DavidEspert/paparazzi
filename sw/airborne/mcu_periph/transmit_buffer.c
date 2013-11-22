@@ -1,4 +1,5 @@
 #include "transmit_buffer.h"
+#include <string.h>     //required for memcpy
 
 /* NOTE: this file works exchanging slot indexes instead of slot pointers
  * in order to avoid the case of a user passing pointers to local slots.
@@ -70,7 +71,7 @@ void pending_action(struct transmit_buffer *tx_buff);
 
 /*
 struct transmit_buffer tx_buff ={
-  .slot[0 ... (TX_BUFF_NUM_SLOTS-1)] = { .status = ST_FREE, .init = 0, .length = 0, .priority = 0, .next_send = TX_BUFF_NUM_SLOTS, .next_mem = TX_BUFF_NUM_SLOTS}, \
+  .slot[0 ... (TX_BUFF_NUM_SLOTS-1)] = { .status = ST_FREE, .init = 0, .length = 0, .priority = 0, .next_send = TX_BUFF_NUM_SLOTS, .next_mem = TX_BUFF_NUM_SLOTS},
   .first_send = TX_BUFF_NUM_SLOTS,
   .first_mem = TX_BUFF_NUM_SLOTS,
   .semaphore_get_mem = 0,
@@ -335,6 +336,7 @@ bool_t tx_buffer_extract_slot(struct transmit_buffer *tx_buff, uint8_t idx){
     }*/
   }
   //case D- slot is not in queue
+  return TRUE;
 end:
   TRACE("\tbuffer_transmit: extract_slot_from_queue:  SLOT %u EXTRACTED FROM QUEUE\n", idx); DEBUG_PRINT_BUFFER_SEND;
   tx_buff->slot[idx].next_send = TX_BUFF_NUM_SLOTS;
@@ -506,7 +508,7 @@ void tx_buffer_try_free_slot(struct transmit_buffer *tx_buff, uint8_t idx){
 }
 
 bool_t tx_buffer_get_slot_send(struct transmit_buffer *tx_buff, uint8_t *idx){
-  uint8_t queue_idx = tx_buff->first_send;
+  uint8_t queue_idx;
 
   //0- verify atomic operation
   if(++tx_buff->semaphore_queue > 1) {
@@ -515,6 +517,8 @@ bool_t tx_buffer_get_slot_send(struct transmit_buffer *tx_buff, uint8_t *idx){
     TRACE("\tbuffer_transmit: tx_buffer_get_slot_send:  INTERRUPTING --> QUIT\n");
     tx_buff->semaphore_queue--;	return FALSE;
   }
+  
+  queue_idx = tx_buff->first_send;
 
   //1- try to get a slot
   while(queue_idx < TX_BUFF_NUM_SLOTS && (tx_buff->slot[queue_idx].status == ST_SENDING || tx_buff->slot[queue_idx].status == ST_SENT))

@@ -182,7 +182,7 @@ module Gen_onboard = struct
 
 
   (** Prints downlink macro *)
-  let print_downlink_macro = fun h f_type trans_type trans_name dev_type dev_name eol message(*{name=s; fields = fields}*) ->
+  let print_downlink_macro = fun h function_type message ->
     let s = message.name in
     let fields = message.fields in
     let data_len1 = ("DOWNLINK_DATA_"^s^"_LENGTH" ) in
@@ -192,130 +192,156 @@ module Gen_onboard = struct
     print_message_id h message;
     fprintf h "#define DL_%s_PRIORITY  0\n\n"s;
 
+    let f_type = ref "" in
+    let trans_type = ref "" in
+    let trans_name = ref "" in
+    let dev_type = ref "" in
+    let dev_name = ref "" in
+    let eol = ref "" in
+    
+    if (function_type <> "MACROS") then begin
+      f_type := "static inline void";
+      trans_type:= "struct DownlinkTransport *";
+      trans_name := "tp";
+      dev_type := "struct device *";
+      dev_name := "dev";
+      eol:= "\n";
+    end else begin
+      f_type := "#define";
+      (* trans_type:= ""; *)
+      trans_name := "_trans";
+      (* dev_type := ""; *)
+      dev_name := "_dev";
+      eol:= " \\\n";
+    end;
+
     if List.length fields > 0 then begin
-      fprintf h "%s DOWNLINK_SEND_%s(%s%s, %s%s, " f_type s trans_type trans_name dev_type dev_name;
-      if (f_type <> "#define") then
+      fprintf h "%s DOWNLINK_SEND_%s(%s%s, %s%s, " !f_type s !trans_type !trans_name !dev_type !dev_name;
+      if (function_type <> "MACROS") then
         print_parameters_function_header h fields
       else
         print_parameters_macro_header h fields;
-      fprintf h "){%s" eol
+      fprintf h "){%s" !eol
     end else
-      fprintf h "%s DOWNLINK_SEND_%s(%s%s, %s%s){%s" f_type s trans_type trans_name dev_type dev_name eol;
+      fprintf h "%s DOWNLINK_SEND_%s(%s%s, %s%s){%s" !f_type s !trans_type !trans_name !dev_type !dev_name !eol;
 
-    fprintf h "  uint8_t buff_idx;%s" eol;
-    (*fprintf h "\tuint8_t temp_buffer[256];%s" eol;*)
-    if (f_type <> "#define") then begin
-      fprintf h "  uint8_t hd_len = %s->header_len();%s" trans_name eol;
-      fprintf h "  uint8_t tl_len = %s->tail_len();%s" trans_name eol;
+    fprintf h "  uint8_t dev_slot;%s" !eol;
+    fprintf h "  uint8_t buff_slot;%s" !eol;
+    if (function_type <> "MACROS") then begin
+      fprintf h "  uint8_t ta_len =    %s->transaction_len();%s" !dev_name !eol;
+      fprintf h "  uint8_t tp_hd_len = %s->header_len();%s" !trans_name !eol;
+      fprintf h "  uint8_t tp_tl_len = %s->tail_len();%s" !trans_name !eol;
     end else begin
-      fprintf h "  uint8_t hd_len = %s##_header_len();%s" trans_name eol;
-      fprintf h "  uint8_t tl_len = %s##_tail_len();%s" trans_name eol;
+      fprintf h "  uint8_t ta_len =    msg_join(%s, _transaction_len());%s" !dev_name !eol;
+      fprintf h "  uint8_t tp_hd_len = msg_join(%s, _header_len());%s" !trans_name !eol;
+      fprintf h "  uint8_t tp_tl_len = msg_join(%s, _tail_len());%s" !trans_name !eol;
     end;
-    fprintf h "%s" eol;
+    fprintf h "%s" !eol;
 
-    fprintf h "  _DOWNLINK_SEND_TRACE_(\"\\nDOWNLINK_SEND_%s:\\n\");%s" s eol;
-    fprintf h "%s" eol;
+    fprintf h "  _DOWNLINK_SEND_TRACE_(\"\\nDOWNLINK_SEND_%s:\\n\");%s" s !eol;
+    fprintf h "%s" !eol;
 
-(*    fprintf h "  /* 1.- check if there is space enough in device's buffer */%s" eol;
-    if (f_type <> "#define") then
-      fprintf h "  if(dev->checkFreeSpace(%s + hd_len + tl_len)){%s" data_len1 eol
+    fprintf h "  /* 1.- try to get a device's 'transaction' slot */%s" !eol;
+    if (function_type <> "MACROS") then
+      fprintf h "  if(%s->check_free_space(&dev_slot)){%s" !dev_name !eol
     else
-      fprintf h "\tif(dev->checkFreeSpace(%s + hd_len + tl_len)){%s" data_len2 eol;
-    fprintf h "%s" eol;
+      fprintf h "  if( msg_join(%s, _check_free_space(&dev_slot)) ){%s" !dev_name !eol;
 
-    fprintf h "    /* 2.- set message HEADER in temporary buffer (it depends on transport layer) */%s" eol;
-    if (f_type <> "#define") then
-      fprintf h "    %s->header(temp_buffer, %s, DL_%s_ID);%s" trans_name data_len1 s eol
+    fprintf h "    /* 2.- try to get a slot in dynamic buffer */%s" !eol;
+    if (function_type <> "MACROS") then
+      fprintf h "    if(dynamic_buffer_check_free_space(&dynamic_buff, (ta_len + tp_hd_len + MSG_HD_LEN + %s + tp_tl_len), &buff_slot)){%s" data_len1 !eol
     else
-      fprintf h "    %s##_header(temp_buffer, %s, DL_%s_ID);%s" trans_name data_len2 s eol;
-    fprintf h "%s" eol;
+      fprintf h "    if(dynamic_buffer_check_free_space(&dynamic_buff, (ta_len + tp_hd_len + MSG_HD_LEN + %s + tp_tl_len), &buff_slot)){%s" data_len2 !eol;
 
-    fprintf h "    /* 3.- set message DATA in temporary buffer */%s" eol;
+    fprintf h "      /* 3.- get buffer pointer */%s" !eol;
+    fprintf h "      uint8_t *buff = dynamic_buffer_get_slot_pointer(&dynamic_buff, buff_slot);%s" !eol;
+    fprintf h "%s" !eol;
+
+    fprintf h "      /* SET TRANSACTION: CONTAINS MESSAGE POINTER, LENGTH AND CALLBACK */%s" !eol;
+    fprintf h "      /* 4.- set transaction in buffer */%s" !eol;
+    if (function_type <> "MACROS") then
+      fprintf h "      %s->transaction_pack(buff, (buff + ta_len), (tp_hd_len + MSG_HD_LEN + %s + tp_tl_len), &message_callback);%s" !dev_name data_len1 !eol
+    else
+      fprintf h "      msg_join(%s, _transaction_pack(buff, (buff + ta_len), (tp_hd_len + MSG_HD_LEN + %s + tp_tl_len), &message_callback));%s" !dev_name data_len2 !eol;
+    fprintf h "%s" !eol;
+
+    fprintf h "      /* SET MESSAGE: CONTAINS TRANSPORT HEADER, MESSAGE HEADER, MESSAGE DATA AND TRANSPORT TAIL */%s" !eol;
+    fprintf h "      /* 5.- set transport HEADER in buffer (it depends on transport layer) */%s" !eol;
+    if (function_type <> "MACROS") then
+      fprintf h "      %s->header(buff + ta_len, %s + MSG_HD_LEN);%s" !trans_name data_len1 !eol
+    else
+      fprintf h "      msg_join(%s, _header(buff + ta_len, %s + MSG_HD_LEN));%s" !trans_name data_len2 !eol;
+
+    fprintf h "      /* 6.- set message HEADER in buffer */%s" !eol;
+    fprintf h "      msg_hd.msg_id = DL_%s_ID;%s" s !eol;
+    fprintf h "      memcpy((buff + ta_len + tp_hd_len), &msg_hd, MSG_HD_LEN);%s" !eol;
+
+    fprintf h "      /* 7.- set message DATA in buffer */%s" !eol;
     if List.length fields > 0 then begin
-      fprintf h "    downlink_data_%s_pack((temp_buffer+hd_len), " s;
+      fprintf h "      downlink_data_%s_pack((buff + ta_len + tp_hd_len + MSG_HD_LEN), " s;
       print_parameters_macro_header h fields;
-      fprintf h ");%s" eol;
+      fprintf h ");%s" !eol;
     end;
-    fprintf h "%s" eol;
 
-    fprintf h "    /* 4.- set message TAIL in temporary buffer (it depends on transport layer) */%s" eol;
-    if (f_type <> "#define") then
-      fprintf h "    %s->tail(temp_buffer, %s);%s" trans_name data_len1 eol
+    fprintf h "      /* 8.- set transport TAIL in buffer (it depends on transport layer) */%s" !eol;
+    if (function_type <> "MACROS") then
+      fprintf h "      %s->tail(buff + ta_len, %s + MSG_HD_LEN);%s" !trans_name data_len1 !eol
     else
-      fprintf h "    %s##_tail(tem_buffer, %s);%s" trans_name data_len2 eol;
-    fprintf h "%s" eol;
+      fprintf h "      msg_join(%s, _tail(buff + ta_len, %s + MSG_HD_LEN));%s" !trans_name data_len2 !eol;
+    fprintf h "%s" !eol;
 
-    fprintf h "    /* 5.- put message in device's buffer */%s" eol;
-    if (f_type <> "#define") then
-      fprintf h "    for(uint8_t i = 0; i < (%s + hd_len + tl_len); i++)%s" data_len1 eol
+    fprintf h "      /* SUMMIT TRANSACTION */%s" !eol;
+    fprintf h "      /* 9.- send message */%s" !eol;
+    if (function_type <> "MACROS") then
+      fprintf h "      %s->sendMessage(dev_slot, buff, DL_%s_PRIORITY);%s" !dev_name s !eol
     else
-      fprintf h "    for(uint8_t i = 0; i < (%s + hd_len + tl_len); i++)%s" data_len2 eol;
-    fprintf h "      dev->transmit(temp_buffer[i]);%s" eol;
-    fprintf h "  }%s" eol;
-    fprintf h "}\n\n"*)
+      fprintf h "      msg_join(%s, _sendMessage(dev_slot, buff, DL_%s_PRIORITY));%s" !dev_name s !eol;
+    fprintf h "    }%s" !eol;
 
-    fprintf h "  /* 1.- try to get a slot in device's buffer */%s" eol;
-    if (f_type <> "#define") then
-      fprintf h "  if(dev->checkFreeSpace((hd_len + sizeof(msgHeader) + %s + tl_len), &buff_idx)){%s" data_len1 eol
+    fprintf h "    else {%s" !eol;
+    fprintf h "      /* 10.- release device's slot */%s" !eol;
+    if (function_type <> "MACROS") then
+      fprintf h "      %s->free_space(dev_slot);%s" !dev_name !eol
     else
-      fprintf h "  if(dev->checkFreeSpace((%s + hd_len + tl_len), &buff_idx)){%s" data_len2 eol;
-    fprintf h "    uint8_t *buff = dev->get_buff_pointer(buff_idx);%s" eol;
-    fprintf h "%s" eol;
-
-    fprintf h "    /* 2.- set transport HEADER in buffer (it depends on transport layer) */%s" eol;
-    if (f_type <> "#define") then
-      fprintf h "    %s->header(buff, %s + sizeof(msgHeader));%s" trans_name data_len1 eol
-    else
-      fprintf h "    %s##_header(buff, %s + sizeof(msgHeader));%s" trans_name data_len2 eol;
-    fprintf h "%s" eol;
-
-    fprintf h "    /* 3.- set message HEADER in buffer */%s" eol;
-    fprintf h "    msg_hd.msg_id = DL_%s_ID;%s" s eol;
-    fprintf h "    memcpy((buff + hd_len), &msg_hd, sizeof(msgHeader));%s" eol;
-    fprintf h "%s" eol;
-
-    fprintf h "    /* 4.- set message DATA in buffer */%s" eol;
-    if List.length fields > 0 then begin
-      fprintf h "    downlink_data_%s_pack((buff + hd_len + sizeof(msgHeader)), " s;
-      print_parameters_macro_header h fields;
-      fprintf h ");%s" eol;
-    end;
-    fprintf h "%s" eol;
-
-    fprintf h "    /* 5.- set transport TAIL in buffer (it depends on transport layer) */%s" eol;
-    if (f_type <> "#define") then
-      fprintf h "    %s->tail(buff, %s + sizeof(msgHeader));%s" trans_name data_len1 eol
-    else
-      fprintf h "    %s##_tail(buff, %s + sizeof(msgHeader));%s" trans_name data_len2 eol;
-    fprintf h "%s" eol;
-
-    fprintf h "    /* 6.- send message */%s" eol;
-    fprintf h "    dev->sendMessage(buff_idx, DL_%s_PRIORITY);%s" s eol;
-    fprintf h "  }%s" eol;
+      fprintf h "      msg_join(%s, _free_space(dev_slot));%s" !dev_name !eol;
+    fprintf h "    }%s" !eol;
+    fprintf h "  }%s" !eol;
     fprintf h "}\n\n"
 
 
-  let print_null_downlink_macro = fun h f_type trans_type trans_name dev_type dev_name eol {name=s; fields = fields} ->
+
+
+
+  let print_null_downlink_macro = fun h function_type {name=s; fields = fields} ->
+    let f_type = ref "" in
+    let trans_type = ref "" in
+    let trans_name = ref "" in
+    let dev_type = ref "" in
+    let dev_name = ref "" in
+    
+    if (function_type <> "MACROS") then begin
+      f_type := "static inline void";
+      trans_type:= "struct DownlinkTransport *";
+      trans_name := "tp";
+      dev_type := "struct device *";
+      dev_name := "dev";
+    end else begin
+      f_type := "#define";
+      (* trans_type:= ""; *)
+      trans_name := "_trans";
+      (* dev_type := ""; *)
+      dev_name := "_dev";
+    end;
+
     if List.length fields > 0 then begin
-      fprintf h "%s DOWNLINK_SEND_%s(%s%s, %s%s, " f_type s trans_type trans_name dev_type dev_name;
-      if (f_type <> "#define") then
+      fprintf h "%s DOWNLINK_SEND_%s(%s%s, %s%s, " !f_type s !trans_type !trans_name !dev_type !dev_name;
+      if (function_type <> "MACROS") then
         print_parameters_function_header h fields
       else
         print_parameters_macro_header h fields;
-      fprintf h "){}%s" eol
+      fprintf h ") {}\n\n"
     end else
-      fprintf h "%s DOWNLINK_SEND_%s(%s%s, %s%s){}%s" f_type s trans_type trans_name dev_type dev_name eol
-
-    (*if List.length fields > 0 then begin
-      fprintf h "void DOWNLINK_SEND_%s(struct DownlinkTransport *tp, " s;
-    end else
-      fprintf h "void DOWNLINK_SEND_%s(struct DownlinkTransport *tp" s;
-    print_parameters_function_header h fields;
-    fprintf h ") {}\n"*)
-
-  (** Prints the macros required to send a message 
-  let print_null_downlink_macros = fun h messages ->
-    List.iter (print_null_downlink_macro h) messages*)
+      fprintf h "%s DOWNLINK_SEND_%s(%s%s, %s%s) {}\n\n" !f_type s !trans_type !trans_name !dev_type !dev_name
 
   (** Prints the macro to get access to the fields of a received message *)
   let print_get_macros = fun h check_alignment message ->
@@ -397,10 +423,6 @@ let () =
     Printf.fprintf h "/* Please DO NOT EDIT */\n\n";
 
     Printf.fprintf h "/* %s to send and receive messages of class %s */\n" function_type class_name;
-    if (function_type <> "MACROS") then
-      Printf.fprintf h "/* Please be sure that _USE_INLINE_TRANSPORT_ is disabled in \"subsystems/datalink/transport2.h\" */\n\n\n"
-    else
-      Printf.fprintf h "/* Please be sure that _USE_INLINE_TRANSPORT_ is enabled in \"subsystems/datalink/transport2.h\" */\n\n\n";
 
     Printf.fprintf h "#ifndef _VAR_DOWNLINK_%s_%s_H_\n" function_type class_name;
     Printf.fprintf h "#define _VAR_DOWNLINK_%s_%s_H_\n\n" function_type class_name;
@@ -418,24 +440,14 @@ let () =
     Printf.fprintf h "#include \"subsystems/datalink/transport2.h\"\n";
     Printf.fprintf h "#include \"mcu_periph/device.h\"\n\n\n";
 
-    Printf.fprintf h "//#define _DOWNLINK_SEND_DEBUG_\n\n";
-    Printf.fprintf h "#ifdef _DOWNLINK_SEND_DEBUG_\n#include <stdio.h> \n#define _DOWNLINK_SEND_TRACE_(...) fprintf (stderr, __VA_ARGS__); fflush(stdout);\n#else\n#define _DOWNLINK_SEND_TRACE_(...)\n#endif\n\n";
+    if (function_type <> "FUNCTIONS") then
+      Printf.fprintf h "#define __msg_join(_y, _x) _y##_x\n#define _msg_join(_y, _x) __msg_join(_y, _x)\n#define msg_join(_chan, _fun) _msg_join(_chan, _fun)\n\n\n";
 
-(*    fprintf h "//Total number of messages\n#define DL_NUM_MESSAGES_%s %d\n//#define DL_MSG_%s_NB %d\n\n" class_name (List.length messages) class_name (List.length messages);*)
-
-(*    Printf.fprintf h "typedef struct {\n  const uint8_t ac_id;\n  uint8_t msg_id;\n}msgHeader;\n\nstatic msgHeader msg_hd = { .ac_id = AC_ID};\n\n\n";*)
-
-    if (function_type <> "MACROS") then
-      List.iter (Gen_onboard.print_downlink_macro h "static inline void" "struct DownlinkTransport *" "tp" "struct device *" "dev" "\n") messages
-    else
-      List.iter (Gen_onboard.print_downlink_macro h "#define" "" "_trans" "" "_dev" " \\\n") messages;
+    List.iter (Gen_onboard.print_downlink_macro h function_type) messages;
 
     if class_name = "telemetry" then begin
       Printf.fprintf h "#else // DOWNLINK\n";
-      if (function_type <> "MACROS") then
-        List.iter (Gen_onboard.print_null_downlink_macro h "static inline void" "struct DownlinkTransport *" "tp" "struct device *" "dev" "\n") messages
-      else
-        List.iter (Gen_onboard.print_null_downlink_macro h "#define" "" "_trans" "" "_dev" "\n") messages;
+      List.iter (Gen_onboard.print_null_downlink_macro h function_type) messages;
       Printf.fprintf h "#endif // DOWNLINK\n"
     end;
 

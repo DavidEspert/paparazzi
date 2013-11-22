@@ -30,11 +30,10 @@
 
 #include "mcu_periph/uart_arch.h"
 #include "std.h"
-#include "transmit_buffer.h"
+#include "transmit_queue.h"
 
-#define UART_RX_BUFFER_SIZE 128
-#define UART_TX_BUFFER_SIZE 128
-#define UART_DEV_NAME_SIZE 16
+#define UART_RX_BUFFER_SIZE             128
+#define UART_DEV_NAME_SIZE              16
 
 /*
  * UART Baud rate defines in arch/x/mcu_periph/uart_arch.h
@@ -50,6 +49,14 @@
 #define UPARITY_ODD   1
 #define UPARITY_EVEN  2
 
+struct uart_transaction {
+  //transmition management
+  void*     data;
+  uint8_t   length;
+  //callback management
+  void     (*callback)(void* this_transaction);
+};
+
 /**
  * UART peripheral
  */
@@ -59,12 +66,10 @@ struct uart_periph {
   uint16_t rx_insert_idx;
   uint16_t rx_extract_idx;
   /** Transmit buffer */
-  struct transmit_buffer tx_buff;
-  uint8_t tx_slot_idx;
+  struct transmit_queue tx_queue;
+  void* trans_p;                 // this should be 'struct uart_transaction*' but we have align problems with the dynamic_buffer.c
+  struct uart_transaction trans; // due to align problems with dynamic_buffer.c, it is necessary a local copy of the transaction pointed by trans_p;
   uint8_t tx_byte_idx;
-/*  uint8_t tx_buf[UART_TX_BUFFER_SIZE];
-  uint16_t tx_insert_idx;
-  uint16_t tx_extract_idx;*/
   uint8_t tx_running;
   /** UART Register */
   void* reg_addr;
@@ -75,71 +80,77 @@ struct uart_periph {
   volatile uint16_t fe_err; ///< framing error counter
 };
 
-
+// -- 'UART Periph management' --
 extern void uart_periph_init(struct uart_periph* p);
 extern void uart_periph_set_baudrate(struct uart_periph* p, uint32_t baud);
 extern void uart_periph_set_bits_stop_parity(struct uart_periph* p, uint8_t bits, uint8_t stop, uint8_t parity);
-//uart_periph_init: Initialize uart_periph struct
 extern void uart_periph_set_mode(struct uart_periph* p, bool_t tx_enabled, bool_t rx_enabled, bool_t hw_flow_control);
 
-//uart_check_free_space: Get a slot for sending data. If a slot is available, 'slot_idx' will be filled with its index.
-extern bool_t uart_check_free_space(struct uart_periph* p, uint8_t len, uint8_t *idx);
+// -- 'UART data exchange' --
+  //Tx queue
+static inline bool_t uart_check_free_space(struct uart_periph* p, uint8_t *slot_idx) {
+  return transmit_queue_check_free_space(&(p->tx_queue), slot_idx);
+}
+static inline void uart_free_space(struct uart_periph* p, uint8_t slot_idx) {
+  transmit_queue_free_slot(&(p->tx_queue), slot_idx);
+}
+  //Tx transaction
+extern uint8_t uart_transaction_length(void);
+static inline uint8_t uart_transaction_length_inline(void) {
+  return sizeof(struct uart_transaction);
+}
+extern void uart_transaction_pack(struct uart_transaction *trans, void* data, uint8_t length, void (*callback)(void*));
+static inline void uart_transaction_pack_inline(struct uart_transaction *trans, void* data, uint8_t length, void (*callback)(void*)) {
+  trans->data =     data;
+  trans->length =   length;
+  trans->callback = callback;
+}
+extern void uart_sendMessage(struct uart_periph *uart, uint8_t idx, void* trans, uint8_t priority);
 
-//uart_getch: Extract a byte from RX buffer.
-extern uint8_t uart_getch(struct uart_periph* p);
-
-//uart_sendMessage: Inserts message from 'slot_idx' in transmit queue according to its priority
-extern void uart_sendMessage(struct uart_periph *uart, uint8_t idx, uint8_t priority);
-
-//uart_get_buff_pointer: Returns a pointer to the message indexed with 'slot_idx'.
-extern uint8_t * uart_get_buff_pointer(struct uart_periph *uart, uint8_t slot_idx);
-
-//uart_packMessage: copy 'length' bytes from 'origin' to slot 'slot_idx' with an offset (offset refers to slot).
-void uart_packMessage(struct uart_periph *uart, uint8_t slot_idx, uint8_t offset, uint8_t *origin, uint8_t length);
-
-// extern void uart_transmit(struct uart_periph* p, uint8_t data);
-
+  //Rx get char
+static inline uint8_t uart_getch(struct uart_periph* p) {
+  uint8_t ret = p->rx_buf[p->rx_extract_idx];
+  p->rx_extract_idx = (p->rx_extract_idx + 1) % UART_RX_BUFFER_SIZE;
+  return ret;
+}
 static inline bool_t uart_char_available(struct uart_periph* p) {
   return (p->rx_insert_idx != p->rx_extract_idx);
 }
+// -- end of 'UART data exchange' --
 
 
 #ifdef USE_UART0
 extern struct uart_periph uart0;
 
-//Init
+// -- 'UART Periph management' --
 extern void uart0_init(void);
 static inline void UART0Init(void)                                              { uart_periph_init(&uart0);}
-//#define UART0Init() uart_periph_init(&uart0)
-
-//Transmit (inline and non-inline)
-// extern void uart0_transmit(uint8_t data);
-// static inline void UART0Transmit(uint8_t data)                                  { uart_transmit(&uart0, data);}
-// //#define UART0Transmit(_x)                                                       uart_transmit(&uart0, _x)
-
-//SendMessage (inline and non-inline)
-extern void uart0_sendMessage(uint8_t slot_idx, uint8_t priority);
-static inline void UART0SendMessage(uint8_t slot_idx, uint8_t priority)         { uart_sendMessage(&uart0, slot_idx, priority); }
-//#define UART0SendMessage()                                                      {}
-
-//CheckFreeSpace (inline and non-inline)
-extern bool_t uart0_checkFreeSpace(uint8_t length, uint8_t *slot_idx);
-static inline bool_t UART0CheckFreeSpace(uint8_t length, uint8_t *slot_idx)     { return uart_check_free_space(&uart0, length, slot_idx); }
-//#define UART0CheckFreeSpace(_x)                                                 uart_check_free_space(&uart0, _x)
-
-//GetBuffPointer (inline and non-inline)
-extern uint8_t * uart0_get_buff_pointer(uint8_t slot_idx);
-static inline uint8_t * UART0Get_buff_pointer(uint8_t slot_idx)                 { return uart_get_buff_pointer(&uart0, slot_idx); }
-
-extern void uart0_packMessage(uint8_t slot_idx, uint8_t offset, uint8_t *origin, uint8_t length);
-
-static inline uint8_t UART0Getch(void)                                          { return uart_getch(&uart0);}
-//#define UART0Getch() uart_getch(&uart0)
-
-#define UART0ChAvailable() uart_char_available(&uart0)
 #define UART0TxRunning uart0.tx_running
 #define UART0SetBaudrate(_b) uart_periph_set_baudrate(&uart0, _b)
 #define UART0SetBitsStopParity(_b, _s, _p) uart_periph_set_bits_stop_parity(&uart0, _b, _s, _p)
+
+// -- 'UART data exchange' (inline functions) --
+  //Tx queue
+static inline bool_t  UART0CheckFreeSpace(uint8_t *slot_idx)                    { return uart_check_free_space(&uart0, slot_idx); }
+static inline void    UART0FreeSpace(uint8_t slot_idx)                          { uart_free_space(&uart0, slot_idx); }
+  //Tx transaction
+static inline uint8_t UART0TransactionLen(void)                                 { return uart_transaction_length_inline();}
+static inline void    UART0TransactionPack(struct uart_transaction *trans, void* data, uint8_t length, void (*callback)(void*))
+                                                                                { uart_transaction_pack_inline(trans, data, length, callback); }
+static inline void    UART0SendMessage(uint8_t slot_idx, void* trans, uint8_t priority)
+                                                                                { uart_sendMessage(&uart0, slot_idx, trans, priority); }
+  //Rx get char
+static inline uint8_t UART0Getch(void)                                          { return uart_getch(&uart0);}
+#define UART0ChAvailable() uart_char_available(&uart0)
+
+// -- 'UART data exchange' (Non-inline functions: when function address is required...) --
+  //Tx queue
+extern bool_t  uart0_CheckFreeSpace(uint8_t *slot_idx);
+extern uint8_t uart0_TransactionLen(void);
+  //Tx transaction
+extern void    uart0_TransactionPack(struct uart_transaction *trans, void* data, uint8_t length, void (*callback)(void*));
+extern void    uart0_FreeSpace(uint8_t slot_idx);
+extern void    uart0_SendMessage(uint8_t slot_idx, void* trans, uint8_t priority);
 
 #endif // USE_UART0
 
@@ -147,39 +158,35 @@ static inline uint8_t UART0Getch(void)                                          
 #ifdef USE_UART1
 extern struct uart_periph uart1;
 
-//Init
+// -- 'UART Periph management' --
 extern void uart1_init(void);
 static inline void UART1Init(void)                                              { uart_periph_init(&uart1);}
-//#define UART1Init() uart_periph_init(&uart1)
-
-//Transmit (inline and non-inline)
-// extern void uart1_transmit(uint8_t data);
-// static inline void UART1Transmit(uint8_t data)                                  { uart_transmit(&uart1, data);}
-// //#define UART1Transmit(_x)                                                       uart_transmit(&uart1, _x)
-
-//SendMessage (inline and non-inline)
-extern void uart1_sendMessage(uint8_t slot_idx, uint8_t priority);
-static inline void UART1SendMessage(uint8_t slot_idx, uint8_t priority)         { uart_sendMessage(&uart1, slot_idx, priority); }
-//#define UART1SendMessage()                                                      {}
-
-//CheckFreeSpace (inline and non-inline)
-extern bool_t uart1_checkFreeSpace(uint8_t length, uint8_t *slot_idx);
-static inline bool_t UART1CheckFreeSpace(uint8_t length, uint8_t *slot_idx)     { return uart_check_free_space(&uart1, length, slot_idx); }
-//#define UART1CheckFreeSpace(_x)                                                 uart_check_free_space(&uart0, _x)
-
-//GetBuffPointer (inline and non-inline)
-extern uint8_t * uart1_get_buff_pointer(uint8_t slot_idx);
-static inline uint8_t * UART1Get_buff_pointer(uint8_t slot_idx)                 { return uart_get_buff_pointer(&uart1, slot_idx); }
-
-extern void uart1_packMessage(uint8_t slot_idx, uint8_t offset, uint8_t *origin, uint8_t length);
-
-static inline uint8_t UART1Getch(void)                                          { return uart_getch(&uart1);}
-//#define UART1Getch() uart_getch(&uart0)
-
-#define UART1ChAvailable() uart_char_available(&uart1)
 #define UART1TxRunning uart1.tx_running
 #define UART1SetBaudrate(_b) uart_periph_set_baudrate(&uart1, _b)
 #define UART1SetBitsStopParity(_b, _s, _p) uart_periph_set_bits_stop_parity(&uart1, _b, _s, _p)
+
+// -- 'UART data exchange' (inline functions) --
+  //Tx queue
+static inline bool_t  UART1CheckFreeSpace(uint8_t *slot_idx)                    { return uart_check_free_space(&uart1, slot_idx); }
+static inline void    UART1FreeSpace(uint8_t slot_idx)                          { uart_free_space(&uart1, slot_idx); }
+  //Tx transaction
+static inline uint8_t UART1TransactionLen(void)                                 { return uart_transaction_length_inline();}
+static inline void    UART1TransactionPack(struct uart_transaction *trans, void* data, uint8_t length, void (*callback)(void*))
+                                                                                { uart_transaction_pack_inline(trans, data, length, callback); }
+static inline void    UART1SendMessage(uint8_t slot_idx, void* trans, uint8_t priority)
+                                                                                { uart_sendMessage(&uart1, slot_idx, trans, priority); }
+  //Rx get char
+static inline uint8_t UART1Getch(void)                                          { return uart_getch(&uart1);}
+#define UART1ChAvailable() uart_char_available(&uart1)
+
+// -- 'UART data exchange' (Non-inline functions: when function address is required...) --
+  //Tx queue
+extern bool_t  uart1_CheckFreeSpace(uint8_t *slot_idx);
+extern void    uart1_FreeSpace(uint8_t slot_idx);
+  //Tx transaction
+extern uint8_t uart1_TransactionLen(void);
+extern void    uart1_TransactionPack(struct uart_transaction *trans, void* data, uint8_t length, void (*callback)(void*));
+extern void    uart1_SendMessage(uint8_t slot_idx, void* trans, uint8_t priority);
 
 #endif // USE_UART1
 
@@ -187,79 +194,71 @@ static inline uint8_t UART1Getch(void)                                          
 #ifdef USE_UART2
 extern struct uart_periph uart2;
 
-//Init
+// -- 'UART Periph management' --
 extern void uart2_init(void);
 static inline void UART2Init(void)                                              { uart_periph_init(&uart2);}
-//#define UART2Init() uart_periph_init(&uart2)
-
-//Transmit (inline and non-inline)
-// extern void uart2_transmit(uint8_t data);
-// static inline void UART2Transmit(uint8_t data)                                  { uart_transmit(&uart2, data);}
-// //#define UART2Transmit(_x)                                                       uart_transmit(&uart2, _x)
-
-//SendMessage (inline and non-inline)
-extern void uart2_sendMessage(uint8_t slot_idx, uint8_t priority);
-static inline void UART2SendMessage(uint8_t slot_idx, uint8_t priority)         { uart_sendMessage(&uart2, slot_idx, priority); }
-//#define UART2SendMessage()                                                      {}
-
-//CheckFreeSpace (inline and non-inline)
-extern bool_t uart2_checkFreeSpace(uint8_t length, uint8_t *slot_idx);
-static inline bool_t UART2CheckFreeSpace(uint8_t length, uint8_t *slot_idx)     { return uart_check_free_space(&uart2, length, slot_idx); }
-//#define UART2CheckFreeSpace(_x)                                                 uart_check_free_space(&uart0, _x)
-
-//GetBuffPointer (inline and non-inline)
-extern uint8_t * uart2_get_buff_pointer(uint8_t slot_idx);
-static inline uint8_t * UART2Get_buff_pointer(uint8_t slot_idx)                 { return uart_get_buff_pointer(&uart2, slot_idx); }
-
-extern void uart2_packMessage(uint8_t slot_idx, uint8_t offset, uint8_t *origin, uint8_t length);
-
-static inline uint8_t UART2Getch(void)                                          { return uart_getch(&uart2);}
-//#define UART2Getch() uart_getch(&uart0)
-
-#define UART2ChAvailable() uart_char_available(&uart2)
 #define UART2TxRunning uart2.tx_running
 #define UART2SetBaudrate(_b) uart_periph_set_baudrate(&uart2, _b)
 #define UART2SetBitsStopParity(_b, _s, _p) uart_periph_set_bits_stop_parity(&uart2, _b, _s, _p)
+
+// -- 'UART data exchange' (inline functions) --
+  //Tx queue
+static inline bool_t  UART2CheckFreeSpace(uint8_t *slot_idx)                    { return uart_check_free_space(&uart2, slot_idx); }
+static inline void    UART2FreeSpace(uint8_t slot_idx)                          { uart_free_space(&uart2, slot_idx); }
+  //Tx transaction
+static inline uint8_t UART2TransactionLen(void)                                 { return uart_transaction_length_inline();}
+static inline void    UART2TransactionPack(struct uart_transaction *trans, void* data, uint8_t length, void (*callback)(void*))
+                                                                                { uart_transaction_pack_inline(trans, data, length, callback); }
+static inline void    UART2SendMessage(uint8_t slot_idx, void* trans, uint8_t priority)
+                                                                                { uart_sendMessage(&uart2, slot_idx, trans, priority); }
+  //Rx get char
+static inline uint8_t UART2Getch(void)                                          { return uart_getch(&uart2);}
+#define UART2ChAvailable() uart_char_available(&uart2)
+
+// -- 'UART data exchange' (Non-inline functions: when function address is required...) --
+  //Tx queue
+extern bool_t  uart2_CheckFreeSpace(uint8_t *slot_idx);
+extern void    uart2_FreeSpace(uint8_t slot_idx);
+  //Tx transaction
+extern uint8_t uart2_TransactionLen(void);
+extern void    uart2_TransactionPack(struct uart_transaction *trans, void* data, uint8_t length, void (*callback)(void*));
+extern void    uart2_SendMessage(uint8_t slot_idx, void* trans, uint8_t priority);
 
 #endif // USE_UART2
 
 
 #ifdef USE_UART3
 extern struct uart_periph uart3;
-
-//Init
-extern void uart3_init(void);
-static inline void UART3Init(void)                                              { uart_periph_init(&uart3);}
-//#define UART3Init() uart_periph_init(&uart3)
-
-//Transmit (inline and non-inline)
-// extern void uart3_transmit(uint8_t data);
-// static inline void UART3Transmit(uint8_t data)                                  { uart_transmit(&uart3, data);}
-// //#define UART3Transmit(_x)                                                       uart_transmit(&uart3, _x)
-
-//SendMessage (inline and non-inline)
-extern void uart3sendMessage(uint8_t slot_idx, uint8_t priority);
-static inline void UART3SendMessage(uint8_t slot_idx, uint8_t priority)         { uart_sendMessage(&uart3, slot_idx, priority); }
-//#define UART3SendMessage()                                                      {}
-
-//CheckFreeSpace (inline and non-inline)
-extern bool_t uart3_checkFreeSpace(uint8_t length, uint8_t *slot_idx);
-static inline bool_t UART3CheckFreeSpace(uint8_t length, uint8_t *slot_idx)     { return uart_check_free_space(&uart3, length, slot_idx); }
-//#define UART3CheckFreeSpace(_x)                                                 uart_check_free_space(&uart0, _x)
-
-//GetBuffPointer (inline and non-inline)
-extern uint8_t * uart3_get_buff_pointer(uint8_t slot_idx);
-static inline uint8_t * UART3Get_buff_pointer(uint8_t slot_idx)                 { return uart_get_buff_pointer(&uart3, slot_idx); }
-
-extern void uart3_packMessage(uint8_t slot_idx, uint8_t offset, uint8_t *origin, uint8_t length);
-
-static inline uint8_t UART3Getch(void)                                          { return uart_getch(&uart3);}
-//#define UART3Getch() uart_getch(&uart0)
-
-#define UART3ChAvailable() uart_char_available(&uart3)
 #define UART3TxRunning uart3.tx_running
 #define UART3SetBaudrate(_b) uart_periph_set_baudrate(&uart3, _b)
 #define UART3SetBitsStopParity(_b, _s, _p) uart_periph_set_bits_stop_parity(&uart3, _b, _s, _p)
+
+// -- 'UART Periph management' --
+extern void uart3_init(void);
+static inline void UART3Init(void)                                              { uart_periph_init(&uart3);}
+
+// -- 'UART data exchange' (inline functions) --
+  //Tx queue
+static inline bool_t  UART3CheckFreeSpace(uint8_t *slot_idx)                    { return uart_check_free_space(&uart3, slot_idx); }
+static inline void    UART3FreeSpace(uint8_t slot_idx)                          { uart_free_space(&uart3, slot_idx); }
+  //Tx transaction
+static inline uint8_t UART3TransactionLen(void)                                 { return uart_transaction_length_inline();}
+static inline void    UART3TransactionPack(struct uart_transaction *trans, void* data, uint8_t length, void (*callback)(void*))
+                                                                                { uart_transaction_pack_inline(trans, data, length, callback); }
+static inline void    UART3SendMessage(uint8_t slot_idx, void* trans, uint8_t priority)
+                                                                                { uart_sendMessage(&uart3, slot_idx, trans, priority); }
+  //Rx get char
+static inline uint8_t UART3Getch(void)                                          { return uart_getch(&uart3);}
+#define UART3ChAvailable() uart_char_available(&uart3)
+
+// -- 'UART data exchange' (Non-inline functions: when function address is required...) --
+  //Tx queue
+extern bool_t  uart3_CheckFreeSpace(uint8_t *slot_idx);
+extern void    uart3_FreeSpace(uint8_t slot_idx);
+  //Tx transaction
+extern uint8_t uart3_TransactionLen(void);
+extern void    uart3_TransactionPack(struct uart_transaction *trans, void* data, uint8_t length, void (*callback)(void*));
+extern void    uart3_SendMessage(uint8_t slot_idx, void* trans, uint8_t priority);
 
 #endif // USE_UART3
 
@@ -267,39 +266,35 @@ static inline uint8_t UART3Getch(void)                                          
 #ifdef USE_UART4
 extern struct uart_periph uart4;
 
-//Init
+// -- 'UART Periph management' --
 extern void uart4_init(void);
 static inline void UART4Init(void)                                              { uart_periph_init(&uart4);}
-//#define UART4Init() uart_periph_init(&uart4)
-
-//Transmit (inline and non-inline)
-// extern void uart4_transmit(uint8_t data);
-// static inline void UART4Transmit(uint8_t data)                                  { uart_transmit(&uart4, data);}
-// //#define UART4Transmit(_x)                                                       uart_transmit(&uart4, _x)
-
-//SendMessage (inline and non-inline)
-extern void uart4_sendMessage(uint8_t slot_idx, uint8_t priority);
-static inline void UART4SendMessage(uint8_t slot_idx, uint8_t priority)         { uart_sendMessage(&uart4, slot_idx, priority); }
-//#define UART4SendMessage()                                                      {}
-
-//CheckFreeSpace (inline and non-inline)
-extern bool_t uart4_checkFreeSpace(uint8_t length, uint8_t *slot_idx);
-static inline bool_t UART4CheckFreeSpace(uint8_t length, uint8_t *slot_idx)     { return uart_check_free_space(&uart4, length, slot_idx); }
-//#define UART4CheckFreeSpace(_x)                                                 uart_check_free_space(&uart0, _x)
-
-//GetBuffPointer (inline and non-inline)
-extern uint8_t * uart4_get_buff_pointer(uint8_t slot_idx);
-static inline uint8_t * UART4Get_buff_pointer(uint8_t slot_idx)                 { return uart_get_buff_pointer(&uart4, slot_idx); }
-
-extern void uart4_packMessage(uint8_t slot_idx, uint8_t offset, uint8_t *origin, uint8_t length);
-
-static inline uint8_t UART4etch(void)                                          { return uart_getch(&uart4);}
-//#define UART4Getch() uart_getch(&uart0)
-
-#define UART4ChAvailable() uart_char_available(&uart4)
 #define UART4TxRunning uart4.tx_running
 #define UART4SetBaudrate(_b) uart_periph_set_baudrate(&uart4, _b)
 #define UART4SetBitsStopParity(_b, _s, _p) uart_periph_set_bits_stop_parity(&uart4, _b, _s, _p)
+
+// -- 'UART data exchange' (inline functions) --
+  //Tx queue
+static inline bool_t  UART4CheckFreeSpace(uint8_t *slot_idx)                    { return uart_check_free_space(&uart4, slot_idx); }
+static inline void    UART4FreeSpace(uint8_t slot_idx)                          { uart_free_space(&uart4, slot_idx); }
+  //Tx transaction
+static inline uint8_t UART4TransactionLen(void)                                 { return uart_transaction_length_inline();}
+static inline void    UART4TransactionPack(struct uart_transaction *trans, void* data, uint8_t length, void (*callback)(void*))
+                                                                                { uart_transaction_pack_inline(trans, data, length, callback); }
+static inline void    UART4SendMessage(uint8_t slot_idx, void* trans, uint8_t priority)
+                                                                                { uart_sendMessage(&uart4, slot_idx, trans, priority); }
+  //Rx get char
+static inline uint8_t UART4Getch(void)                                           { return uart_getch(&uart4);}
+#define UART4ChAvailable() uart_char_available(&uart4)
+
+// -- 'UART data exchange' (Non-inline functions: when function address is required...) --
+  //Tx queue
+extern bool_t  uart4_CheckFreeSpace(uint8_t *slot_idx);
+extern void    uart4_FreeSpace(uint8_t slot_idx);
+  //Tx transaction
+extern uint8_t uart4_TransactionLen(void);
+extern void    uart4_TransactionPack(struct uart_transaction *trans, void* data, uint8_t length, void (*callback)(void*));
+extern void    uart4_SendMessage(uint8_t slot_idx, void* trans, uint8_t priority);
 
 #endif // USE_UART4
 
@@ -307,39 +302,35 @@ static inline uint8_t UART4etch(void)                                          {
 #ifdef USE_UART5
 extern struct uart_periph uart5;
 
-//Init
+// -- 'UART Periph management' --
 extern void uart5_init(void);
 static inline void UART5Init(void)                                              { uart_periph_init(&uart5);}
-//#define UART5Init() uart_periph_init(&uart5)
-
-//Transmit (inline and non-inline)
-// extern void uart5_transmit(uint8_t data);
-// static inline void UART5Transmit(uint8_t data)                                  { uart_transmit(&uart5, data);}
-// //#define UART5Transmit(_x)                                                       uart_transmit(&uart5, _x)
-
-//SendMessage (inline and non-inline)
-extern void uart5_sendMessage(uint8_t slot_idx, uint8_t priority);
-static inline void UART5SendMessage(uint8_t slot_idx, uint8_t priority)         { uart_sendMessage(&uart5, slot_idx, priority); }
-//#define UART5SendMessage()                                                      {}
-
-//CheckFreeSpace (inline and non-inline)
-extern bool_t uart5_checkFreeSpace(uint8_t length, uint8_t *slot_idx);
-static inline bool_t UART5CheckFreeSpace(uint8_t length, uint8_t *slot_idx)     { return uart_check_free_space(&uart5, length, slot_idx); }
-//#define UART5CheckFreeSpace(_x)                                                 uart_check_free_space(&uart0, _x)
-
-//GetBuffPointer (inline and non-inline)
-extern uint8_t * uart5_get_buff_pointer(uint8_t slot_idx);
-static inline uint8_t * UART5Get_buff_pointer(uint8_t slot_idx)                 { return uart_get_buff_pointer(&uart5, slot_idx); }
-
-extern void uart5_packMessage(uint8_t slot_idx, uint8_t offset, uint8_t *origin, uint8_t length);
-
-static inline uint8_t UART5Getch(void)                                          { return uart_getch(&uart5);}
-//#define UART5Getch() uart_getch(&uart0)
-
-#define UART5ChAvailable() uart_char_available(&uart5)
 #define UART5TxRunning uart5.tx_running
 #define UART5SetBaudrate(_b) uart_periph_set_baudrate(&uart5, _b)
 #define UART5SetBitsStopParity(_b, _s, _p) uart_periph_set_bits_stop_parity(&uart5, _b, _s, _p)
+
+// -- 'UART data exchange' (inline functions) --
+  //Tx queue
+static inline bool_t  UART5CheckFreeSpace(uint8_t *slot_idx)                    { return uart_check_free_space(&uart5, slot_idx); }
+static inline void    UART5FreeSpace(uint8_t slot_idx)                          { uart_free_space(&uart5, slot_idx); }
+  //Tx transaction
+static inline uint8_t UART5TransactionLen(void)                                 { return uart_transaction_length_inline();}
+static inline void    UART5TransactionPack(struct uart_transaction *trans, void* data, uint8_t length, void (*callback)(void*))
+                                                                                { uart_transaction_pack_inline(trans, data, length, callback); }
+static inline void    UART5SendMessage(uint8_t slot_idx, void* trans, uint8_t priority)
+                                                                                { uart_sendMessage(&uart5, slot_idx, trans, priority); }
+  //Rx get char
+static inline uint8_t UART5Getch(void)                                          { return uart_getch(&uart5);}
+#define UART5ChAvailable() uart_char_available(&uart5)
+
+// -- 'UART data exchange' (Non-inline functions: when function address is required...) --
+  //Tx queue
+extern bool_t  uart5_CheckFreeSpace(uint8_t *slot_idx);
+extern void    uart5_FreeSpace(uint8_t slot_idx);
+  //Tx transaction
+extern uint8_t uart5_TransactionLen(void);
+extern void    uart5_TransactionPack(struct uart_transaction *trans, void* data, uint8_t length, void (*callback)(void*));
+extern void    uart5_SendMessage(uint8_t slot_idx, void* trans, uint8_t priority);
 
 #endif // USE_UART5
 
@@ -347,39 +338,35 @@ static inline uint8_t UART5Getch(void)                                          
 #ifdef USE_UART6
 extern struct uart_periph uart6;
 
-//Init
+// -- 'UART Periph management' --
 extern void uart6_init(void);
 static inline void UART6Init(void)                                              { uart_periph_init(&uart6);}
-//#define UART6Init() uart_periph_init(&uart6)
-
-//Transmit (inline and non-inline)
-// extern void uart6_transmit(uint8_t data);
-// static inline void UART6Transmit(uint8_t data)                                  { uart_transmit(&uart6, data);}
-// //#define UART6Transmit(_x)                                                       uart_transmit(&uart6, _x)
-
-//SendMessage (inline and non-inline)
-extern void uart6_sendMessage(uint8_t slot_idx, uint8_t priority);
-static inline void UART6SendMessage(uint8_t slot_idx, uint8_t priority)         { uart_sendMessage(&uart6, slot_idx, priority); }
-//#define UART6SendMessage()                                                      {}
-
-//CheckFreeSpace (inline and non-inline)
-extern bool_t uart6_checkFreeSpace(uint8_t length, uint8_t *slot_idx);
-static inline bool_t UART6CheckFreeSpace(uint8_t length, uint8_t *slot_idx)     { return uart_check_free_space(&uart6, length, slot_idx); }
-//#define UART6CheckFreeSpace(_x)                                                 uart_check_free_space(&uart0, _x)
-
-//GetBuffPointer (inline and non-inline)
-extern uint8_t * uart6_get_buff_pointer(uint8_t slot_idx);
-static inline uint8_t * UART6Get_buff_pointer(uint8_t slot_idx)                 { return uart_get_buff_pointer(&uart6, slot_idx); }
-
-extern void uart6_packMessage(uint8_t slot_idx, uint8_t offset, uint8_t *origin, uint8_t length);
-
-static inline uint8_t UART6Getch(void)                                          { return uart_getch(&uart6);}
-//#define UART6Getch() uart_getch(&uart0)
-
-#define UART6ChAvailable() uart_char_available(&uart6)
 #define UART6TxRunning uart6.tx_running
 #define UART6SetBaudrate(_b) uart_periph_set_baudrate(&uart6, _b)
 #define UART6SetBitsStopParity(_b, _s, _p) uart_periph_set_bits_stop_parity(&uart6, _b, _s, _p)
+
+// -- 'UART data exchange' (inline functions) --
+  //Tx queue
+static inline bool_t  UART6CheckFreeSpace(uint8_t *slot_idx)                    { return uart_check_free_space(&uart6, slot_idx); }
+static inline void    UART6FreeSpace(uint8_t slot_idx)                          { uart_free_space(&uart6, slot_idx); }
+  //Tx transaction
+static inline uint8_t UART6TransactionLen(void)                                 { return uart_transaction_length_inline();}
+static inline void    UART6TransactionPack(struct uart_transaction *trans, void* data, uint8_t length, void (*callback)(void*))
+                                                                                { uart_transaction_pack_inline(trans, data, length, callback); }
+static inline void    UART6SendMessage(uint8_t slot_idx, void* trans, uint8_t priority)
+                                                                                { uart_sendMessage(&uart6, slot_idx, trans, priority); }
+  //Rx get char
+static inline uint8_t UART6Getch(void)                                          { return uart_getch(&uart6);}
+#define UART6ChAvailable() uart_char_available(&uart6)
+
+// -- 'UART data exchange' (Non-inline functions: when function address is required...) --
+  //Tx queue
+extern bool_t  uart6_CheckFreeSpace(uint8_t *slot_idx);
+extern void    uart6_FreeSpace(uint8_t slot_idx);
+  //Tx transaction
+extern uint8_t uart6_TransactionLen(void);
+extern void    uart6_TransactionPack(struct uart_transaction *trans, void* data, uint8_t length, void (*callback)(void*));
+extern void    uart6_SendMessage(uint8_t slot_idx, void* trans, uint8_t priority);
 
 #endif // USE_UART6
 

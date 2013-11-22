@@ -1,41 +1,74 @@
 #ifdef USE_SIM_UART
 
 
-#include "device.h"
-#include "transmit_buffer.h"
+#include "device_simUart.h"
 
 
-// #define _I2C_DEBUG_
+#define _SIM_UART_DEBUG_
 
-#ifdef _I2C_DEBUG_
+#ifdef _SIM_UART_DEBUG_
 #include <stdio.h>
-#define TRACE(...) fprintf (stderr, __VA_ARGS__); fflush(stdout);
+#define SIM_UART_TRACE(...) fprintf (stderr, __VA_ARGS__); fflush(stdout);
 #else
-#define TRACE(...)
+#define SIM_UART_TRACE(...)
 #endif
 
-
-uint8_t counter = 0;
-void fake_ISR(struct transmit_buffer *tx_buff);
-
+//SIMULATED UART PARAMETERS
+struct transmit_queue sim_tx_queue = INITIALIZED_TRANSMIT_QUEUE;
+void *tr;
+struct uart_transaction trans;
 uint8_t tx_running = 0;
-uint8_t first_send;
 uint8_t tx_byte_idx = 0;
+void    fake_uart_sendMessage(struct transmit_queue *tx_queue, uint8_t idx, void* transaction, uint8_t priority);
+void    fake_ISR(struct transmit_queue *tx_queue);
+void    fake_uart_transaction_pack(struct uart_transaction *trans, void* data, uint8_t length, void (*callback)(void*));
 
-// SIM ------------------------------------------------------------------------
-void dev_SIM_sendMessage_buff(struct transmit_buffer *tx_buff, uint8_t idx, uint8_t priority) {
+//AUXILIAR TEST PARAMETERS
+uint8_t counter = 0;
+
+
+// dev_SIM_UART FUNCTIONS ------------------------------------------------------------------------
+
+//'Public' functions declaration (accessible through 'struct device dev_SIM_UART')
+bool_t  SIM_UART_check_free_space(uint8_t *idx);
+void    SIM_UART_sendMessage(uint8_t idx, void* transaction, uint8_t priority);
+uint8_t SIM_UART_transaction_len(void);
+void    SIM_UART_transaction_pack(void *trans, void* data, uint8_t length, void (*callback)(void* trans));
+void    SIM_UART_transaction_free(uint8_t idx);
+
+//'Public' functions definition 
+bool_t  SIM_UART_check_free_space(uint8_t *idx)                                         { return dev_SIM_UART_check_free_space(idx); }
+void    SIM_UART_sendMessage(uint8_t idx, void* transaction, uint8_t priority)          { dev_SIM_UART_sendMessage(idx, transaction, priority); }
+uint8_t SIM_UART_transaction_len(void)                                                  { return dev_SIM_UART_transaction_len(); }
+void    SIM_UART_transaction_pack(void *trans, void* data, uint8_t length, void (*callback)(void* trans))
+                                                                                        { dev_SIM_UART_transaction_pack(trans, data, length, callback);}
+void    SIM_UART_transaction_free(uint8_t idx)                                          { dev_SIM_UART_transaction_free(idx); }
+
+//NON-INLINE 'Public' functions are accessible through 'struct device dev_SIM_UART'
+struct device dev_SIM_UART = {
+  .check_free_space =      &SIM_UART_check_free_space,
+  .free_space =            &SIM_UART_transaction_free,
+  .transaction_len =       &SIM_UART_transaction_len,
+  .transaction_pack =      &SIM_UART_transaction_pack,
+  .sendMessage =           &SIM_UART_sendMessage
+};
+
+
+// fake UART FUNCTIONS ------------------------------------------------------------------------
+
+void fake_uart_sendMessage(struct transmit_queue *tx_queue, uint8_t idx, void* transaction, uint8_t priority) {
   uint8_t data;
 
   //Insert message in transmit queue
-  TRACE("\n\tdevice_i2c: dev_SIM_sendMessage:  INSERTING SLOT %u IN TRANSMIT QUEUE...\n", idx);
-  tx_buffer_try_insert_slot(tx_buff, idx, priority);
+  SIM_UART_TRACE("\n\tdevice_simUart: dev_SIM_sendMessage:  INSERTING SLOT %u IN TRANSMIT QUEUE...\n", idx);
+  transmit_queue_insert_slot(tx_queue, idx, transaction, priority);
 
-  /* TEST 0: Send nothing */
+  /* TEST 1: Send nothing */
 //   return;
 
-  /* TEST 1: Send everything */
+  /* TEST 2: Send everything */
 
-  /* TEST 2: Send 1msg every 4msgs */
+  /* TEST 3: Send 1msg every 4msgs */
 //   if(++counter == 4)    counter = 0;
 //   else                  return;
 
@@ -44,42 +77,49 @@ void dev_SIM_sendMessage_buff(struct transmit_buffer *tx_buff, uint8_t idx, uint
   if (tx_running) {
     // Nothing to do
   } else {
-    if( tx_buffer_get_slot_send(tx_buff, &first_send) ){
-      TRACE("\n\tdevice_i2c: dev_SIM_sendMessage:  SENDING MESSAGE %u\n", first_send);
+    SIM_UART_TRACE("\n\tdevice_simUart: dev_SIM_sendMessage:  STARTING TRANSMITION...\n");
+    if( transmit_queue_extract_slot(tx_queue, &tr) ){
+      memcpy(&trans, tr, sizeof(struct uart_transaction));
+      SIM_UART_TRACE("\tdevice_simUart: dev_SIM_sendMessage:  SENDING MESSAGE (message length = %u)\n", trans.length);
       // set running flag and get a message to send
       tx_running = 1;
       tx_byte_idx = 0;
-      data = tx_buffer_get_slot_data(tx_buff, first_send, tx_byte_idx++);
-      TRACE("\tdevice_i2c: dev_SIM_sendMessage:  sending byte %u (%u)...\n", tx_byte_idx, data);
+      data = *((uint8_t*)(trans.data + tx_byte_idx++));
+      SIM_UART_TRACE("\tdevice_simUart: dev_SIM_sendMessage:  SENDING BYTE %u (%u)...\n", tx_byte_idx, data);
       
-      fake_ISR(tx_buff);
+      fake_ISR(tx_queue);
     }
   }
 }
 
-
-void fake_ISR(struct transmit_buffer *tx_buff) {
-  uint8_t msg_length;
+void fake_ISR(struct transmit_queue *tx_queue) {
   uint8_t data;
 
-  msg_length = tx_buff->slot[first_send].length;
   while(1) {
     // check if more data to send in actual message
-    if(tx_byte_idx < msg_length) {
-      data = tx_buffer_get_slot_data(tx_buff, first_send, tx_byte_idx++);
-      TRACE("\tdevice_i2c: fake_ISR:  sending byte %u (%u)...\n", tx_byte_idx, data);
+    if(tx_byte_idx < trans.length) {
+      data = *((uint8_t*)(trans.data + tx_byte_idx++));
+      SIM_UART_TRACE("\tdevice_simUart: fake_ISR:  SENDING BYTE %u (%u)...\n", tx_byte_idx, data);
     }
     else{
-      //message ended. Free space
-      tx_buffer_try_free_slot(tx_buff, first_send);
+      //message ended. Callback
+      trans.callback(tr);
+
+      /* TEST 1: send 1 message */
+//       SIM_UART_TRACE("\tdevice_simUart: fake_ISR:  STOP SENDING\n");
+//       tx_running = 0;       // clear running flag
+//       return;
+
+      /* TEST 2: send all messages */
       // check if there is a new message
-      if( tx_buffer_get_slot_send(tx_buff, &first_send) ){
-        msg_length = tx_buff->slot[first_send].length;
-        tx_byte_idx = 0;
-        data = tx_buffer_get_slot_data(tx_buff, first_send, tx_byte_idx++);
-        TRACE("\tdevice_i2c: fake_ISR:  sending byte %u (%u)...\n", tx_byte_idx, data);
+      if( transmit_queue_extract_slot(tx_queue, &tr) ){
+       memcpy(&trans, tr, sizeof(struct uart_transaction));
+       tx_byte_idx = 0;
+        data = *((uint8_t*)(trans.data + tx_byte_idx++));
+        SIM_UART_TRACE("\tdevice_simUart: fake_ISR:  SENDING BYTE %u (%u)...\n", tx_byte_idx, data);
       }
       else{
+        SIM_UART_TRACE("\tdevice_simUart: fake_ISR:  NO MORE DATA TO SEND\n");
         tx_running = 0;       // clear running flag
         return;
       } 
@@ -87,21 +127,14 @@ void fake_ISR(struct transmit_buffer *tx_buff) {
   }
 }
 
-
-struct transmit_buffer sim_tx_buff = INITIALIZED_TX_BUFFER;
-
-bool_t dev_SIM_checkFreeSpace(uint8_t length, uint8_t *idx)                                    { return tx_buffer_get_slot_mem(&sim_tx_buff, length, idx); }
-uint8_t * dev_SIM_get_buff_pointer(uint8_t idx)                                                { return tx_buffer_get_slot_pointer(&sim_tx_buff, idx); }
-void dev_SIM_packMessage(uint8_t idx, uint8_t offset, uint8_t *origin, uint8_t length)         { tx_buffer_fill(&sim_tx_buff, idx, offset, origin, length); }
-void dev_SIM_sendMessage(uint8_t idx, uint8_t priority)                                        { dev_SIM_sendMessage_buff(&sim_tx_buff, idx, priority); }
+void fake_uart_transaction_pack(struct uart_transaction *trans, void* data, uint8_t length, void (*callback)(void*)) {
+  trans->data =     data;
+  trans->length =   length;
+  trans->callback = callback;
+}
 
 
-struct device dev_SIM_UART = {
-  .checkFreeSpace =     &dev_SIM_checkFreeSpace,
-  .get_buff_pointer =   &dev_SIM_get_buff_pointer,
-  .packMessage =        &dev_SIM_packMessage,
-  .sendMessage =        &dev_SIM_sendMessage
-};
+
 
 #endif /* USE_SIM_UART */
 

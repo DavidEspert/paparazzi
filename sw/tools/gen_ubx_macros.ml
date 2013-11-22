@@ -65,7 +65,18 @@ exception Length_error of Xml.xml*int*int
 
 
   (** Generating send function ------------------------------------------------------------------- *)
-let send_function = fun class_name m ->
+let send_function = fun f_type class_name m ->
+  let eol = ref "" in
+  let declaration = ref "" in
+  let void = ref "" in
+  if (f_type <> "FUNCTION") then begin
+    eol := " \\\n";
+    declaration := "#define";
+  end else begin
+    eol := "\n";
+    declaration := "static inline void";
+    void := "void";
+  end;
   let msg_name = Xml.attrib m "name" in
 
   fprintf out "\n";
@@ -108,14 +119,17 @@ let send_function = fun class_name m ->
   (*  --> function header *)
  if !msg_size <> 0 then begin
   (*fprintf out "static inline void ubx_send_%s_%s(struct device *dev, " class_name msg_name;*)
-  fprintf out "static inline void ubx_send_%s_%s(" class_name msg_name;
+  fprintf out "%s ubx_send_%s_%s(" !declaration class_name msg_name;
   let comma = ref "" in
   let rec function_field_header = fun f ->
     match Xml.tag f with
         "field" ->
           let p = param_name f in
           let t = param_type f in
-          fprintf out "%sconst %s _%s" !comma t p;
+          if (!eol <> "\n") then
+            fprintf out "%s_%s" !comma p
+          else
+            fprintf out "%sconst %s _%s" !comma t p;
           comma := ", "
       | "block" ->
         List.iter function_field_header (Xml.children f)
@@ -126,30 +140,43 @@ let send_function = fun class_name m ->
       function_field_header f;
       List.iter (function_field_header) fields in
   print_parameters_function_header (Xml.children m);
-  fprintf out ") { \n";
+  fprintf out ") {%s" !eol;
  end else
-  fprintf out "static inline void ubx_send_%s_%s(void) {\n" class_name msg_name;
+  fprintf out "%s ubx_send_%s_%s(%s) {%s" !declaration class_name msg_name !void !eol;
 
   (* --> function initialization *)
-  fprintf out "  uint8_t slot_idx;\n" ;
-  fprintf out "\n" ;
+  fprintf out "  uint8_t trans_len = sizeof(struct uart_transaction);%s" !eol;
+  fprintf out "  uint8_t hd_len = 6; /* sizeof(struct Ubx_Header); */%s" !eol;
+  fprintf out "  uint8_t tl_len = 2;%s" !eol;
+  fprintf out "  uint8_t dev_slot;%s" !eol;
+  fprintf out "  uint8_t buff_slot;%s" !eol;
+  fprintf out "%s" !eol;
 
-  fprintf out "  _UBX_SEND_TRACE_(\"\\nubx_send_%s_%s:\\n\");\n" class_name msg_name;
-  fprintf out "\n" ;
+  fprintf out "  _UBX_SEND_TRACE_(\"\\nubx_send_%s_%s:\\n\");%s" class_name msg_name !eol;
+  fprintf out "%s" !eol;
   
-  (*  --> Get device buffer *)
-  fprintf out "  /* 1.- try to get a slot in device's buffer */\n" ;
-  fprintf out "  if(UBX_DEV_CHECK_FREE_SPACE( %s, &slot_idx)){\n" msg_len;
-  fprintf out "    uint8_t *buff = UBX_DEV_GET_BUFFER_POINTER(slot_idx);\n";
+  (*  --> Get device slot *)
+  fprintf out "  /* 1.- try to get a device's 'transaction' slot */%s" !eol;
+  fprintf out "  if(UBX_DEV_CHECK_FREE_SPACE(&dev_slot)){%s" !eol;
+
+  (*  --> Get buffer slot *)
+  fprintf out "    /* 2.- try to get a slot in dynamic buffer */%s" !eol;
+  fprintf out "    if( dynamic_buffer_check_free_space(&dynamic_buff, (trans_len + hd_len + %s + tl_len), &buff_slot) ){%s" msg_len !eol;
+  fprintf out "      /* 3.- get buffer pointer */%s" !eol;
+  fprintf out "      uint8_t *buff = dynamic_buffer_get_slot_pointer(&dynamic_buff, buff_slot);%s" !eol;
+
+  (*  --> Set transaction *)
+  fprintf out "      /* 4.- set UART transaction struct */%s" !eol;
+  fprintf out "      ubx_transaction_pack(buff, (buff + trans_len), %s, &ubx_callback);%s" msg_len !eol;
 
   (*  --> Call ubx_header *)
-  fprintf out "    /* 2.- set transport and message HEADERS (all in one) */\n" ;
-  fprintf out "    ubx_header(buff, UBX_%s_ID, %s, %s);\n" class_name msg_id msg_len;
+  fprintf out "      /* 5.- set transport and message HEADERS (all in one) */%s" !eol;
+  fprintf out "      ubx_header(buff + trans_len, UBX_%s_ID, %s, %s);%s" class_name msg_id msg_len !eol;
 
   (*  --> Call Ubx_data *)
-  fprintf out "    /* 3.- set message DATA in buffer */\n" ;
+  fprintf out "      /* 6.- set message DATA in buffer */%s" !eol;
  if !msg_size <> 0 then begin
-  fprintf out "    ubx_data_%s_%s_pack((buff + sizeof(struct Ubx_Header))" class_name msg_name;
+  fprintf out "      ubx_data_%s_%s_pack((buff + trans_len + hd_len)" class_name msg_name;
   let rec function_field_call = fun f ->
     match Xml.tag f with
         "field" ->
@@ -159,19 +186,23 @@ let send_function = fun class_name m ->
         List.iter function_field_call (Xml.children f)
       | _ -> assert (false) in
   List.iter function_field_call (Xml.children m);
-  fprintf out ");\n";
+  fprintf out ");%s" !eol;
  end else
-  fprintf out "    /*ubx_data_%s_%s_pack((buff + sizeof(struct Ubx_Header)));*/\n" class_name msg_name;
+  fprintf out "      /*ubx_data_%s_%s_pack((buff + trans_len + hd_len));*/%s" class_name msg_name !eol;
 
   (*  --> Call Ubx_trailer *)
-  fprintf out "    /* 4.- set transport TAIL in buffer */\n" ;
-  fprintf out "    ubx_trailer(buff, %s);\n" msg_len;
+  fprintf out "      /* 7.- set transport TAIL in buffer */%s" !eol;
+  fprintf out "      ubx_trailer(buff + trans_len, %s);%s" msg_len !eol;
 
-  fprintf out "    /* 5.- send message */\n" ;
-  fprintf out "    UBX_DEV_SEND_MESSAGE(slot_idx, %s);\n" msg_pty;
-  fprintf out "  }\n";
+  fprintf out "      /* 8.- send message */%s" !eol;
+  fprintf out "      UBX_DEV_SEND_MESSAGE(dev_slot, buff, %s);%s" msg_pty !eol;
+  fprintf out "    }%s" !eol;
+  fprintf out "    else {%s" !eol;
+  fprintf out "      /* 9.- release device's slot */%s" !eol;
+  fprintf out "      UBX_DEV_FREE_SLOT(dev_slot);%s" !eol;
+  fprintf out "    }%s" !eol;
+  fprintf out "  }%s" !eol;
   fprintf out "}\n"
-
 
 let parse_class = fun c ->
   let _class_id = int_of_string (Xml.attrib c "id")
@@ -179,8 +210,39 @@ let parse_class = fun c ->
   fprintf out "\n";
   fprintf out "// %s ----------------------------------------------------------------------\n" class_name;
   define (sprintf "UBX_%s_ID" class_name) (Xml.attrib c "ID");
-  List.iter (send_function class_name) (Xml.children c)
+(*  List.iter (send_function "MACRO" class_name) (Xml.children c)*)
+  List.iter (send_function "FUNCTION" class_name) (Xml.children c)
 
+let auxiliar_macros_device = fun h ->
+(*    let device = sprintf "device.h"  in
+    let chck_fs = sprintf "DEV_GPS##->checkFreeSpace(_x)"  in
+    let send_msg = sprintf "DEV_GPS##->sendMessage(_x, _y, _z)"  in
+    let free_slot = sprintf "DEV_GPS##->transaction_free(_x)" in*)
+
+    let device = sprintf "uart.h"  in
+    let chck_fs = sprintf "GpsLink(CheckFreeSpace(_x))"  in
+    let send_msg = sprintf "GpsLink(SendMessage(_x, _y, _z))"  in
+    let free_slot = sprintf "GpsLink(FreeSpace(_x))" in
+    let print_auxiliar_macros_device = fun device chck_fs send_msg free_slot ->
+      fprintf h "#include \"mcu_periph/%s\"\n" device;
+      fprintf h "\n";
+      if (device <> "device.h") then
+        fprintf h "#define __GpsLink(dev, _x)  dev##_x\n#define _GpsLink(dev, _x)   __GpsLink(dev, _x)\n#define GpsLink(_x)         _GpsLink(GPS_LINK, _x)\n"
+      else
+        fprintf h "#define dev_gps(_x) dev_##_x\n#define DEV_GPS     dev_gps(GPS_LINK)\n";
+      fprintf h "\n";
+      fprintf h "#define UBX_DEV_CHECK_FREE_SPACE( _x)      %s\n" chck_fs;
+      fprintf h "#define UBX_DEV_SEND_MESSAGE(_x, _y, _z)   %s\n" send_msg;
+      fprintf h "#define UBX_DEV_FREE_SLOT(_x)              %s\n" free_slot in
+    print_auxiliar_macros_device device chck_fs send_msg free_slot;
+    fprintf out "static inline void ubx_transaction_pack(void *trans, void* data, uint8_t length, void (*callback)(void* trans)) {
+// Due to align problems in dynamic_buffer.c, transaction has to be filled in a local varialble (aligned)
+// and then moved to its destiny in buffer (unaligned).
+// If you're sure that 'trans' is correctly aligned just execute
+//    GpsLink(TransactionPack(trans, data, length, callback));
+    struct uart_transaction tr;
+    GpsLink(TransactionPack(&tr, data, length, callback));
+    memcpy(trans, &tr, sizeof(struct uart_transaction));\n}\n"
 
 let _ =
   if Array.length Sys.argv <> 2 then begin
@@ -196,7 +258,8 @@ let _ =
     fprintf out "#define _UBX_PROTOCOL_H_\n\n";
 
     fprintf out "#include <string.h>        //required for memcpy\n";
-    fprintf out "#include \"ubx_protocol_data.h\"\n\n";
+    fprintf out "#include \"ubx_protocol_data.h\"\n";
+    fprintf out "#include \"mcu_periph/dynamic_buffer.h\"\n\n";
 
     Printf.fprintf out "//#define _UBX_SEND_DEBUG_\n\n";
     Printf.fprintf out "#ifdef _UBX_SEND_DEBUG_\n#include <stdio.h> \n#define _UBX_SEND_TRACE_(...) fprintf (stderr, __VA_ARGS__); fflush(stdout);\n#else\n#define _UBX_SEND_TRACE_(...)\n#endif\n\n";
@@ -208,29 +271,7 @@ let _ =
 
     (** Generating auxiliar macros ------------------------------------------------------------------- *)
     fprintf out "\n\n// Auxiliar macros and functions ----------------------------------------------------------------------\n";
-(*    let device = sprintf "device.h"  in
-    let chck_fs = sprintf "DEV_GPS##->checkFreeSpace(_x+8, _y)"  in
-    let get_bp = sprintf "DEV_GPS##->get_buff_pointer(_x)"  in
-    let send_msg = sprintf "DEV_GPS##->sendMessage(_x, _y)"  in*)
-
-    let device = sprintf "uart.h"  in
-    let chck_fs = sprintf "GpsLink(CheckFreeSpace(_x+8, _y))"  in
-    let get_bp = sprintf "GpsLink(Get_buff_pointer(_x))"  in
-    let send_msg = sprintf "GpsLink(SendMessage(_x, _y))"  in
-    let auxiliar_macros_device = fun device chck_fs get_bp send_msg ->
-      fprintf out "#include \"mcu_periph/%s\"\n" device;
-      fprintf out "\n";
-      if (device <> "device.h") then
-        fprintf out "#define __GpsLink(dev, _x) dev##_x\n#define _GpsLink(dev, _x)  __GpsLink(dev, _x)\n#define GpsLink(_x) _GpsLink(GPS_LINK, _x)\n"
-      else
-        fprintf out "#define dev_gps(_x) dev_##_x\n#define DEV_GPS     dev_gps(GPS_LINK)\n";
-      fprintf out "\n";
-      fprintf out "//Check free space on device's buffer: transport header + message header + data + tail = 2 + 4 + _x + 2 = _x + 8\n";
-      fprintf out "#define UBX_DEV_CHECK_FREE_SPACE( _x, _y)  %s\n" chck_fs;
-      fprintf out "//Get pointer to the assigned slot in device's buffer.\n";
-      fprintf out "#define UBX_DEV_GET_BUFFER_POINTER(_x)     %s\n" get_bp;
-      fprintf out "#define UBX_DEV_SEND_MESSAGE(_x, _y)       %s\n" send_msg in
-    auxiliar_macros_device device chck_fs get_bp send_msg;
+    auxiliar_macros_device out;
 
     fprintf out "\n";
 
@@ -258,6 +299,8 @@ let _ =
 }\n";
     fprintf out "\n";
 
+    fprintf out "extern void ubx_callback(void *slot_ptr);\n";
+    fprintf out "\n";
     (** Generating ubx_send_FUNCTIONS ------------------------------------------------------------------- *)
     List.iter parse_class (Xml.children xml);
 

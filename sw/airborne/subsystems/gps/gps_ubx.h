@@ -133,7 +133,7 @@ extern void ubxsend_cfg_rst(uint16_t, uint8_t);
       gps_ubx.reset = CFG_RST_BBR_Coldstart;                    \
     ubxsend_cfg_rst(gps_ubx.reset, CFG_RST_Reset_Controlled);   \
   }
-
+/*
 #define GpsUartSendMessage GpsLink(SendMessage)
 
 #define GpsUartSend1(c) GpsLink(Transmit(c))
@@ -156,5 +156,5 @@ extern void ubxsend_cfg_rst(uint16_t, uint8_t);
   }
 
 #define UbxTrailer() { GpsUartSend1(gps_ubx.send_ck_a);  GpsUartSend1(gps_ubx.send_ck_b); GpsUartSendMessage(); }
-
+*/
 #endif /* GPS_UBX_H */
