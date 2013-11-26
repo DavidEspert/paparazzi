@@ -2,6 +2,8 @@
 
 
 #include "device_simUart.h"
+#include "mcu_periph/uart.h"
+#include <string.h> //required for memcpy
 
 
 #define _SIM_UART_DEBUG_
@@ -13,7 +15,7 @@
 #define SIM_UART_TRACE(...)
 #endif
 
-//SIMULATED UART PARAMETERS
+//SIMULATED UART --------------------------------------------------------------
 struct transmit_queue sim_tx_queue = INITIALIZED_TRANSMIT_QUEUE;
 void *tr;
 struct uart_transaction trans;
@@ -25,36 +27,6 @@ void    fake_uart_transaction_pack(struct uart_transaction *trans, void* data, u
 
 //AUXILIAR TEST PARAMETERS
 uint8_t counter = 0;
-
-
-// dev_SIM_UART FUNCTIONS ------------------------------------------------------------------------
-
-//'Public' functions declaration (accessible through 'struct device dev_SIM_UART')
-bool_t   SIM_UART_check_free_space(uint8_t *idx);
-void     SIM_UART_sendMessage(uint8_t idx, void* transaction, uint8_t priority);
-uint16_t SIM_UART_transaction_len(void);
-void     SIM_UART_transaction_pack(void *trans, void* data, uint16_t length, void (*callback)(void* trans));
-void     SIM_UART_transaction_free(uint8_t idx);
-
-//'Public' functions definition 
-bool_t   SIM_UART_check_free_space(uint8_t *idx)                                        { return dev_SIM_UART_check_free_space(idx); }
-void     SIM_UART_sendMessage(uint8_t idx, void* transaction, uint8_t priority)         { dev_SIM_UART_sendMessage(idx, transaction, priority); }
-uint16_t SIM_UART_transaction_len(void)                                                 { return dev_SIM_UART_transaction_len(); }
-void     SIM_UART_transaction_pack(void *trans, void* data, uint16_t length, void (*callback)(void* trans))
-                                                                                        { dev_SIM_UART_transaction_pack(trans, data, length, callback);}
-void     SIM_UART_transaction_free(uint8_t idx)                                         { dev_SIM_UART_transaction_free(idx); }
-
-//NON-INLINE 'Public' functions are accessible through 'struct device dev_SIM_UART'
-struct device dev_SIM_UART = {
-  .check_free_space =      &SIM_UART_check_free_space,
-  .free_space =            &SIM_UART_transaction_free,
-  .transaction_len =       &SIM_UART_transaction_len,
-  .transaction_pack =      &SIM_UART_transaction_pack,
-  .sendMessage =           &SIM_UART_sendMessage
-};
-
-
-// fake UART FUNCTIONS ------------------------------------------------------------------------
 
 void fake_uart_sendMessage(struct transmit_queue *tx_queue, uint8_t idx, void* transaction, uint8_t priority) {
   uint8_t data;
@@ -135,6 +107,50 @@ void fake_uart_transaction_pack(struct uart_transaction *trans, void* data, uint
 
 
 
+// dev_SIM_UART ---------------------------------------------------------------
+
+//API functions declaration
+bool_t   dev_simUart_check_free_space(void* periph, uint8_t *slot_idx);
+void     dev_simUart_free_space(void* periph, uint8_t slot_idx);
+// uint8_t  dev_simUart_transaction_length(void);
+void     dev_simUart_transaction_pack(void *trans, void* data, uint16_t length, void (*callback)(void*));
+void     dev_simUart_sendMessage(void* periph, uint8_t idx, void* trans, uint8_t priority);
+uint8_t  dev_simUart_getch(void* periph);
+bool_t   dev_simUart_char_available(void* periph);
+
+
+
+//API functions definition
+bool_t   dev_simUart_check_free_space(void* periph, uint8_t *slot_idx)                     { return transmit_queue_check_free_space(&sim_tx_queue, slot_idx); }
+void     dev_simUart_free_space(void* periph, uint8_t slot_idx)                            { transmit_queue_free_slot(&sim_tx_queue, slot_idx); }
+// uint8_t  dev_simUart_transaction_length(void)                                              { return uart_transaction_length(); }
+void     dev_simUart_transaction_pack(void *trans, void* data, uint16_t length, void (*callback)(void*)) {
+// Due to align problems when working with dynamic buffer, transaction has to be filled in a local variable (aligned)
+// and then moved to 'void' destiny trans in buffer (unaligned).
+  struct uart_transaction tr;
+  fake_uart_transaction_pack(&tr, data, length, callback);
+  memcpy(trans, &tr, sizeof(struct uart_transaction));
+}
+void     dev_simUart_sendMessage(void* periph, uint8_t idx, void* trans, uint8_t priority) { fake_uart_sendMessage(&sim_tx_queue, idx, trans, priority); }
+uint8_t  dev_simUart_getch(void* periph)                                                   { return 0; }// return uart_getch((struct uart_periph*) periph); }
+bool_t   dev_simUart_char_available(void* periph)                                          { return FALSE; }// return uart_char_available((struct uart_periph*) periph); }
+
+#define INITIALIZED_DEV_UART_API { \
+  .check_free_space   =    &dev_simUart_check_free_space, \
+  .free_space         =    &dev_simUart_free_space, \
+  .transaction_len    =    24, \
+/*  .transaction_len    =    &dev_simUart_transaction_length,*/ \
+  .transaction_pack   =    &dev_simUart_transaction_pack, \
+  .transaction_summit =    &dev_simUart_sendMessage, \
+  .getch              =    &dev_simUart_getch, \
+  .char_available     =    &dev_simUart_char_available \
+}
+
+
+
+struct device dev_SIM_UART = {
+  .api = INITIALIZED_DEV_UART_API
+};
 
 #endif /* USE_SIM_UART */
 

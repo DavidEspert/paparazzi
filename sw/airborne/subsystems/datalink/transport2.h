@@ -35,8 +35,8 @@
  * 	(offset = header_len + msg_data_length)
  */
 
-#ifndef DOWNLINK_TRANSPORT_H
-#define DOWNLINK_TRANSPORT_H
+#ifndef _TRANSPORT2_H
+#define _TRANSPORT2_H
 
 // #include <inttypes.h>
 // #include "std.h"
@@ -45,8 +45,8 @@
 #define TRANSPORT_PAYLOAD_LEN 256
 #endif
 
-/** Generic Rx Payload struct */
-struct PayloadTransport {
+/** Generic Rx data struct */
+struct transport_data {
   // payload buffer
   uint8_t payload[TRANSPORT_PAYLOAD_LEN];
   // payload length
@@ -57,17 +57,24 @@ struct PayloadTransport {
   uint8_t ovrn, error;
 };
 
-/** Generic Transport interface */
-struct DownlinkTransport
+/** Generic Transport API */
+struct transport_api
 {
-  void (*init)(void);
+  void    (*init)(void);
   // TX functions
-  uint8_t (*header_len)(void);
-  void (*header)(uint8_t *buff, uint16_t msg_data_length);
-  uint8_t (*tail_len)(void);
-  void (*tail)(uint8_t *buff, uint16_t msg_data_length);
+  uint8_t header_len;
+  void    (*header)(uint8_t *buff, uint16_t msg_data_length);
+  uint8_t tail_len;
+  void    (*tail)(uint8_t *buff, uint16_t msg_data_length);
   // RX functions
-  void (*parse)(uint8_t c);
+  void    (*parse)(void* tp_struct, uint8_t *c, uint16_t length);
 };
 
-#endif /* DOWNLINK_TRANSPORT_H */
+/** Generic Transport interface */
+struct transport2
+{
+  void * tp_data; //this points to the transport data struct
+  struct transport_api api;
+};
+
+#endif /* _TRANSPORT2_H */

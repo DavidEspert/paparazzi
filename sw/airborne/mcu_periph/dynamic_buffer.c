@@ -6,8 +6,8 @@
 // corresponds to an existing and correctly initialized mem space.
 // PUBLIC  checks find possible user errors --> What to do with this? Always enabled? Just for Debug?
 // PRIVATE checks find internal errors --> DISABLE AFTER DEVELOPMENT
-#define _DYNAMIC_BUFFER_PUBLIC_CHECKS_
-#define _DYNAMIC_BUFFER_PRIVATE_CHECKS_
+// #define _DYNAMIC_BUFFER_PUBLIC_CHECKS_
+// #define _DYNAMIC_BUFFER_PRIVATE_CHECKS_
 
 // #define _DYNAMIC_BUFFER_TRACES_
 
@@ -324,7 +324,7 @@ void dynamic_buffer_free_slot_pointer(struct dynamic_buffer *buff, uint8_t *ptr)
   //0- verify user inputs
   #ifdef _DYNAMIC_BUFFER_PUBLIC_CHECKS_
   if(!dynamic_buffer_validate_slot_pointer(buff, ptr)) {
-    TRACE("\tdynamic_buffer: free_slot_pointer:  POSSIBLE USAGE ERROR; SLOT %u WAS FOUNT NOT VALID. EXECUTION ABORTED\n", idx); DEBUG_PRINT_BUFFER_MEM;
+    TRACE("\tdynamic_buffer: free_slot_pointer:  POSSIBLE USAGE ERROR; POINTER %p WAS FOUNT NOT VALID. EXECUTION ABORTED\n", ptr); DEBUG_PRINT_BUFFER_MEM;
     return;
   }
   #endif // _DYNAMIC_BUFFER_PUBLIC_CHECKS_
@@ -443,8 +443,8 @@ bool_t dynamic_buffer_validate_slot_idx(struct dynamic_buffer *buff, uint8_t idx
 }
 
 //Private
-bool_t dynamic_buffer_validate_slot_pointer(struct dynamic_buffer *buff, uint8_t *p){
-  uint8_t idx = *(p-1);
+bool_t dynamic_buffer_validate_slot_pointer(struct dynamic_buffer *buff, uint8_t *ptr){
+  uint8_t idx = *(ptr - 1);
   uint8_t *slot_ptr;
 
   //0- verify slot index
@@ -453,8 +453,8 @@ bool_t dynamic_buffer_validate_slot_pointer(struct dynamic_buffer *buff, uint8_t
 
   //0- verify slot pointer
   slot_ptr = dynamic_buffer_get_slot_pointer(buff, idx);
-  if(slot_ptr != p)
-  {     TRACE("\tdynamic_buffer: validate_slot_pointer:  POINTER %p DOESN'T CORRESPOND TO AN INITIAL MEMORY SPACE\n", idx);    return FALSE; }
+  if(slot_ptr != ptr)
+  {     TRACE("\tdynamic_buffer: validate_slot_pointer:  POINTER %p DOESN'T CORRESPOND TO AN INITIAL MEMORY SPACE\n", ptr);    return FALSE; }
 
   return TRUE;
 }

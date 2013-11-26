@@ -201,7 +201,7 @@ module Gen_onboard = struct
     
     if (function_type <> "MACROS") then begin
       f_type := "static inline void";
-      trans_type:= "struct DownlinkTransport *";
+      trans_type:= "struct transport2 *";
       trans_name := "tp";
       dev_type := "struct device *";
       dev_name := "dev";
@@ -228,13 +228,13 @@ module Gen_onboard = struct
     fprintf h "  uint8_t dev_slot;%s" !eol;
     fprintf h "  uint8_t buff_slot;%s" !eol;
     if (function_type <> "MACROS") then begin
-      fprintf h "  uint8_t ta_len =    %s->transaction_len();%s" !dev_name !eol;
-      fprintf h "  uint8_t tp_hd_len = %s->header_len();%s" !trans_name !eol;
-      fprintf h "  uint8_t tp_tl_len = %s->tail_len();%s" !trans_name !eol;
+      fprintf h "  uint8_t ta_len =    %s->api.transaction_len;%s" !dev_name !eol;
+      fprintf h "  uint8_t tp_hd_len = %s->api.header_len;%s" !trans_name !eol;
+      fprintf h "  uint8_t tp_tl_len = %s->api.tail_len;%s" !trans_name !eol;
     end else begin
       fprintf h "  uint8_t ta_len =    msg_join(%s, _transaction_len());%s" !dev_name !eol;
-      fprintf h "  uint8_t tp_hd_len = msg_join(%s, _header_len());%s" !trans_name !eol;
-      fprintf h "  uint8_t tp_tl_len = msg_join(%s, _tail_len());%s" !trans_name !eol;
+      fprintf h "  uint8_t tp_hd_len = msg_join(%s, _header_len);%s" !trans_name !eol;
+      fprintf h "  uint8_t tp_tl_len = msg_join(%s, _tail_len);%s" !trans_name !eol;
     end;
     fprintf h "%s" !eol;
 
@@ -243,7 +243,7 @@ module Gen_onboard = struct
 
     fprintf h "  /* 1.- try to get a device's 'transaction' slot */%s" !eol;
     if (function_type <> "MACROS") then
-      fprintf h "  if(%s->check_free_space(&dev_slot)){%s" !dev_name !eol
+      fprintf h "  if(%s->api.check_free_space(%s->periph, &dev_slot)){%s" !dev_name !dev_name !eol
     else
       fprintf h "  if( msg_join(%s, _check_free_space(&dev_slot)) ){%s" !dev_name !eol;
 
@@ -260,7 +260,7 @@ module Gen_onboard = struct
     fprintf h "      /* SET TRANSACTION: CONTAINS MESSAGE POINTER, LENGTH AND CALLBACK */%s" !eol;
     fprintf h "      /* 4.- set transaction in buffer */%s" !eol;
     if (function_type <> "MACROS") then
-      fprintf h "      %s->transaction_pack(buff, (buff + ta_len), (tp_hd_len + MSG_HD_LEN + %s + tp_tl_len), &message_callback);%s" !dev_name data_len1 !eol
+      fprintf h "      %s->api.transaction_pack(buff, (buff + ta_len), (tp_hd_len + MSG_HD_LEN + %s + tp_tl_len), &message_callback);%s" !dev_name data_len1 !eol
     else
       fprintf h "      msg_join(%s, _transaction_pack(buff, (buff + ta_len), (tp_hd_len + MSG_HD_LEN + %s + tp_tl_len), &message_callback));%s" !dev_name data_len2 !eol;
     fprintf h "%s" !eol;
@@ -268,7 +268,7 @@ module Gen_onboard = struct
     fprintf h "      /* SET MESSAGE: CONTAINS TRANSPORT HEADER, MESSAGE HEADER, MESSAGE DATA AND TRANSPORT TAIL */%s" !eol;
     fprintf h "      /* 5.- set transport HEADER in buffer (it depends on transport layer) */%s" !eol;
     if (function_type <> "MACROS") then
-      fprintf h "      %s->header(buff + ta_len, %s + MSG_HD_LEN);%s" !trans_name data_len1 !eol
+      fprintf h "      %s->api.header(buff + ta_len, %s + MSG_HD_LEN);%s" !trans_name data_len1 !eol
     else
       fprintf h "      msg_join(%s, _header(buff + ta_len, %s + MSG_HD_LEN));%s" !trans_name data_len2 !eol;
 
@@ -285,7 +285,7 @@ module Gen_onboard = struct
 
     fprintf h "      /* 8.- set transport TAIL in buffer (it depends on transport layer) */%s" !eol;
     if (function_type <> "MACROS") then
-      fprintf h "      %s->tail(buff + ta_len, %s + MSG_HD_LEN);%s" !trans_name data_len1 !eol
+      fprintf h "      %s->api.tail(buff + ta_len, %s + MSG_HD_LEN);%s" !trans_name data_len1 !eol
     else
       fprintf h "      msg_join(%s, _tail(buff + ta_len, %s + MSG_HD_LEN));%s" !trans_name data_len2 !eol;
     fprintf h "%s" !eol;
@@ -293,7 +293,7 @@ module Gen_onboard = struct
     fprintf h "      /* SUMMIT TRANSACTION */%s" !eol;
     fprintf h "      /* 9.- send message */%s" !eol;
     if (function_type <> "MACROS") then
-      fprintf h "      %s->sendMessage(dev_slot, buff, DL_%s_PRIORITY);%s" !dev_name s !eol
+      fprintf h "      %s->api.transaction_summit(%s->periph, dev_slot, buff, DL_%s_PRIORITY);%s" !dev_name !dev_name s !eol
     else
       fprintf h "      msg_join(%s, _sendMessage(dev_slot, buff, DL_%s_PRIORITY));%s" !dev_name s !eol;
     fprintf h "    }%s" !eol;
@@ -301,7 +301,7 @@ module Gen_onboard = struct
     fprintf h "    else {%s" !eol;
     fprintf h "      /* 10.- release device's slot */%s" !eol;
     if (function_type <> "MACROS") then
-      fprintf h "      %s->free_space(dev_slot);%s" !dev_name !eol
+      fprintf h "      %s->api.free_space(%s->periph, dev_slot);%s" !dev_name !dev_name !eol
     else
       fprintf h "      msg_join(%s, _free_space(dev_slot));%s" !dev_name !eol;
     fprintf h "    }%s" !eol;
@@ -321,7 +321,7 @@ module Gen_onboard = struct
     
     if (function_type <> "MACROS") then begin
       f_type := "static inline void";
-      trans_type:= "struct DownlinkTransport *";
+      trans_type:= "struct transport2 *";
       trans_name := "tp";
       dev_type := "struct device *";
       dev_name := "dev";

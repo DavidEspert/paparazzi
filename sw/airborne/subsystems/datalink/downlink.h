@@ -30,9 +30,8 @@
 
 #include <inttypes.h>
 
+#include "subsystems/datalink/device_uart.h"
 #include "generated/modules.h"
-// #include "messages.h"
-// #include "generated/airframe.h" // AC_ID is required
 
 #if defined SITL
 
@@ -112,7 +111,7 @@
 
 #ifndef DefaultDevice
 #define DefaultDevice2 DOWNLINK_DEVICE
-#define DefaultDevice join(&dl_, DefaultDevice2)
+#define DefaultDevice join(&dev_, DefaultDevice2)
 #endif
 
 #endif // _DOWNLINK_WITH_MACROS_

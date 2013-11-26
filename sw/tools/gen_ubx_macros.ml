@@ -229,7 +229,7 @@ let auxiliar_macros_device = fun h ->
       fprintf h "#include \"mcu_periph/uart.h\"\n";
       fprintf h "\n";
       fprintf h "#define __GpsLink(dev, _x)  dev##_x\n#define _GpsLink(dev, _x)   __GpsLink(dev, _x)\n#define GpsLink(_x)         _GpsLink(GPS_LINK, _x)\n";
-(*      fprintf h "#define __GpsLink(dev, _x)  dl_##dev##->##_x\n#define _GpsLink(dev, _x)   __GpsLink(dev, _x)\n#define GpsLink(_x)         _GpsLink(GPS_LINK, _x)\n";*)
+(*      fprintf h "#define __GpsLink(dev, _x)  dev_##dev##->##_x\n#define _GpsLink(dev, _x)   __GpsLink(dev, _x)\n#define GpsLink(_x)         _GpsLink(GPS_LINK, _x)\n";*)
       fprintf h "\n";
       fprintf h "#define UBX_DEV_CHECK_FREE_SPACE( _x)                %s\n" chck_fs;
       fprintf h "#define UBX_DEV_FREE_SPACE(_x)                       %s\n" free_space;

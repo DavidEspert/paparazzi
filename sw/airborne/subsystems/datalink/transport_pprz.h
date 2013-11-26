@@ -51,7 +51,7 @@ struct pprz_tail{
 
 struct pprz_transport_rx {
   // generic interface
-  struct PayloadTransport trans;
+  struct transport_data trans;
   // specific pprz transport variables
   uint8_t status;
   uint8_t payload_idx;
@@ -113,47 +113,47 @@ static inline void PprzTransport_tail(uint8_t *buff, uint16_t msg_data_length){
   buff[i]   = tl.ck_b; //((struct pprz_tail *)(buff + sizeof(struct pprz_header) + msg_data_length))->ck_b = tl.ck_b;
 }
 
-static inline void PprzTransport_parse(uint8_t c) {
-  switch (pprz_tp_rx.status) {
+static inline void PprzTransport_parse(struct pprz_transport_rx* t, uint8_t c) {
+  switch (t->status) {
   case UNINIT:
     if (c == STX_PPRZ_TX)
-      pprz_tp_rx.status++;
+      t->status++;
     break;
   case GOT_STX:
-    if (pprz_tp_rx.trans.msg_received) {
-      pprz_tp_rx.trans.ovrn++;
+    if (t->trans.msg_received) {
+      t->trans.ovrn++;
       goto error;
     }
-    pprz_tp_rx.trans.payload_len = c-4; // Counting STX, LENGTH and CRC1 and CRC2
-    pprz_tp_rx.ck_a = pprz_tp_rx.ck_b = c;
-    pprz_tp_rx.status++;
-    pprz_tp_rx.payload_idx = 0;
+    t->trans.payload_len = c-4; // Counting STX, LENGTH and CRC1 and CRC2
+    t->ck_a = t->ck_b = c;
+    t->status++;
+    t->payload_idx = 0;
     break;
   case GOT_LENGTH:
-    pprz_tp_rx.trans.payload[pprz_tp_rx.payload_idx] = c;
-    pprz_tp_rx.ck_a += c; pprz_tp_rx.ck_b += pprz_tp_rx.ck_a;
-    pprz_tp_rx.payload_idx++;
-    if (pprz_tp_rx.payload_idx == pprz_tp_rx.trans.payload_len)
-      pprz_tp_rx.status++;
+    t->trans.payload[t->payload_idx] = c;
+    t->ck_a += c; t->ck_b += t->ck_a;
+    t->payload_idx++;
+    if (t->payload_idx == t->trans.payload_len)
+      t->status++;
     break;
   case GOT_PAYLOAD:
-    if (c != pprz_tp_rx.ck_a)
+    if (c != t->ck_a)
       goto error;
-    pprz_tp_rx.status++;
+    t->status++;
     break;
   case GOT_CRC1:
-    if (c != pprz_tp_rx.ck_b)
+    if (c != t->ck_b)
       goto error;
-    pprz_tp_rx.trans.msg_received = TRUE;
+    t->trans.msg_received = TRUE;
     goto restart;
   default:
     goto error;
   }
   return;
  error:
-  pprz_tp_rx.trans.error++;
+  t->trans.error++;
  restart:
-  pprz_tp_rx.status = UNINIT;
+  t->status = UNINIT;
   return;
 }
 
@@ -169,6 +169,6 @@ static inline void PprzTransport_parse(uint8_t c) {
   }                                       \
 }
 
-extern struct DownlinkTransport PprzTransport;
+extern struct transport2 PprzTransport;
 
 #endif//_DOWNLINK_TRANSPORT_PPRZ_H_

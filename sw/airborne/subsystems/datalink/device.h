@@ -14,12 +14,22 @@
 #include <stdint.h>
 #include "std.h"
 
+struct device_api{
+//Tx
+  bool_t   (*check_free_space)(void* periph, uint8_t *slot_idx);
+  void     (*free_space)(void* periph, uint8_t slot_idx);
+  uint8_t  transaction_len;
+//   uint8_t  (*transaction_len)(void);
+  void     (*transaction_pack)(void * trans, void * data, uint16_t length, void (*callback)(void* trans));
+  void     (*transaction_summit)(void* periph, uint8_t idx, void* trans, uint8_t priority);
+//Rx
+  bool_t   (*char_available)(void* periph);
+  uint8_t  (*getch)(void* periph);
+};
+
 struct device{
-  bool_t   (*check_free_space)(uint8_t *idx);
-  void     (*free_space)(uint8_t idx);
-  uint16_t (*transaction_len)(void);
-  void     (*transaction_pack)(void *trans, void* data, uint16_t length, void (*callback)(void* trans));
-  void     (*sendMessage)(uint8_t idx, void* transaction, uint8_t priority);
+  void * periph;
+  struct device_api api;
 };
 
 #endif//_DEVICE_H_

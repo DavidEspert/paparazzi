@@ -31,8 +31,8 @@
 #include "mcu_periph/uart_arch.h"
 #include "std.h"
 #include "transmit_queue.h"
-#include "subsystems/datalink/device.h"
-#include <string.h> //required for memcpy
+// #include "subsystems/datalink/device.h"
+// #include <string.h> //required for memcpy
 
 #define UART_RX_BUFFER_SIZE             128
 #define UART_DEV_NAME_SIZE              16
@@ -98,19 +98,13 @@ static inline void uart_free_space(struct uart_periph* p, uint8_t slot_idx) {
   transmit_queue_free_slot(&(p->tx_queue), slot_idx);
 }
   //Tx transaction
-extern uint16_t uart_transaction_length(void);
-static inline uint16_t uart_transaction_length_inline(void) {
+static inline uint8_t uart_transaction_length(void) {
   return sizeof(struct uart_transaction);
 }
-extern void uart_transaction_pack(void *trans, void* data, uint16_t length, void (*callback)(void*));
-static inline void uart_transaction_pack_inline(void *trans, void* data, uint16_t length, void (*callback)(void*)) {
-// Due to align problems when working with dynamic buffer, transaction has to be filled in a local variable (aligned)
-// and then moved to 'void' destiny trans (unaligned).
-  struct uart_transaction tr;
-  tr.data =     data;
-  tr.length =   length;
-  tr.callback = callback;
-  memcpy(trans, &tr, sizeof(struct uart_transaction));
+static inline void uart_transaction_pack(struct uart_transaction* trans, void* data, uint16_t length, void (*callback)(void*)) {
+  trans->data =     data;
+  trans->length =   length;
+  trans->callback = callback;
 }
 extern void uart_sendMessage(struct uart_periph *uart, uint8_t idx, void* trans, uint8_t priority);
 
@@ -130,7 +124,6 @@ static inline bool_t uart_char_available(struct uart_periph* p) {
 
 #ifdef USE_UART0
 extern struct uart_periph uart0;
-extern struct device dl_UART0;
 
 // -- 'UART Periph management' --
 extern void uart0_init(void);
@@ -139,14 +132,14 @@ static inline void UART0Init(void)                                              
 #define UART0SetBaudrate(_b) uart_periph_set_baudrate(&uart0, _b)
 #define UART0SetBitsStopParity(_b, _s, _p) uart_periph_set_bits_stop_parity(&uart0, _b, _s, _p)
 
-// -- 'UART data exchange' (inline functions) --
+// -- 'UART data exchange' --
   //Tx queue
 static inline bool_t   UART0CheckFreeSpace(uint8_t *slot_idx)                   { return uart_check_free_space(&uart0, slot_idx); }
 static inline void     UART0FreeSpace(uint8_t slot_idx)                         { uart_free_space(&uart0, slot_idx); }
   //Tx transaction
-static inline uint16_t UART0TransactionLen(void)                                { return uart_transaction_length_inline();}
+static inline uint16_t UART0TransactionLen(void)                                { return uart_transaction_length();}
 static inline void     UART0TransactionPack(void *trans, void* data, uint16_t length, void (*callback)(void*))
-                                                                                { uart_transaction_pack_inline(trans, data, length, callback); }
+                                                                                { uart_transaction_pack(trans, data, length, callback); }
 static inline void     UART0SendMessage(uint8_t slot_idx, void* trans, uint8_t priority)
                                                                                 { uart_sendMessage(&uart0, slot_idx, trans, priority); }
   //Rx get char
@@ -158,7 +151,6 @@ static inline uint8_t  UART0Getch(void)                                         
 
 #ifdef USE_UART1
 extern struct uart_periph uart1;
-extern struct device dl_UART1;
 
 // -- 'UART Periph management' --
 extern void uart1_init(void);
@@ -167,14 +159,14 @@ static inline void UART1Init(void)                                              
 #define UART1SetBaudrate(_b) uart_periph_set_baudrate(&uart1, _b)
 #define UART1SetBitsStopParity(_b, _s, _p) uart_periph_set_bits_stop_parity(&uart1, _b, _s, _p)
 
-// -- 'UART data exchange' (inline functions) --
+// -- 'UART data exchange' --
   //Tx queue
 static inline bool_t   UART1CheckFreeSpace(uint8_t *slot_idx)                   { return uart_check_free_space(&uart1, slot_idx); }
 static inline void     UART1FreeSpace(uint8_t slot_idx)                         { uart_free_space(&uart1, slot_idx); }
   //Tx transaction
-static inline uint16_t UART1TransactionLen(void)                                { return uart_transaction_length_inline();}
+static inline uint16_t UART1TransactionLen(void)                                { return uart_transaction_length();}
 static inline void     UART1TransactionPack(void *trans, void* data, uint16_t length, void (*callback)(void*))
-                                                                                { uart_transaction_pack_inline(trans, data, length, callback); }
+                                                                                { uart_transaction_pack(trans, data, length, callback); }
 static inline void     UART1SendMessage(uint8_t slot_idx, void* trans, uint8_t priority)
                                                                                 { uart_sendMessage(&uart1, slot_idx, trans, priority); }
   //Rx get char
@@ -194,7 +186,7 @@ static inline void UART2Init(void)                                              
 #define UART2SetBaudrate(_b) uart_periph_set_baudrate(&uart2, _b)
 #define UART2SetBitsStopParity(_b, _s, _p) uart_periph_set_bits_stop_parity(&uart2, _b, _s, _p)
 
-// -- 'UART data exchange' (inline functions) --
+// -- 'UART data exchange' --
   //Tx queue
 static inline bool_t   UART2CheckFreeSpace(uint8_t *slot_idx)                   { return uart_check_free_space(&uart2, slot_idx); }
 static inline void     UART2FreeSpace(uint8_t slot_idx)                         { uart_free_space(&uart2, slot_idx); }
@@ -221,7 +213,7 @@ extern struct uart_periph uart3;
 extern void uart3_init(void);
 static inline void UART3Init(void)                                              { uart_periph_init(&uart3);}
 
-// -- 'UART data exchange' (inline functions) --
+// -- 'UART data exchange' --
   //Tx queue
 static inline bool_t   UART3CheckFreeSpace(uint8_t *slot_idx)                   { return uart_check_free_space(&uart3, slot_idx); }
 static inline void     UART3FreeSpace(uint8_t slot_idx)                         { uart_free_space(&uart3, slot_idx); }
@@ -248,7 +240,7 @@ static inline void UART4Init(void)                                              
 #define UART4SetBaudrate(_b) uart_periph_set_baudrate(&uart4, _b)
 #define UART4SetBitsStopParity(_b, _s, _p) uart_periph_set_bits_stop_parity(&uart4, _b, _s, _p)
 
-// -- 'UART data exchange' (inline functions) --
+// -- 'UART data exchange' --
   //Tx queue
 static inline bool_t   UART4CheckFreeSpace(uint8_t *slot_idx)                   { return uart_check_free_space(&uart4, slot_idx); }
 static inline void     UART4FreeSpace(uint8_t slot_idx)                         { uart_free_space(&uart4, slot_idx); }
@@ -275,7 +267,7 @@ static inline void UART5Init(void)                                              
 #define UART5SetBaudrate(_b) uart_periph_set_baudrate(&uart5, _b)
 #define UART5SetBitsStopParity(_b, _s, _p) uart_periph_set_bits_stop_parity(&uart5, _b, _s, _p)
 
-// -- 'UART data exchange' (inline functions) --
+// -- 'UART data exchange' --
   //Tx queue
 static inline bool_t   UART5CheckFreeSpace(uint8_t *slot_idx)                   { return uart_check_free_space(&uart5, slot_idx); }
 static inline void     UART5FreeSpace(uint8_t slot_idx)                         { uart_free_space(&uart5, slot_idx); }
@@ -302,7 +294,7 @@ static inline void UART6Init(void)                                              
 #define UART6SetBaudrate(_b) uart_periph_set_baudrate(&uart6, _b)
 #define UART6SetBitsStopParity(_b, _s, _p) uart_periph_set_bits_stop_parity(&uart6, _b, _s, _p)
 
-// -- 'UART data exchange' (inline functions) --
+// -- 'UART data exchange' --
   //Tx queue
 static inline bool_t   UART6CheckFreeSpace(uint8_t *slot_idx)                   { return uart_check_free_space(&uart6, slot_idx); }
 static inline void     UART6FreeSpace(uint8_t slot_idx)                         { uart_free_space(&uart6, slot_idx); }

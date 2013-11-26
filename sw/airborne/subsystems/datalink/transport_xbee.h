@@ -45,12 +45,12 @@
 struct xbee_header{
   uint8_t  start;
   uint16_t len;
-  struct xbee_api api; //Depends on XBEE868 or XBEE24
+  uint8_t api[XBEE_API_LEN]; //Depends on XBEE868 or XBEE24
 };
 #define INITIALIZED_XBEE_HD(_msg_data_length) { \
   .start = XBEE_START, \
   .len = ((_msg_data_length) + sizeof(struct xbee_header) + sizeof(xbee_tail)), \
-  .api = INITIALIZED_XBEE_API \
+  INITIALIZED_XBEE_HD_API \
 }
 
 struct xbee_tail{
@@ -80,7 +80,7 @@ void xbee_init( void );
 
 struct xbee_transport_rx {
   // generic interface
-  struct PayloadTransport trans;
+  struct transport_data trans;
   // specific xbee transport variables
   uint8_t status;
   uint8_t payload_idx;
@@ -239,37 +239,37 @@ static inline void XBeeTransport_tail(uint8_t *buff, uint16_t msg_data_length){
   buff[i] = cksum; //((struct xbee_tail *)(buff + sizeof(struct xbee_header) + msg_data_length))->cksum = cksum;
 }
 
-static inline void XBeeTransport_parse(uint8_t c) {
-  switch (xbee_tp_rx.status) {
+static inline void XBeeTransport_parse(struct xbee_transport_rx* t, uint8_t c) {
+  switch (t->status) {
   case XBEE_UNINIT:
     if (c == XBEE_START)
-      xbee_tp_rx.status++;
+      t->status++;
     break;
   case XBEE_GOT_START:
-    if (xbee_tp_rx.trans.msg_received) {
-      xbee_tp_rx.trans.ovrn++;
+    if (t->trans.msg_received) {
+      t->trans.ovrn++;
       goto error;
     }
-    xbee_tp_rx.trans.payload_len = c<<8;
-    xbee_tp_rx.status++;
+    t->trans.payload_len = c<<8;
+    t->status++;
     break;
   case XBEE_GOT_LENGTH_MSB:
-    xbee_tp_rx.trans.payload_len |= c;
-    xbee_tp_rx.status++;
-    xbee_tp_rx.payload_idx = 0;
-    xbee_tp_rx.cs=0;
+    t->trans.payload_len |= c;
+    t->status++;
+    t->payload_idx = 0;
+    t->cs=0;
     break;
   case XBEE_GOT_LENGTH_LSB:
-    xbee_tp_rx.trans.payload[xbee_tp_rx.payload_idx] = c;
-    xbee_tp_rx.cs += c;
-    xbee_tp_rx.payload_idx++;
-    if (xbee_tp_rx.payload_idx == xbee_tp_rx.trans.payload_len)
-      xbee_tp_rx.status++;
+    t->trans.payload[t->payload_idx] = c;
+    t->cs += c;
+    t->payload_idx++;
+    if (t->payload_idx == t->trans.payload_len)
+      t->status++;
     break;
   case XBEE_GOT_PAYLOAD:
-    if (c + xbee_tp_rx.cs != 0xff)
+    if (c + t->cs != 0xff)
       goto error;
-    xbee_tp_rx.trans.msg_received = TRUE;
+    t->trans.msg_received = TRUE;
     goto restart;
     break;
   default:
@@ -277,9 +277,9 @@ static inline void XBeeTransport_parse(uint8_t c) {
   }
   return;
  error:
-  xbee_tp_rx.trans.error++;
+  t->trans.error++;
  restart:
-  xbee_tp_rx.status = XBEE_UNINIT;
+  t->status = XBEE_UNINIT;
   return;
 }
 
@@ -299,6 +299,6 @@ static inline void XBeeTransport_parse(uint8_t c) {
 #define XBeePrintHex16(_dev, x) TransportLink(_dev,PrintHex16(x))
 
 
-extern struct DownlinkTransport XBeeTransport;
+extern struct transport2 XBeeTransport;
 
 #endif//_DOWNLINK_TRANSPORT_XBEE_H_
