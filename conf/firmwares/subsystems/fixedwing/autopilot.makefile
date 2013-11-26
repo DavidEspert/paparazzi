@@ -195,7 +195,7 @@ sim.srcs 		+= subsystems/datalink/telemetry.c subsystems/datalink/downlink.c $(S
 # GJN Addition during development...
 sim.srcs		+= mcu_periph/transmit_queue.c mcu_periph/dynamic_buffer.c subsystems/datalink/transport_pprz.c
 sim.CFLAGS 		+= -DUSE_SIM_UART
-sim.srcs		+= mcu_periph/device_simUart.c
+sim.srcs		+= subsystems/datalink/device_simUart.c
 # ... end of GJN Addition
 
 sim.srcs 		+= $(SRC_ARCH)/sim_gps.c $(SRC_ARCH)/sim_adc_generic.c

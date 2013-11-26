@@ -26,11 +26,11 @@
  * Each transport layer 'X' must contain 4 functions:
  * - uint8_t X_header_len(void):
  * 	Returns header length.
- * - void X_header(uint8_t *buff, uint8_t msg_data_length, uint8_t msg_id):
+ * - void X_header(uint8_t *buff, uint16_t msg_data_length):
  * 	Fills header in buffer.
  * - uint8_t X_tail_len(void):
  * 	Returns tail length.
- * - void X_tail(uint8_t *buff, uint8_t msg_data_length):
+ * - void X_tail(uint8_t *buff, uint16_t msg_data_length):
  * 	Fills tail in buffer. It must internally take into account the offset in buffer
  * 	(offset = header_len + msg_data_length)
  */
@@ -60,18 +60,14 @@ struct PayloadTransport {
 /** Generic Transport interface */
 struct DownlinkTransport
 {
+  void (*init)(void);
   // TX functions
   uint8_t (*header_len)(void);
-  void (*header)(uint8_t *buff, uint8_t msg_data_length);
+  void (*header)(uint8_t *buff, uint16_t msg_data_length);
   uint8_t (*tail_len)(void);
-  void (*tail)(uint8_t *buff, uint8_t msg_data_length);
+  void (*tail)(uint8_t *buff, uint16_t msg_data_length);
   // RX functions
   void (*parse)(uint8_t c);
-  void (*parse_payload)(void);
 };
-
-#include "transport_pprz.h"
-// #include "transport_xbee.h"
-// #include "transport_ivy.h"
 
 #endif /* DOWNLINK_TRANSPORT_H */

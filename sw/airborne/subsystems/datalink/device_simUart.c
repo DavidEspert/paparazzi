@@ -21,7 +21,7 @@ uint8_t tx_running = 0;
 uint8_t tx_byte_idx = 0;
 void    fake_uart_sendMessage(struct transmit_queue *tx_queue, uint8_t idx, void* transaction, uint8_t priority);
 void    fake_ISR(struct transmit_queue *tx_queue);
-void    fake_uart_transaction_pack(struct uart_transaction *trans, void* data, uint8_t length, void (*callback)(void*));
+void    fake_uart_transaction_pack(struct uart_transaction *trans, void* data, uint16_t length, void (*callback)(void*));
 
 //AUXILIAR TEST PARAMETERS
 uint8_t counter = 0;
@@ -30,19 +30,19 @@ uint8_t counter = 0;
 // dev_SIM_UART FUNCTIONS ------------------------------------------------------------------------
 
 //'Public' functions declaration (accessible through 'struct device dev_SIM_UART')
-bool_t  SIM_UART_check_free_space(uint8_t *idx);
-void    SIM_UART_sendMessage(uint8_t idx, void* transaction, uint8_t priority);
-uint8_t SIM_UART_transaction_len(void);
-void    SIM_UART_transaction_pack(void *trans, void* data, uint8_t length, void (*callback)(void* trans));
-void    SIM_UART_transaction_free(uint8_t idx);
+bool_t   SIM_UART_check_free_space(uint8_t *idx);
+void     SIM_UART_sendMessage(uint8_t idx, void* transaction, uint8_t priority);
+uint16_t SIM_UART_transaction_len(void);
+void     SIM_UART_transaction_pack(void *trans, void* data, uint16_t length, void (*callback)(void* trans));
+void     SIM_UART_transaction_free(uint8_t idx);
 
 //'Public' functions definition 
-bool_t  SIM_UART_check_free_space(uint8_t *idx)                                         { return dev_SIM_UART_check_free_space(idx); }
-void    SIM_UART_sendMessage(uint8_t idx, void* transaction, uint8_t priority)          { dev_SIM_UART_sendMessage(idx, transaction, priority); }
-uint8_t SIM_UART_transaction_len(void)                                                  { return dev_SIM_UART_transaction_len(); }
-void    SIM_UART_transaction_pack(void *trans, void* data, uint8_t length, void (*callback)(void* trans))
+bool_t   SIM_UART_check_free_space(uint8_t *idx)                                        { return dev_SIM_UART_check_free_space(idx); }
+void     SIM_UART_sendMessage(uint8_t idx, void* transaction, uint8_t priority)         { dev_SIM_UART_sendMessage(idx, transaction, priority); }
+uint16_t SIM_UART_transaction_len(void)                                                 { return dev_SIM_UART_transaction_len(); }
+void     SIM_UART_transaction_pack(void *trans, void* data, uint16_t length, void (*callback)(void* trans))
                                                                                         { dev_SIM_UART_transaction_pack(trans, data, length, callback);}
-void    SIM_UART_transaction_free(uint8_t idx)                                          { dev_SIM_UART_transaction_free(idx); }
+void     SIM_UART_transaction_free(uint8_t idx)                                         { dev_SIM_UART_transaction_free(idx); }
 
 //NON-INLINE 'Public' functions are accessible through 'struct device dev_SIM_UART'
 struct device dev_SIM_UART = {
@@ -127,7 +127,7 @@ void fake_ISR(struct transmit_queue *tx_queue) {
   }
 }
 
-void fake_uart_transaction_pack(struct uart_transaction *trans, void* data, uint8_t length, void (*callback)(void*)) {
+void fake_uart_transaction_pack(struct uart_transaction *trans, void* data, uint16_t length, void (*callback)(void*)) {
   trans->data =     data;
   trans->length =   length;
   trans->callback = callback;

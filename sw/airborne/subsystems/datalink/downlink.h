@@ -31,9 +31,8 @@
 #include <inttypes.h>
 
 #include "generated/modules.h"
-#include "messages.h"
-#include "generated/airframe.h" // AC_ID is required
-#include "mcu_periph/device.h"
+// #include "messages.h"
+// #include "generated/airframe.h" // AC_ID is required
 
 #if defined SITL
 
@@ -42,12 +41,17 @@
 
 #ifdef SIM_UART
 #include "sim_uart.h"
-#include "subsystems/datalink/pprz_transport.h"
-#include "subsystems/datalink/xbee.h"
+#include "subsystems/datalink/transport_pprz.h"
+// #include "subsystems/datalink/transport_xbee.h"
+// #include "subsystems/datalink/pprz_transport.h"
+// #include "subsystems/datalink/xbee.h"
 #else /* SIM_UART */
 /** Software In The Loop simulation uses IVY bus directly as the transport layer */
+#include "subsystems/datalink/device_simUart.h"
+#include "subsystems/datalink/transport_pprz.h"
 #include "ivy_transport.h"
 #endif
+
 #ifdef _DOWNLINK_WITH_MACROS_
 #define DefaultDevice dev_SIM_UART
 #else
@@ -56,9 +60,11 @@
 
 #else /** SITL */
 
+#include "subsystems/datalink/transport_pprz.h"
+// #include "subsystems/datalink/transport_xbee.h"
 #include "subsystems/datalink/udp.h"
-#include "subsystems/datalink/pprz_transport.h"
-#include "subsystems/datalink/xbee.h"
+// #include "subsystems/datalink/pprz_transport.h"
+// #include "subsystems/datalink/xbee.h"
 #include "subsystems/datalink/w5100.h"
 #if USE_SUPERBITRF
 #include "subsystems/datalink/superbitrf.h"
@@ -92,7 +98,7 @@
 #define DefaultDevice DOWNLINK_DEVICE
 #endif
 
-#else
+#else // _DOWNLINK_WITH_MACROS_
 //Downlink with static inline functions
 #define __join(_y, _x) _y##_x
 #define _join(_y, _x) __join(_y, _x)
@@ -106,7 +112,7 @@
 
 #ifndef DefaultDevice
 #define DefaultDevice2 DOWNLINK_DEVICE
-#define DefaultDevice join(&dev_, DefaultDevice2)
+#define DefaultDevice join(&dl_, DefaultDevice2)
 #endif
 
 #endif // _DOWNLINK_WITH_MACROS_
@@ -121,14 +127,14 @@ extern uint16_t downlink_nb_msgs;
  *
  * call transport functions from channel
  */
-#define __Transport(dev, _x) dev##_x
+/*#define __Transport(dev, _x) dev##_x
 #define _Transport(dev, _x) __Transport(dev, _x)
 #define Transport(_chan, _fun) _Transport(_chan, _fun)
-
+*/
 
 /** Set of macros for generated code (messages.h) from messages.xml */
 /** 2 = ac_id + msg_id */
-#define DownlinkIDsSize(_trans, _dev, _x) (_x+2)
+/*#define DownlinkIDsSize(_trans, _dev, _x) (_x+2)
 #define DownlinkSizeOf(_trans, _dev, _x) Transport(_trans, SizeOf(_dev, DownlinkIDsSize(_trans, _dev, _x)))
 
 #define DownlinkCheckFreeSpace(_trans, _dev, _x) Transport(_trans, CheckFreeSpace(_dev, (uint8_t)(_x)))
@@ -164,5 +170,5 @@ extern uint16_t downlink_nb_msgs;
 }
 
 #define DownlinkEndMessage(_trans, _dev) Transport(_trans, Trailer(_dev))
-
+*/
 #endif /* DOWNLINK_H */

@@ -126,7 +126,7 @@ let send_function = fun f_type class_name m ->
         "field" ->
           let p = param_name f in
           let t = param_type f in
-          if (!eol <> "\n") then
+          if (f_type <> "FUNCTION") then
             fprintf out "%s_%s" !comma p
           else
             fprintf out "%sconst %s _%s" !comma t p;
@@ -145,7 +145,7 @@ let send_function = fun f_type class_name m ->
   fprintf out "%s ubx_send_%s_%s(%s) {%s" !declaration class_name msg_name !void !eol;
 
   (* --> function initialization *)
-  fprintf out "  uint8_t trans_len = sizeof(struct uart_transaction);%s" !eol;
+  fprintf out "  uint8_t trans_len = UBX_DEV_TRANSACTION_LEN();%s" !eol;
   fprintf out "  uint8_t hd_len = 6; /* sizeof(struct Ubx_Header); */%s" !eol;
   fprintf out "  uint8_t tl_len = 2;%s" !eol;
   fprintf out "  uint8_t dev_slot;%s" !eol;
@@ -166,8 +166,8 @@ let send_function = fun f_type class_name m ->
   fprintf out "      uint8_t *buff = dynamic_buffer_get_slot_pointer(&dynamic_buff, buff_slot);%s" !eol;
 
   (*  --> Set transaction *)
-  fprintf out "      /* 4.- set UART transaction struct */%s" !eol;
-  fprintf out "      ubx_transaction_pack(buff, (buff + trans_len), %s, &ubx_callback);%s" msg_len !eol;
+  fprintf out "      /* 4.- set transaction */%s" !eol;
+  fprintf out "      UBX_DEV_TRANSACTION_PACK(buff, (buff + trans_len), %s, &ubx_callback);%s" msg_len !eol;
 
   (*  --> Call ubx_header *)
   fprintf out "      /* 5.- set transport and message HEADERS (all in one) */%s" !eol;
@@ -199,7 +199,7 @@ let send_function = fun f_type class_name m ->
   fprintf out "    }%s" !eol;
   fprintf out "    else {%s" !eol;
   fprintf out "      /* 9.- release device's slot */%s" !eol;
-  fprintf out "      UBX_DEV_FREE_SLOT(dev_slot);%s" !eol;
+  fprintf out "      UBX_DEV_FREE_SPACE(dev_slot);%s" !eol;
   fprintf out "    }%s" !eol;
   fprintf out "  }%s" !eol;
   fprintf out "}\n"
@@ -214,35 +214,29 @@ let parse_class = fun c ->
   List.iter (send_function "FUNCTION" class_name) (Xml.children c)
 
 let auxiliar_macros_device = fun h ->
-(*    let device = sprintf "device.h"  in
-    let chck_fs = sprintf "DEV_GPS##->checkFreeSpace(_x)"  in
-    let send_msg = sprintf "DEV_GPS##->sendMessage(_x, _y, _z)"  in
-    let free_slot = sprintf "DEV_GPS##->transaction_free(_x)" in*)
+(*    let chck_fs = sprintf "GpsLink(check_free_space(_x))"  in
+    let free_space = sprintf "GpsLink(free_space(_x))" in
+    let trans_len = sprintf "GpsLink(transaction_len())" in
+    let trans_pack = sprintf "GpsLink(transaction_pack(_x, _y, _w, _z))" in
+    let send_msg = sprintf "GpsLink(sendMessage(_x, _y, _z))"  in*)
 
-    let device = sprintf "uart.h"  in
     let chck_fs = sprintf "GpsLink(CheckFreeSpace(_x))"  in
+    let free_space = sprintf "GpsLink(FreeSpace(_x))" in
+    let trans_len = sprintf "GpsLink(TransactionLen())" in
+    let trans_pack = sprintf "GpsLink(TransactionPack(_x, _y, _w, _z))" in
     let send_msg = sprintf "GpsLink(SendMessage(_x, _y, _z))"  in
-    let free_slot = sprintf "GpsLink(FreeSpace(_x))" in
-    let print_auxiliar_macros_device = fun device chck_fs send_msg free_slot ->
-      fprintf h "#include \"mcu_periph/%s\"\n" device;
+    let print_auxiliar_macros_device = fun chck_fs send_msg free_space trans_pack ->
+      fprintf h "#include \"mcu_periph/uart.h\"\n";
       fprintf h "\n";
-      if (device <> "device.h") then
-        fprintf h "#define __GpsLink(dev, _x)  dev##_x\n#define _GpsLink(dev, _x)   __GpsLink(dev, _x)\n#define GpsLink(_x)         _GpsLink(GPS_LINK, _x)\n"
-      else
-        fprintf h "#define dev_gps(_x) dev_##_x\n#define DEV_GPS     dev_gps(GPS_LINK)\n";
+      fprintf h "#define __GpsLink(dev, _x)  dev##_x\n#define _GpsLink(dev, _x)   __GpsLink(dev, _x)\n#define GpsLink(_x)         _GpsLink(GPS_LINK, _x)\n";
+(*      fprintf h "#define __GpsLink(dev, _x)  dl_##dev##->##_x\n#define _GpsLink(dev, _x)   __GpsLink(dev, _x)\n#define GpsLink(_x)         _GpsLink(GPS_LINK, _x)\n";*)
       fprintf h "\n";
-      fprintf h "#define UBX_DEV_CHECK_FREE_SPACE( _x)      %s\n" chck_fs;
-      fprintf h "#define UBX_DEV_SEND_MESSAGE(_x, _y, _z)   %s\n" send_msg;
-      fprintf h "#define UBX_DEV_FREE_SLOT(_x)              %s\n" free_slot in
-    print_auxiliar_macros_device device chck_fs send_msg free_slot;
-    fprintf out "static inline void ubx_transaction_pack(void *trans, void* data, uint8_t length, void (*callback)(void* trans)) {
-// Due to align problems in dynamic_buffer.c, transaction has to be filled in a local varialble (aligned)
-// and then moved to its destiny in buffer (unaligned).
-// If you're sure that 'trans' is correctly aligned just execute
-//    GpsLink(TransactionPack(trans, data, length, callback));
-    struct uart_transaction tr;
-    GpsLink(TransactionPack(&tr, data, length, callback));
-    memcpy(trans, &tr, sizeof(struct uart_transaction));\n}\n"
+      fprintf h "#define UBX_DEV_CHECK_FREE_SPACE( _x)                %s\n" chck_fs;
+      fprintf h "#define UBX_DEV_FREE_SPACE(_x)                       %s\n" free_space;
+      fprintf h "#define UBX_DEV_TRANSACTION_LEN()                    %s\n" trans_len;
+      fprintf h "#define UBX_DEV_TRANSACTION_PACK(_x, _y, _w, _z)     %s\n" trans_pack;
+      fprintf h "#define UBX_DEV_SEND_MESSAGE(_x, _y, _z)             %s\n" send_msg in
+    print_auxiliar_macros_device chck_fs send_msg free_space trans_pack
 
 let _ =
   if Array.length Sys.argv <> 2 then begin
@@ -263,11 +257,6 @@ let _ =
 
     Printf.fprintf out "//#define _UBX_SEND_DEBUG_\n\n";
     Printf.fprintf out "#ifdef _UBX_SEND_DEBUG_\n#include <stdio.h> \n#define _UBX_SEND_TRACE_(...) fprintf (stderr, __VA_ARGS__); fflush(stdout);\n#else\n#define _UBX_SEND_TRACE_(...)\n#endif\n\n";
-
-(*    define "UBX_SYNC1" "0xB5";
-    define "UBX_SYNC2" "0x62";
-
-    Printf.fprintf out "typedef struct {\n  const uint8_t sync1;\n  const uint8_t sinc2;\n  uint8_t nav_id;\n  uint8_t msg_id;\n  uint16_t length;\n}UbxMsgHeader;\n\nstatic UbxMsgHeader msg_hd = { .sync1 = UBX_SYNC1, .sync2 = UBX_SYNC2 };\n\n\n";*)
 
     (** Generating auxiliar macros ------------------------------------------------------------------- *)
     fprintf out "\n\n// Auxiliar macros and functions ----------------------------------------------------------------------\n";

@@ -29,6 +29,21 @@
 #define XBEE_RX_ID 0x90
 #define XBEE_RFDATA_OFFSET 12
 
+#define XBEE868_API_LEN 14
+struct xbee_api {
+  uint8_t api[XBEE868_API_LEN];
+};
+
+#define INITIALIZED_XBEE_API { .api[0..(XBEE868_API_LEN-1)] = 0x00, \
+  .api[0]  = XBEE_TX_ID, \
+  .api[1]  = NO_FRAME_ID, \
+  .api[8]  = GROUND_STATION_ADDR >> 8, \
+  .api[9]  = GROUND_STATION_ADDR & 0xff, \
+  .api[10] = 0xff, \
+  .api[11] = 0xfe, \
+  .api[13] = TX_OPTIONS \
+}
+
 #define XBeeTransportPutTXHeader(_dev)  { \
   XBeeTransportPutUint8(_dev, XBEE_TX_ID); \
   XBeeTransportPutUint8(_dev, NO_FRAME_ID); \

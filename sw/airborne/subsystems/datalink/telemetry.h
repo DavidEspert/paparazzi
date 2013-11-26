@@ -51,6 +51,8 @@
 #include "std.h"
 #include "messages.h"
 #include "mcu_periph/uart.h"
+// #include "mcu_periph/device_uart.h"
+// #include "mcu_periph/device_simUart.h"
 #include "subsystems/datalink/downlink.h"
 #include "generated/periodic_telemetry.h"
 

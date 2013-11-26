@@ -438,7 +438,7 @@ let () =
     end else
     Printf.fprintf h "#include \"dl_protocol_data.h\"\n";
     Printf.fprintf h "#include \"subsystems/datalink/transport2.h\"\n";
-    Printf.fprintf h "#include \"mcu_periph/device.h\"\n\n\n";
+    Printf.fprintf h "#include \"subsystems/datalink/device.h\"\n\n\n";
 
     if (function_type <> "FUNCTIONS") then
       Printf.fprintf h "#define __msg_join(_y, _x) _y##_x\n#define _msg_join(_y, _x) __msg_join(_y, _x)\n#define msg_join(_chan, _fun) _msg_join(_chan, _fun)\n\n\n";
