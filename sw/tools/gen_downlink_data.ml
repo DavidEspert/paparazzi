@@ -176,21 +176,14 @@ module Gen_onboard = struct
     else
       fprintf h "  %s : \t%s\n" (size_of_message_full (message)) message.name
 
-  let rec print_memcpy_var = fun h name fields ->
-    match fields with
-      (Basic t, _, _)::fields -> print_memcpy_var h name fields
-      | (Array (t,varname), s, _)::fields ->
-	fprintf h "  memcpy((buff+DOWNLINK_DATA_%s_LENGTH_CNST), _%s, (%s));\n" name s ("_"^Syntax.sizeof (Array(t, varname)))
-      | [] -> ()
-
   let print_field2 = fun h (t, name, (_f: format option)) ->
     match t with
         Basic _ ->
-          fprintf h "  %s   \t%s;\n" (c_type (Syntax.nameof t)) name
+          fprintf h "  %-8s   %s;\n" (c_type (Syntax.nameof t)) name
       | Array (t, varname) ->
         let _s = Syntax.sizeof (Basic t) in
-        fprintf h "  uint8_t   \t%s;\n" (Syntax.length_name varname);
-        fprintf h "/*%s[] \t%s;*/\n" (c_type (Syntax.nameof (Basic t))) name
+        fprintf h "  uint8_t    %s;\n" (Syntax.length_name varname);
+        fprintf h "  %-8s   *%s;\n" (c_type (Syntax.nameof (Basic t))) name
 
 (*  let print_field = fun h (t, name, (_f: format option)) ->
     match t with
@@ -236,9 +229,9 @@ module Gen_onboard = struct
   (* Prints parameters in function body *)
   let print_parameter_function_body h = function
   (Array (t, varname), s, _) ->
-  	fprintf h "  packet.%s = _%s;\n" (Syntax.length_name s) (Syntax.length_name s);
-  	fprintf h "/*  packet.%s = _%s;*/\n" s s
-    | (t, s, _) -> fprintf h "  packet.%s = *_%s;\n" s s
+  	fprintf h "  packet.%-20s = _%s;\n" (Syntax.length_name s) (Syntax.length_name s);
+  	fprintf h "/*  packet.%-20s = _%s;*/\n" s s
+    | (t, s, _) -> fprintf h "  packet.%-20s = *_%s;\n" s s
 
   let rec fields_count = fun fields size ->
     match fields with
@@ -261,50 +254,83 @@ module Gen_onboard = struct
     List.iter (print_field2 h) fields;
     fprintf h "};\n\n"
 
-  (** Prints data_pack function *)
+(** Prints the data_pack function ****************************************************************)
+  let rec print_pack_body_var = fun h name fields ->
+    match fields with
+      (Basic t, _, _)::fields -> print_pack_body_var h name fields
+      | (Array (t,varname), s, _)::fields ->
+        fprintf h "  memcpy((buff + DOWNLINK_DATA_%s_LENGTH_CNST), _%s, DOWNLINK_DATA_%s_LENGTH_VAR);\n" name s name
+      | [] -> ()
+
   let print_data_pack_function = fun h {name=s; fields = fields} ->
     if List.length fields > 0 then begin
       fprintf h "static inline void downlink_data_%s_pack(uint8_t *buff, " s;
       print_parameters_function_header h fields;
-      fprintf h "){\n";
-
+      fprintf h ") {\n\n";
 (** DEBUG init
       fprintf h "\tuint8_t msg_len = %s;\n" (size_of_message_full2 fields);
       fprintf h "\_DOWNLINK_DATA_TRACE_(\"\\tdownlink_data_%s_pack (id %%d): data_len = %%u\\n\", DL_%s_ID, msg_len);\n\n" s s;
     DEBUG end *)
-
       fprintf h "  struct downlink_data_%s     packet;\n\n" s;
       List.iter (print_parameter_function_body h) fields;
       fprintf h "\n";
       fprintf h "  memcpy(buff, &packet, DOWNLINK_DATA_%s_LENGTH_CNST);\n" s;
-      print_memcpy_var h s fields;
+      print_pack_body_var h s fields;
       fprintf h "}\n\n"
     end else
-      fprintf h "/*static inline void downlink_data_%s_pack(const uint8_t *buff){}*/\n\n" s
+      fprintf h "/*static inline void downlink_data_%s_pack(uint8_t *buff) {}*/\n\n" s
 
-  (** Prints data_encode function PACKET DOESN'T INCLUDE VARIABLE LENGTH PARAMETERS
+(** Prints the data_encode function **************************************************************)
+  let rec print_encode_body_var  = fun h name fields ->
+    match fields with
+      (Basic t, _, _)::fields -> print_encode_body_var  h name fields
+      | (Array (t,varname), s, _)::fields ->
+        fprintf h "  memcpy((buff + DOWNLINK_DATA_%s_LENGTH_CNST), packet->%s, ((packet->%s)*%s));\n" name s (Syntax.length_name s) (Syntax.sizeof (Basic t))
+      | [] -> ()
+
   let print_data_encode_function = fun h {name=s; fields = fields} ->
-      fprintf h "static inline void downlink_data_%s_encode(const uint8_t *buff, struct downlink_data_%s *packet, uint8_t packet_len){ \n" s s;
-      fprintf h "\n\tmemcpy(buff, packet, packet_len);\n}\n\n"*)
-
-  (** Prints data_pack struct-pack-encode *)
-  let print_data_pack = fun h message ->
-    fprintf h "// %s ----------------------------------\n" message.name;
-    print_data_struct h message;
-    print_data_pack_function h message
-    (*print_data_encode_function h message*)
-
-(*  let print_null_downlink_macro = fun h {name=s; fields = fields} ->
     if List.length fields > 0 then begin
-      fprintf h "void DOWNLINK_SEND_%s(struct DownlinkTransport *tp, " s;
+      fprintf h "static inline void downlink_data_%s_encode(uint8_t *buff, struct downlink_data_%s *packet) {\n\n" s s;
+      fprintf h "  memcpy(buff, packet, DOWNLINK_DATA_%s_LENGTH_CNST);\n" s;
+      print_encode_body_var h s fields;
+      fprintf h "}\n\n"
     end else
-      fprintf h "void DOWNLINK_SEND_%s(struct DownlinkTransport *tp" s;
-    print_parameters_function_header h fields;
-    fprintf h ") {}\n"
+      fprintf h "/*static inline void downlink_data_%s_encode(uint8_t *buff, struct downlink_data_%s *packet) {}*/\n\n" s s
 
-  (** Prints the macros required to send a message *)
-  let print_null_downlink_macros = fun h messages ->
-    List.iter (print_null_downlink_macro h) messages*)
+(** Prints the function to deserialize a message *************************************************)
+  let print_parameter_decode_header  = fun h msg_name field ->
+    match field with
+      (Array (t, varname), s, _) ->
+        fprintf h ", %s *_%s" (c_type (Syntax.nameof (Basic t))) s
+      | (t, s, _) -> fprintf h ""
+
+  let print_parameter_decode_body2  = fun h msg_name field ->
+    match field with
+      (Array (t, varname), s, _) ->
+        fprintf h "  uint8_t _%-20s = DL_%s_%s_length(buff);\n" (Syntax.length_name s) msg_name s;
+        fprintf h "  void *%-20s    = DL_%s_%s(buff);\n" (s^"_p") msg_name s
+(*        fprintf h "  %s *%s = DL_%s_%s(buff);\n" (c_type (Syntax.nameof (Basic t))) s msg_name s*)
+      | (t, s, _) -> fprintf h ""
+
+  let print_parameter_decode_body  = fun h msg_name field ->
+    match field with
+      (Array (t, varname), s, _) ->
+        fprintf h "  packet->%-20s = _%s;\n" (Syntax.length_name s) (Syntax.length_name s);
+        fprintf h "  packet->%-20s = _%s;\n" s s;
+        fprintf h "  memcpy(_%s, %s, DOWNLINK_DATA_%s_LENGTH_VAR);\n" s (s^"_p") msg_name
+      | (t, s, _) -> fprintf h "  packet->%-20s = DL_%s_%s(buff);\n" s msg_name s
+
+  let print_data_decode_function = fun h {name=s; fields = fields} ->
+    if List.length fields > 0 then begin
+      fprintf h "static inline void downlink_data_%s_decode(uint8_t *buff, struct downlink_data_%s *packet" s s;
+      List.iter (print_parameter_decode_header h s) fields;
+      fprintf h ") {\n";
+      List.iter (print_parameter_decode_body2 h s) fields;
+      fprintf h "\n";
+      List.iter (print_parameter_decode_body h s) fields;
+      fprintf h "}\n\n"
+    end else
+      fprintf h "/*static inline void downlink_data_%s_decode(uint8_t *buff, struct downlink_data_%s *packet) {}*/\n\n" s s
 
   (** Prints the messages ids *)
   let print_enum = fun h class_ messages ->
@@ -316,7 +342,8 @@ module Gen_onboard = struct
     ) messages;
     fprintf h "#define DL_MSG_%s_NB %d\n\n" class_ (List.length messages)
 
-  (** Prints the macro to get access to the fields of a received message *)
+
+(** Prints the macro to get access to the fields of a received message ***************************)
   let print_get_macros = fun h check_alignment message ->
     let msg_name = message.name in
     let offset = ref Pprz.offset_fields in
@@ -364,13 +391,24 @@ module Gen_onboard = struct
           if check_alignment && !offset mod (min pprz_type.Pprz.size 4) <> 0 then
             failwith (sprintf "Wrong alignment of field '%s' in message '%s" field_name msg_name);
 
-          fprintf h "#define DL_%s_%s(_payload) ((%s*)(_payload+%d))\n" msg_name field_name pprz_type.Pprz.inttype !offset;
+          fprintf h "#define DL_%s_%s(_payload) ((void*)(_payload+%d))\n" msg_name field_name !offset;
+(*          fprintf h "#define DL_%s_%s(_payload) (( %s* )(_payload+%d))\n" msg_name field_name pprz_type.Pprz.inttype !offset;*)
           offset := -1 (** Mark for no more fields *)
     in
 
-    fprintf h "\n";
     (** Do it for all the fields of the message *)
-    List.iter parse_field message.fields
+    List.iter parse_field message.fields;
+    fprintf h "\n"
+
+  let print_message_functions = fun h check_alignment message ->
+    fprintf h "\n\n// %s ----------------------------------------------------------\n" message.name;
+    print_data_struct h message;
+    fprintf h "// --- serialize data ---\n";
+    print_data_pack_function h message;
+    print_data_encode_function h message;
+    fprintf h "// --- deserialize data ---\n";
+    print_get_macros h check_alignment message;
+    print_data_decode_function h message
 
 end (* module Gen_onboard *)
 
@@ -397,30 +435,17 @@ let () =
     Printf.fprintf h "#include <stdint.h>\n";
     Printf.fprintf h "#include <string.h> //required for memcpy\n\n\n";
 
-(**    Printf.fprintf h "//#define _DOWNLINK_DATA_DEBUG_\n\n";
-    Printf.fprintf h "#ifdef _DOWNLINK_DATA_DEBUG_\n#include <stdio.h> //for printf. Remove after debugging!\n#define _DOWNLINK_DATA_TRACE_(...) fprintf (stderr, __VA_ARGS__); fflush(stdout);\n#else\n#define _DOWNLINK_DATA_TRACE_(...)\n#endif\n";*)
+    Printf.fprintf h "#ifdef __IEEE_BIG_ENDIAN /* From machine/ieeefp.h */\n#define Swap32IfBigEndian(_u) { _u = (_u << 32) | (_u >> 32); }\n#else\n#define Swap32IfBigEndian(_) {}\n#endif\n\n";
 
     (** Data structs declaration *)
     (*Printf.fprintf h "#ifdef DOWNLINK\n";*)
-    (*Gen_onboard.print_enum h class_name messages;*)
-    (*Gen_onboard.print_lengths_array h class_name messages;*)
     Gen_onboard.print_lengths_ordered h messages;
-    List.iter (Gen_onboard.print_data_pack h) messages;
+(*    List.iter (Gen_onboard.print_data_pack_function h) messages;*)
 
-    (** Macros for airborne downlink (sending) *)
-(**    if class_name = "telemetry" then begin*) (** FIXME *)
-(**      Printf.fprintf h "#ifdef DOWNLINK\n"
-    end;
-    Gen_onboard.print_downlink_macros h class_name messages;
-    if class_name = "telemetry" then begin
-      Printf.fprintf h "#else // DOWNLINK\n";
-      Gen_onboard.print_null_downlink_macros h messages;
-      Printf.fprintf h "#endif // DOWNLINK\n"
-    end;*)
-
-    (** Macros for airborne datalink (receiving) 
+    (** Macros for airborne datalink (receiving) *)
     let check_alignment = class_name <> "telemetry" in
-    List.iter (Gen_onboard.print_get_macros h check_alignment) messages;*)
+(*    List.iter (Gen_onboard.print_get_macros h check_alignment) messages;*)
+    List.iter (Gen_onboard.print_message_functions h check_alignment) messages;
 
     Printf.fprintf h "#endif // _DOWNLINK_DATA_%s_H_\n" class_name
 

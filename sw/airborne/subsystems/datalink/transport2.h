@@ -50,16 +50,18 @@ struct transport_data {
   // payload buffer
   uint8_t payload[TRANSPORT_PAYLOAD_LEN];
   // payload length
-  volatile uint8_t payload_len;
+  volatile uint16_t payload_len;
   // message received flag
   volatile bool_t msg_received;
   // overrun and error flags
   uint8_t ovrn, error;
+//   void (*callback)(const uint8_t*payload, const uint16_t payload_len);
 };
 
 /** Generic Transport API */
 struct transport_api
 {
+//   void    (*init)(void (*callback)(const uint8_t*, cosnt uint16_t));
   void    (*init)(void);
   // TX functions
   uint8_t header_len;
@@ -68,6 +70,7 @@ struct transport_api
   void    (*tail)(uint8_t *buff, uint16_t msg_data_length);
   // RX functions
   void    (*parse)(void* tp_struct, uint8_t *c, uint16_t length);
+//   check_and_parse
 };
 
 /** Generic Transport interface */

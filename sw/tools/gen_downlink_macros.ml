@@ -452,8 +452,8 @@ let () =
     end;
 
     (** Macros for airborne datalink (receiving) *)
-    let check_alignment = class_name <> "telemetry" in
-    List.iter (Gen_onboard.print_get_macros h check_alignment) messages;
+(*    let check_alignment = class_name <> "telemetry" in
+    List.iter (Gen_onboard.print_get_macros h check_alignment) messages;*)
 
     Printf.fprintf h "#endif // _VAR_DOWNLINK_%s_%s_H_\n" function_type class_name
 
