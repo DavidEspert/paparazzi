@@ -308,7 +308,7 @@ module Gen_onboard = struct
     match field with
       (Array (t, varname), s, _) ->
         fprintf h "  uint8_t _%-20s = DL_%s_%s_length(buff);\n" (Syntax.length_name s) msg_name s;
-        fprintf h "  void *%-20s    = DL_%s_%s(buff);\n" (s^"_p") msg_name s
+        fprintf h "  void*    %-20s = DL_%s_%s(buff);\n" (s^"_p") msg_name s
 (*        fprintf h "  %s *%s = DL_%s_%s(buff);\n" (c_type (Syntax.nameof (Basic t))) s msg_name s*)
       | (t, s, _) -> fprintf h ""
 

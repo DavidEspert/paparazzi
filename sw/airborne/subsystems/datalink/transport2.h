@@ -41,8 +41,14 @@
 // #include <inttypes.h>
 // #include "std.h"
 // #include <stdint.h>
+#include "device.h"
+
 #ifndef TRANSPORT_PAYLOAD_LEN
 #define TRANSPORT_PAYLOAD_LEN 256
+#endif
+
+#ifndef TRANSPORT_NUM_CALLBACKS
+#define TRANSPORT_NUM_CALLBACKS 1
 #endif
 
 /** Generic Rx data struct */
@@ -52,25 +58,29 @@ struct transport_data {
   // payload length
   volatile uint16_t payload_len;
   // message received flag
-  volatile bool_t msg_received;
+//   volatile bool_t msg_received;
   // overrun and error flags
-  uint8_t ovrn, error;
-//   void (*callback)(const uint8_t*payload, const uint16_t payload_len);
+//   uint8_t ovrn, error;
+  uint8_t error;
+  //callback functions 
+  void (*callback[TRANSPORT_NUM_CALLBACKS])(const uint8_t*payload, const uint16_t payload_len);
+  // associated device
+  struct device* rx_dev;
 };
 
 /** Generic Transport API */
 struct transport_api
 {
-//   void    (*init)(void (*callback)(const uint8_t*, cosnt uint16_t));
-  void    (*init)(void);
+  void            (*init)(void* tp_struct, struct device* rx_dev);
+  struct device*  (*rx_device)(void* tp_struct);
   // TX functions
-  uint8_t header_len;
-  void    (*header)(uint8_t *buff, uint16_t msg_data_length);
-  uint8_t tail_len;
-  void    (*tail)(uint8_t *buff, uint16_t msg_data_length);
+  uint8_t         header_len;
+  void            (*header)(uint8_t *buff, uint16_t msg_data_length);
+  uint8_t         tail_len;
+  void            (*tail)(uint8_t *buff, uint16_t msg_data_length);
   // RX functions
-  void    (*parse)(void* tp_struct, uint8_t *c, uint16_t length);
-//   check_and_parse
+  bool_t          (*register_callback)(void* tp_struct, void (*callback)(const uint8_t*, const uint16_t) );
+  void            (*parse)(void* tp_struct, uint8_t *c, uint16_t length);
 };
 
 /** Generic Transport interface */

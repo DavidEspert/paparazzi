@@ -24,6 +24,6 @@ fbw.srcs += $(telemetry_srcs)
 # ap.srcs += $(SRC_FIRMWARE)/datalink.c
 
 # GJN Addition during development...
-ap.srcs += subsystems/datalink/device_uart.c
+ap.srcs += subsystems/datalink/device_uart.c subsystems/datalink/datalink.c
 ap.srcs += mcu_periph/transmit_queue.c mcu_periph/dynamic_buffer.c subsystems/datalink/transport_pprz.c
 #... end of GJN Addition

@@ -23,6 +23,7 @@ struct device_api{
   void     (*transaction_pack)(void * trans, void * data, uint16_t length, void (*callback)(void* trans));
   void     (*transaction_summit)(void* periph, uint8_t idx, void* trans, uint8_t priority);
 //Rx
+//   bool_t   (*add_rx_transport)(void* periph, struct transport2* rx_tp);
   bool_t   (*char_available)(void* periph);
   uint8_t  (*getch)(void* periph);
 };

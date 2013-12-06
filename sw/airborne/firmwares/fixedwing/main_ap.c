@@ -242,12 +242,23 @@ void init_ap( void ) {
   mcu_int_enable();
 
 #if defined DATALINK
-#if DATALINK == XBEE
-  xbee_init();
-#endif
-#if DATALINK == W5100
-  w5100_init();
-#endif
+#define __datalink_join(_y, _x) _y##_x
+#define _datalink_join(_y, _x) __datalink_join(_y, _x)
+#define datalink_join(_chan, _fun) _datalink_join(_chan, _fun)
+
+#if DATALINK == PPRZ
+#define UplinkDevice datalink_join(&dev_, PPRZ_UART)
+#define UplinkTransport PprzTransport
+#elif DATALINK == XBEE
+#define UplinkDevice datalink_join(&dev_, XBEE_UART)
+#define UplinkTransport XBeeTransport
+//   xbee_init();
+// #elif DATALINK == W5100
+//   w5100_init();
+#endif /* DATALINK == */
+
+  UplinkTransport.api.init(UplinkTransport.tp_data, UplinkDevice);
+  datalink_register(&UplinkTransport, &datalink_xbee_callback);
 #endif /* DATALINK */
 
 #if defined AEROCOMM_DATA_PIN

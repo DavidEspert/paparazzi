@@ -36,6 +36,7 @@
 
 #define UART_RX_BUFFER_SIZE             128
 #define UART_DEV_NAME_SIZE              16
+#define UART_NUM_TRANSPORTS             2
 
 /*
  * UART Baud rate defines in arch/x/mcu_periph/uart_arch.h
@@ -67,6 +68,7 @@ struct uart_periph {
   uint8_t rx_buf[UART_RX_BUFFER_SIZE];
   uint16_t rx_insert_idx;
   uint16_t rx_extract_idx;
+  //   struct transport2* rx_tp[UART_NUM_TRANSPORTS];
   /** Transmit buffer */
   struct transmit_queue tx_queue;
   void* trans_p;                 // this should be 'struct uart_transaction*' but we have align problems with the dynamic_buffer.c
@@ -108,7 +110,16 @@ static inline void uart_transaction_pack(struct uart_transaction* trans, void* d
 }
 extern void uart_sendMessage(struct uart_periph *uart, uint8_t idx, void* trans, uint8_t priority);
 
-  //Rx get char
+  //Rx functions
+// static inline bool_t uart_add_rx_transport(struct uart_periph* p, struct transport2* rx_tp) {
+//   for (uint8_t tp_idx = 0; tp_idx < UART_NUM_TRANSPORTS; tp_idx++) {
+//     if(p->rx_tp[tp_idx] == rx_tp || p->rx_tp[tp_idx] == NULL) {
+//       p->rx_tp[tp_idx] = rx_tp;
+//       return TRUE;
+//     }
+//   }
+//   return FALSE;
+// }
 static inline uint8_t uart_getch(struct uart_periph* p) {
   uint8_t ret = p->rx_buf[p->rx_extract_idx];
   p->rx_extract_idx = (p->rx_extract_idx + 1) % UART_RX_BUFFER_SIZE;

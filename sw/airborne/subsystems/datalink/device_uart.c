@@ -7,6 +7,7 @@ void     dev_uart_free_space(void* periph, uint8_t slot_idx);
 // uint8_t  dev_uart_transaction_length(void);
 void     dev_uart_transaction_pack(void *trans, void* data, uint16_t length, void (*callback)(void*));
 void     dev_uart_sendMessage(void* periph, uint8_t idx, void* trans, uint8_t priority);
+// bool_t   dev_uart_add_rx_transport(void* periph, struct transport2* rx_tp);
 uint8_t  dev_uart_getch(void* periph);
 bool_t   dev_uart_char_available(void* periph);
 
@@ -22,7 +23,8 @@ void     dev_uart_transaction_pack(void *trans, void* data, uint16_t length, voi
   uart_transaction_pack(&tr, data, length, callback);
   memcpy(trans, &tr, sizeof(struct uart_transaction));
 }
-void     dev_uart_sendMessage(void* periph, uint8_t idx, void* trans, uint8_t priority) { uart_sendMessage((struct uart_periph *)periph, idx, trans, priority); }
+void     dev_uart_sendMessage(void* periph, uint8_t idx, void* trans, uint8_t priority) { uart_sendMessage((struct uart_periph*) periph, idx, trans, priority); }
+// bool_t   dev_uart_add_rx_transport(void* periph, struct transport2* rx_tp)              { return uart_add_rx_transport((struct uart_periph*) periph, rx_tp); }
 uint8_t  dev_uart_getch(void* periph)                                                   { return uart_getch((struct uart_periph*) periph); }
 bool_t   dev_uart_char_available(void* periph)                                          { return uart_char_available((struct uart_periph*) periph); }
 
@@ -33,6 +35,7 @@ bool_t   dev_uart_char_available(void* periph)                                  
 /*  .transaction_len    =    &dev_uart_transaction_length,*/ \
   .transaction_pack   =    &dev_uart_transaction_pack, \
   .transaction_summit =    &dev_uart_sendMessage, \
+/*  .add_rx_transport   =    &dev_uart_add_rx_transport,*/ \
   .getch              =    &dev_uart_getch, \
   .char_available     =    &dev_uart_char_available \
 }

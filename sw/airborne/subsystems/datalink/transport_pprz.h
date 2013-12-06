@@ -60,18 +60,25 @@ struct pprz_transport_rx {
 
 extern struct pprz_transport_rx pprz_tp_rx;
 
-static inline void PprzTransport_parse_payload(void) {
-/*  uint8_t i;
-  for(i = 0; i < pprz_tp_rx.trans.payload_len; i++)
-    dl_buffer[i] = pprz_tp_rx.trans.payload[i];
-  dl_msg_available = TRUE;*/
-}
+// static inline void PprzTransport_parse_payload(void) {
+//   uint8_t i;
+//   for(i = 0; i < pprz_tp_rx.trans.payload_len; i++)
+//     dl_buffer[i] = pprz_tp_rx.trans.payload[i];
+//   dl_msg_available = TRUE;
+// }
 
 
 // - PAPARAZZI TRANSPORT INTERFACE ----------------------------------------------------
 
-static inline void PprzTransport_init(void){
-  pprz_tp_rx.status = UNINIT;
+static inline void PprzTransport_init(struct pprz_transport_rx* t, struct device* rx_dev) {
+  for (uint8_t i = 0; i < TRANSPORT_NUM_CALLBACKS; i++)
+    t->trans.callback[i] = NULL;
+  t->trans.rx_dev = rx_dev;
+  t->status = UNINIT;
+}
+
+static inline struct device* PprzTransport_rx_device(struct pprz_transport_rx* t) {
+  return (t->trans.rx_dev);
 }
 
 static inline uint8_t PprzTransport_header_len(void){
@@ -113,6 +120,16 @@ static inline void PprzTransport_tail(uint8_t *buff, uint16_t msg_data_length){
   buff[i]   = tl.ck_b; //((struct pprz_tail *)(buff + sizeof(struct pprz_header) + msg_data_length))->ck_b = tl.ck_b;
 }
 
+static inline bool_t PprzTransport_register_callback(struct pprz_transport_rx* t, void (*callback)(const uint8_t*, const uint16_t) ) {
+  for (uint8_t i = 0; i < TRANSPORT_NUM_CALLBACKS; i++) {
+    if(t->trans.callback[i] == callback || t->trans.callback[i] == NULL) {
+      t->trans.callback[i] = callback;
+      return TRUE;
+    }
+  }
+  return FALSE;
+}
+
 static inline void PprzTransport_parse(struct pprz_transport_rx* t, uint8_t c) {
   switch (t->status) {
   case UNINIT:
@@ -120,10 +137,10 @@ static inline void PprzTransport_parse(struct pprz_transport_rx* t, uint8_t c) {
       t->status++;
     break;
   case GOT_STX:
-    if (t->trans.msg_received) {
-      t->trans.ovrn++;
-      goto error;
-    }
+//     if (t->trans.msg_received) {
+//       t->trans.ovrn++;
+//       goto error;
+//     }
     t->trans.payload_len = c-4; // Counting STX, LENGTH and CRC1 and CRC2
     t->ck_a = t->ck_b = c;
     t->status++;
@@ -144,7 +161,9 @@ static inline void PprzTransport_parse(struct pprz_transport_rx* t, uint8_t c) {
   case GOT_CRC1:
     if (c != t->ck_b)
       goto error;
-    t->trans.msg_received = TRUE;
+    for(uint8_t i = 0; (i < TRANSPORT_NUM_CALLBACKS && t->trans.callback[i] != NULL); i++)
+      t->trans.callback[i](t->trans.payload, t->trans.payload_len);
+//     t->trans.msg_received = TRUE;
     goto restart;
   default:
     goto error;
@@ -157,9 +176,9 @@ static inline void PprzTransport_parse(struct pprz_transport_rx* t, uint8_t c) {
   return;
 }
 
-#define PprzBuffer(_dev) TransportLink(_dev,ChAvailable())
-#define ReadPprzBuffer(_dev,_trans) { while (TransportLink(_dev,ChAvailable())&&!(_trans.trans.msg_received)) parse_pprz(&(_trans),TransportLink(_dev,Getch())); }
-#define PprzCheckAndParse(_dev,_trans) {  \
+// #define PprzBuffer(_dev) TransportLink(_dev,ChAvailable())
+// #define ReadPprzBuffer(_dev,_trans) { while (TransportLink(_dev,ChAvailable())&&!(_trans.trans.msg_received)) parse_pprz(&(_trans),TransportLink(_dev,Getch())); }
+/*#define PprzCheckAndParse(_dev,_trans) {  \
   if (PprzBuffer(_dev)) {                 \
     ReadPprzBuffer(_dev,_trans);          \
     if (_trans.trans.msg_received) {      \
@@ -167,7 +186,7 @@ static inline void PprzTransport_parse(struct pprz_transport_rx* t, uint8_t c) {
       _trans.trans.msg_received = FALSE;  \
     }                                     \
   }                                       \
-}
+}*/
 
 extern struct transport2 PprzTransport;
 

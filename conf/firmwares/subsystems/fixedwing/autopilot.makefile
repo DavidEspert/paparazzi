@@ -193,7 +193,7 @@ sim.CFLAGS 		+= -DDOWNLINK -DDOWNLINK_TRANSPORT=PprzTransport -DDefaultPeriodic=
 sim.srcs 		+= subsystems/datalink/telemetry.c subsystems/datalink/downlink.c $(SRC_FIRMWARE)/datalink.c $(SRC_ARCH)/ivy_transport.c
 
 # GJN Addition during development...
-sim.srcs		+= mcu_periph/transmit_queue.c mcu_periph/dynamic_buffer.c subsystems/datalink/transport_pprz.c
+sim.srcs		+= mcu_periph/transmit_queue.c mcu_periph/dynamic_buffer.c subsystems/datalink/transport_pprz.c subsystems/datalink/datalink.c
 sim.CFLAGS 		+= -DUSE_SIM_UART
 sim.srcs		+= subsystems/datalink/device_simUart.c
 # ... end of GJN Addition
