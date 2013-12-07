@@ -1,10 +1,11 @@
 #include "transport_pprz.h"
-
-struct pprz_transport_rx pprz_tp_rx;
+#define INITIALIZED_PPRZ_DATA(_name) { .trans.name = _name };
+struct pprz_transport_rx pprz_tp_rx = INITIALIZED_PPRZ_DATA("PPRZ_1");
 
 //API functions declaration
 void pprz_init(void* t, struct device* rx_dev);
 struct device* pprz_rx_device(void* tp_data);
+char* pprz_name(void* tp_data);
 uint8_t pprz_header_len(void);
 void pprz_header(uint8_t *buff, uint16_t msg_data_length);
 uint8_t pprz_tail_len(void);
@@ -16,6 +17,7 @@ void pprz_parse(void* tp_data, uint8_t *c, uint16_t length);
 //API functions definition
 void pprz_init(void* t, struct device* rx_dev)                                  { PprzTransport_init((struct pprz_transport_rx*) t, rx_dev); }
 struct device* pprz_rx_device(void* tp_data)                                    { return PprzTransport_rx_device((struct pprz_transport_rx*) tp_data); }
+char* pprz_name(void* tp_data)                                                  { return PprzTransport_name((struct pprz_transport_rx*) tp_data); }
 uint8_t pprz_header_len(void)                                                   { return PprzTransport_header_len(); }
 void pprz_header(uint8_t *buff, uint16_t msg_data_length)                       { PprzTransport_header(buff, msg_data_length); }
 uint8_t pprz_tail_len(void)                                                     { return PprzTransport_tail_len(); }
@@ -31,6 +33,7 @@ void pprz_parse(void* tp_data, uint8_t *c, uint16_t length) {
 #define INITIALIZED_PPRZ_API { \
   .init =               &pprz_init, \
   .rx_device =          &pprz_rx_device, \
+  .name =               &pprz_name, \
   .header_len =         2, /*sizeof(struct pprz_header)*/ \
   .header =             &pprz_header, \
   .tail_len =           2, /*sizeof(struct pprz_tail)*/ \

@@ -1,10 +1,11 @@
 #include "transport_xbee.h"
 
-struct xbee_transport_rx xbee_tp_rx;
+struct xbee_transport_rx xbee_tp_rx = { .trans.name = "XBEE_1" };
 
 //API functions declaration
 void xbee_init(void* t, struct device* rx_dev);
 struct device* xbee_rx_device(void* tp_data);
+char* xbee_name(void* tp_data);
 uint8_t xbee_header_len(void);
 void xbee_header(uint8_t *buff, uint16_t msg_data_length);
 uint8_t xbee_tail_len(void);
@@ -16,6 +17,7 @@ void xbee_parse(void* tp_data, uint8_t *c, uint16_t length);
 //API functions definition
 void xbee_init(void* t, struct device* rx_dev)                                  { XBeeTransport_init((struct xbee_transport_rx*) t, rx_dev); }
 struct device* xbee_rx_device(void* tp_data)                                    { return XBeeTransport_rx_device((struct xbee_transport_rx*) tp_data); }
+char* xbee_name(void* tp_data)                                                  { return XBeeTransport_name((struct xbee_transport_rx*) tp_data); }
 uint8_t xbee_header_len(void)                                                   { return XBeeTransport_header_len(); }
 void xbee_header(uint8_t *buff, uint16_t msg_data_length)                       { XBeeTransport_header(buff, msg_data_length); }
 uint8_t xbee_tail_len(void)                                                     { return XBeeTransport_tail_len(); }
@@ -31,6 +33,7 @@ void xbee_parse(void* tp_data, uint8_t *c, uint16_t length) {
 #define INITIALIZED_XBEE_API { \
   .init =               &xbee_init, \
   .rx_device =          &xbee_rx_device, \
+  .name =               &xbee_name, \
   .header_len =         (3+XBEE_API_LEN), /*sizeof(struct xbee_header)*/ \
   .header =             &xbee_header, \
   .tail_len =           1, /*sizeof(struct xbee_tail)*/ \

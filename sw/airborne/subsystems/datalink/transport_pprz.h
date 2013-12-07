@@ -16,8 +16,8 @@
  *  (The second option provides a way to exchange this transport layer between aplications)
  *
  */
-#ifndef _DOWNLINK_TRANSPORT_PPRZ_H_
-#define _DOWNLINK_TRANSPORT_PPRZ_H_
+#ifndef _TRANSPORT_PPRZ_H_
+#define _TRANSPORT_PPRZ_H_
 
 #include "subsystems/datalink/datalink.h"
 #include "subsystems/datalink/transport2.h"
@@ -79,6 +79,10 @@ static inline void PprzTransport_init(struct pprz_transport_rx* t, struct device
 
 static inline struct device* PprzTransport_rx_device(struct pprz_transport_rx* t) {
   return (t->trans.rx_dev);
+}
+
+static inline char* PprzTransport_name(struct pprz_transport_rx* t) {
+  return (t->trans.name);
 }
 
 static inline uint8_t PprzTransport_header_len(void){
@@ -161,6 +165,7 @@ static inline void PprzTransport_parse(struct pprz_transport_rx* t, uint8_t c) {
   case GOT_CRC1:
     if (c != t->ck_b)
       goto error;
+    TRANSPORT_TRACE("\ttransport_pprz: PprzTransport_parse:  PPRZ MESSAGE FOUND BY %s\n", (t->trans.name));
     for(uint8_t i = 0; (i < TRANSPORT_NUM_CALLBACKS && t->trans.callback[i] != NULL); i++)
       t->trans.callback[i](t->trans.payload, t->trans.payload_len);
 //     t->trans.msg_received = TRUE;
@@ -190,4 +195,4 @@ static inline void PprzTransport_parse(struct pprz_transport_rx* t, uint8_t c) {
 
 extern struct transport2 PprzTransport;
 
-#endif//_DOWNLINK_TRANSPORT_PPRZ_H_
+#endif// _TRANSPORT_PPRZ_H_

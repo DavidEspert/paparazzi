@@ -1,7 +1,11 @@
 #include "device_uart.h"
 #include "mcu_periph/uart.h"
 
+// DEV_UART FUNCTIONS -----------------------------------------------------------
+#if defined (USE_UART0) || defined (USE_UART1) || defined (USE_UART2) || defined (USE_UART3) || defined (USE_UART4) || defined (USE_UART5) || defined (USE_UART6) || defined (USE_SIM_UART)
+
 //API functions declaration
+char*    dev_uart_name(void* periph);
 bool_t   dev_uart_check_free_space(void* periph, uint8_t *slot_idx);
 void     dev_uart_free_space(void* periph, uint8_t slot_idx);
 // uint8_t  dev_uart_transaction_length(void);
@@ -11,7 +15,10 @@ void     dev_uart_sendMessage(void* periph, uint8_t idx, void* trans, uint8_t pr
 uint8_t  dev_uart_getch(void* periph);
 bool_t   dev_uart_char_available(void* periph);
 
+
+
 //API functions definition
+char *   dev_uart_name(void* periph)                                                    { return uart_periph_name((struct uart_periph*) periph); }
 bool_t   dev_uart_check_free_space(void* periph, uint8_t *slot_idx)                     { return uart_check_free_space((struct uart_periph*) periph, slot_idx); }
 void     dev_uart_free_space(void* periph, uint8_t slot_idx)                            { uart_free_space((struct uart_periph*) periph, slot_idx); }
 // uint8_t  dev_uart_transaction_length(void)                                              { return uart_transaction_length(); }
@@ -28,7 +35,10 @@ void     dev_uart_sendMessage(void* periph, uint8_t idx, void* trans, uint8_t pr
 uint8_t  dev_uart_getch(void* periph)                                                   { return uart_getch((struct uart_periph*) periph); }
 bool_t   dev_uart_char_available(void* periph)                                          { return uart_char_available((struct uart_periph*) periph); }
 
+
+
 #define INITIALIZED_DEV_UART_API { \
+  .name               =    &dev_uart_name, \
   .check_free_space   =    &dev_uart_check_free_space, \
   .free_space         =    &dev_uart_free_space, \
   .transaction_len    =    24, \
@@ -40,7 +50,9 @@ bool_t   dev_uart_char_available(void* periph)                                  
   .char_available     =    &dev_uart_char_available \
 }
 
-// DEV_UART ------------------------------------------------------------------------
+#endif //defined (USE_UARTx) ||...
+
+// DEV_UART STRUCTS -----------------------------------------------------------
 #ifdef USE_UART0
 struct device dev_UART0 = {
   .periph =    &uart0,
@@ -88,6 +100,4 @@ struct device dev_UART6 = {
   .periph =    &uart6,
   .api    =    INITIALIZED_DEV_UART_API
 };
-
-
 #endif // USE_UART6

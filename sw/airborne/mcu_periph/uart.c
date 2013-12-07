@@ -27,8 +27,9 @@
 #endif
 
 
+
 #ifdef USE_UART0
-struct uart_periph uart0;
+struct uart_periph uart0 = INITIALIZED_UART_PERIPH("UART0");
 
 #if DOWNLINK
 static void send_uart0_err(void) {
@@ -44,7 +45,7 @@ static void send_uart0_err(void) {
 #endif
 
 #ifdef USE_UART1
-struct uart_periph uart1;
+struct uart_periph uart1 = INITIALIZED_UART_PERIPH("UART1");
 
 #if DOWNLINK
 static void send_uart1_err(void) {
@@ -60,7 +61,7 @@ static void send_uart1_err(void) {
 #endif
 
 #ifdef USE_UART2
-struct uart_periph uart2;
+struct uart_periph uart2 = INITIALIZED_UART_PERIPH("UART2");
 
 #if DOWNLINK
 static void send_uart2_err(void) {
@@ -76,7 +77,7 @@ static void send_uart2_err(void) {
 #endif
 
 #ifdef USE_UART3
-struct uart_periph uart3;
+struct uart_periph uart3 = INITIALIZED_UART_PERIPH("UART3");
 
 #if DOWNLINK
 static void send_uart3_err(void) {
@@ -92,7 +93,7 @@ static void send_uart3_err(void) {
 #endif
 
 #ifdef USE_UART4
-struct uart_periph uart4;
+struct uart_periph uart4 = INITIALIZED_UART_PERIPH("UART4");
 
 #if DOWNLINK
 static void send_uart4_err(void) {
@@ -108,7 +109,7 @@ static void send_uart4_err(void) {
 #endif
 
 #ifdef USE_UART5
-struct uart_periph uart5;
+struct uart_periph uart5 = INITIALIZED_UART_PERIPH("UART5");
 
 #if DOWNLINK
 static void send_uart5_err(void) {
@@ -124,7 +125,7 @@ static void send_uart5_err(void) {
 #endif
 
 #ifdef USE_UART6
-struct uart_periph uart6;
+struct uart_periph uart6 = INITIALIZED_UART_PERIPH("UART6");
 
 #if DOWNLINK
 static void send_uart6_err(void) {

@@ -20,15 +20,20 @@
  */
 
 #include "datalink.h"
+#include <string.h>     //required for memcpy
 
 struct RxDatalink datalink = INITIALIZED_DATALINK;
 
 
 void datalink_pprz_callback(const uint8_t*payload, const uint16_t payload_len) {
+
   if(payload_len > MSG_SIZE) return;
 
-  for(uint8_t i = 0; i < payload_len; i++)
-    dl_buffer[i] = payload[i];
+  DATALINK_TRACE("\tdatalink.c: pprz_callback:  PPRZ MESSAGE FOUND AND PASSED TO SPECIFIC FIRMWARE DATALINK\n");
+
+//   for(uint8_t i = 0; i < payload_len; i++) -->memcpy is faster
+//     dl_buffer[i] = payload[i];
+    memcpy(dl_buffer, payload, payload_len);
   dl_parse_msg();
 }
 
@@ -38,12 +43,15 @@ void datalink_xbee_callback(const uint8_t*payload, const uint16_t payload_len) {
 
   if(payload_len > MSG_SIZE) return;
 
+  DATALINK_TRACE("\tdatalink.c: xbee_callback:  XBEE MESSAGE FOUND AND PASSED TO SPECIFIC FIRMWARE DATALINK\n");
+
   switch (payload[0]) {
   case XBEE_RX_ID:
   case XBEE_TX_ID: /* Useful if A/C is connected to the PC with a cable */
-//     XbeeGetRSSI(payload);
-    for(uint8_t i = XBEE_RFDATA_OFFSET; i < payload_len; i++)
-      dl_buffer[i-XBEE_RFDATA_OFFSET] = payload[i];
+//     XbeeGetRSSI(payload); //Not used
+//     for(uint8_t i = XBEE_RFDATA_OFFSET; i < payload_len; i++) -->memcpy is faster
+//       dl_buffer[i-XBEE_RFDATA_OFFSET] = payload[i];
+    memcpy(dl_buffer, &(payload[XBEE_RFDATA_OFFSET]), (payload_len-XBEE_RFDATA_OFFSET));
     dl_parse_msg();
     break;
   default:

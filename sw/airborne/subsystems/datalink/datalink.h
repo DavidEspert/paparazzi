@@ -48,6 +48,15 @@
 #define EXTERN extern
 #endif
 
+#define _DATALINK_TRACES_
+
+#ifdef _DATALINK_TRACES_
+#include <stdio.h>
+#define DATALINK_TRACE(...) fprintf (stderr, __VA_ARGS__); fflush(stdout);
+#else
+#define DATALINK_TRACE(...)
+#endif
+
 // #ifdef __IEEE_BIG_ENDIAN /* From machine/ieeefp.h */
 // #define Swap32IfBigEndian(_u) { _u = (_u << 32) | (_u >> 32); }
 // #else
@@ -128,11 +137,16 @@ static inline bool_t datalink_register(struct transport2* tp, void (*dl_parse)(c
   uint8_t dev_idx;
   uint8_t tp_idx;
   struct device* dev;
-  
+#ifdef _DATALINK_TRACES_
+  bool_t result;
+#endif
+
   //1- Get associated device
   dev = tp->api.rx_device(tp->tp_data);
-  if(dev == NULL) //transport has not been initialized yet
+  if(dev == NULL) { //transport has not been initialized yet
+    DATALINK_TRACE("\tdatalink.h: register:  TRANSPORT %s HAS NOT AN ASSOCIATED DEVICE. EXECUTION ABORTED\n", tp->api.name(tp->tp_data));
     return FALSE;
+  }
 
   //2- Register device (if possible) in datalink
   for (dev_idx = 0; dev_idx < NUM_DATALINK_DEV; dev_idx++) {
@@ -141,8 +155,10 @@ static inline bool_t datalink_register(struct transport2* tp, void (*dl_parse)(c
       break;
     }
   }
-  if(dev_idx == NUM_DATALINK_DEV) //No more devices can be registered
+  if(dev_idx == NUM_DATALINK_DEV) { //No more devices can be registered
+    DATALINK_TRACE("\tdatalink.h: register:  DATALINK DEVICE CANNOT BE STORED. EXECUTION ABORTED\n");
     return FALSE;
+  }
 
   //3- Register transport (if possible) in datalink
   for (tp_idx = 0; tp_idx < NUM_DATALINK_TP; tp_idx++) {
@@ -151,14 +167,26 @@ static inline bool_t datalink_register(struct transport2* tp, void (*dl_parse)(c
       break;
     }
   }
-  if(tp_idx == NUM_DATALINK_TP) //No more transports can be registered for the specified device
+  if(tp_idx == NUM_DATALINK_TP) { //No more transports can be registered for the specified device
+    DATALINK_TRACE("\tdatalink.h: register:  TRANSPORT %s CANNOT BE STORED. EXECUTION ABORTED\n", tp->api.name(tp->tp_data));
     return FALSE;
+  }
 
   //4- Register callback (if possible) in transport
+#ifdef _DATALINK_TRACES_
+  result = tp->api.register_callback(tp->tp_data, dl_parse);
+  if (result)
+  { DATALINK_TRACE("\tdatalink.h: register:  DATALINK CORRECTLY REGISTERED (device = %s, transport = %s, callback = %p)\n", dev->api.name(dev->periph), tp->api.name(tp->tp_data), dl_parse); }
+  else
+  { DATALINK_TRACE("\tdatalink.h: register:  DATALINK CALLBACK CANNOT BE STORED. EXECUTION ABORTED\n"); }
+  return result;
+#else
   return tp->api.register_callback(tp->tp_data, dl_parse);
+#endif
 }
 
 static inline void DatalinkEvent(void) {
+  DATALINK_TRACE("\tdatalink.h: event:  HOLA\n");
   for(uint8_t i=0; (i < NUM_DATALINK_DEV && datalink.dl_dev[i].dev != NULL); i++) {
     struct device* dev = datalink.dl_dev[i].dev;
     //Check device and fill a local buffer.

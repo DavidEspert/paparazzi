@@ -15,6 +15,7 @@
 #include "std.h"
 
 struct device_api{
+  char*    (*name)(void* periph);
 //Tx
   bool_t   (*check_free_space)(void* periph, uint8_t *slot_idx);
   void     (*free_space)(void* periph, uint8_t slot_idx);

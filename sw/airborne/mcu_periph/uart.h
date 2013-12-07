@@ -59,6 +59,10 @@ struct uart_transaction {
   //callback management
   void     (*callback)(void* this_transaction);
 };
+#define INITIALIZED_UART_TRANSACTION { \
+  .length = 0, \
+  .callback = NULL \
+}
 
 /**
  * UART peripheral
@@ -83,6 +87,19 @@ struct uart_periph {
   volatile uint16_t ne_err; ///< noise error counter
   volatile uint16_t fe_err; ///< framing error counter
 };
+#define INITIALIZED_UART_PERIPH(_name) { \
+  .rx_insert_idx = 0, \
+  .rx_extract_idx = 0, \
+  .tx_queue = INITIALIZED_TRANSMIT_QUEUE, \
+  .trans_p = NULL, \
+  .trans = INITIALIZED_UART_TRANSACTION, \
+  .tx_byte_idx = 0, \
+  .tx_running = FALSE, \
+  .dev = _name, \
+  .ore = 0, \
+  .ne_err = 0, \
+  .fe_err = 0 \
+};
 
 // -- GENERIC UART FUNCTIONS --------------------------------------------------
 // -- 'UART Periph management' --
@@ -90,6 +107,9 @@ extern void uart_periph_init(struct uart_periph* p);
 extern void uart_periph_set_baudrate(struct uart_periph* p, uint32_t baud);
 extern void uart_periph_set_bits_stop_parity(struct uart_periph* p, uint8_t bits, uint8_t stop, uint8_t parity);
 extern void uart_periph_set_mode(struct uart_periph* p, bool_t tx_enabled, bool_t rx_enabled, bool_t hw_flow_control);
+static inline char* uart_periph_name(struct uart_periph* p) {
+  return (p->dev);
+}
 
 // -- 'UART data exchange' --
   //Tx queue

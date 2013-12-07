@@ -43,16 +43,28 @@
 // #include <stdint.h>
 #include "device.h"
 
-#ifndef TRANSPORT_PAYLOAD_LEN
-#define TRANSPORT_PAYLOAD_LEN 256
+#define _TRANSPORT_TRACES_
+
+#ifdef _TRANSPORT_TRACES_
+#include <stdio.h>
+#define TRANSPORT_TRACE(...) fprintf (stderr, __VA_ARGS__); fflush(stdout);
+#else
+#define TRANSPORT_TRACE(...)
 #endif
 
+
+#define TP_NAME_SIZE            16
+#ifndef TRANSPORT_PAYLOAD_LEN
+#define TRANSPORT_PAYLOAD_LEN   256
+#endif
 #ifndef TRANSPORT_NUM_CALLBACKS
 #define TRANSPORT_NUM_CALLBACKS 1
 #endif
 
 /** Generic Rx data struct */
 struct transport_data {
+  // transport name
+  char name[TP_NAME_SIZE];
   // payload buffer
   uint8_t payload[TRANSPORT_PAYLOAD_LEN];
   // payload length
@@ -64,7 +76,7 @@ struct transport_data {
   uint8_t error;
   //callback functions 
   void (*callback[TRANSPORT_NUM_CALLBACKS])(const uint8_t*payload, const uint16_t payload_len);
-  // associated device
+  // associated Rx device
   struct device* rx_dev;
 };
 
@@ -73,6 +85,7 @@ struct transport_api
 {
   void            (*init)(void* tp_struct, struct device* rx_dev);
   struct device*  (*rx_device)(void* tp_struct);
+  char*           (*name)(void* tp_struct);
   // TX functions
   uint8_t         header_len;
   void            (*header)(uint8_t *buff, uint16_t msg_data_length);

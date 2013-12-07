@@ -198,6 +198,10 @@ static inline struct device* XBeeTransport_rx_device(struct xbee_transport_rx* t
   return (t->trans.rx_dev);
 }
 
+static inline char* XBeeTransport_name(struct xbee_transport_rx* t) {
+  return (t->trans.name);
+}
+
 static inline uint8_t XBeeTransport_header_len(void){
   return sizeof(struct xbee_header);
 }
