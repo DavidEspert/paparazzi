@@ -257,7 +257,7 @@ void init_ap( void ) {
 //   w5100_init();
 #endif /* DATALINK == */
   (DefaultChannel)->api.init((DefaultChannel)->tp_data, DefaultDevice);
-  datalink_register(DefaultChannel, &datalink_xbee_callback);
+  datalink_register(DefaultChannel, &datalink_pprz_callback);
 #endif /* DATALINK */
 
 #if defined AEROCOMM_DATA_PIN

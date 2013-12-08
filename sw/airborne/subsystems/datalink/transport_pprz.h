@@ -166,6 +166,7 @@ static inline void PprzTransport_parse(struct pprz_transport_rx* t, uint8_t c) {
     if (c != t->ck_b)
       goto error;
     TRANSPORT_TRACE("\ttransport_pprz: PprzTransport_parse:  PPRZ MESSAGE FOUND BY %s\n", (t->trans.name));
+    TRANSPORT_PRINT_PAYLOAD(t->trans);
     for(uint8_t i = 0; (i < TRANSPORT_NUM_CALLBACKS && t->trans.callback[i] != NULL); i++)
       t->trans.callback[i](t->trans.payload, t->trans.payload_len);
 //     t->trans.msg_received = TRUE;

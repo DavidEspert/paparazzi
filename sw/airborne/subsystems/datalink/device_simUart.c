@@ -27,11 +27,21 @@ void uart_sendMessage(struct uart_periph *uart, uint8_t idx, void* trans, uint8_
 void fake_uart_sendMessage(struct uart_periph *p, uint8_t idx, void* transaction, uint8_t priority);
 void fake_uart_ISR(struct uart_periph *p);
 
-void fake_uart_sendMessage(struct uart_periph *p, uint8_t idx, void* transaction, uint8_t priority) {
-#ifdef _SIM_UART_TRACES_
+static inline void device_simUart_send_byte(struct uart_periph *p) {
   uint8_t data;
-#endif
+  uint16_t temp;
 
+  //save data in local 'data' variable instead of transmit register...
+  data = *((uint8_t*)(p->trans.data + p->tx_byte_idx++));
+  SIM_UART_TRACE("\tdevice_simUart: send_byte:  SENDING BYTE %u (%u)...\n", p->tx_byte_idx, data);
+  //save data in buffer in order to make a loop...
+  p->rx_buf[p->rx_insert_idx] = data;
+  temp = (p->rx_insert_idx + 1) % UART_RX_BUFFER_SIZE;
+  if(temp != p->rx_extract_idx)
+    p->rx_insert_idx = temp; // update insert index
+}
+
+void fake_uart_sendMessage(struct uart_periph *p, uint8_t idx, void* transaction, uint8_t priority) {
   //Insert message in transmit queue
   SIM_UART_TRACE("\n\tdevice_simUart: fake_uart_sendMessage:  INSERTING SLOT %u IN TRANSMIT QUEUE...\n", idx);
   transmit_queue_insert_slot(&(p->tx_queue), idx, transaction, priority);
@@ -57,12 +67,7 @@ void fake_uart_sendMessage(struct uart_periph *p, uint8_t idx, void* transaction
       // set running flag and get a message to send
       p->tx_running = 1;
       p->tx_byte_idx = 0;
-      #ifdef _SIM_UART_TRACES_
-      data = *((uint8_t*)(p->trans.data + p->tx_byte_idx++));
-      SIM_UART_TRACE("\tdevice_simUart: fake_uart_sendMessage:  SENDING BYTE %u (%u)...\n", p->tx_byte_idx, data);
-      #else
-      p->tx_byte_idx++;
-      #endif
+      device_simUart_send_byte(p);
       
       fake_uart_ISR(p);
     }
@@ -70,19 +75,11 @@ void fake_uart_sendMessage(struct uart_periph *p, uint8_t idx, void* transaction
 }
 
 void fake_uart_ISR(struct uart_periph *p) {
-#ifdef _SIM_UART_TRACES_
-  uint8_t data;
-#endif
 
   while(1) {
     // check if more data to send in actual message
     if(p->tx_byte_idx < p->trans.length) {
-      #ifdef _SIM_UART_TRACES_
-      data = *((uint8_t*)(p->trans.data + p->tx_byte_idx++));
-      SIM_UART_TRACE("\tdevice_simUart: fake_uart_ISR:  SENDING BYTE %u (%u)...\n", p->tx_byte_idx, data);
-      #else
-      p->tx_byte_idx++;
-      #endif
+      device_simUart_send_byte(p);
     }
     else{
       //message ended. Callback
@@ -98,12 +95,7 @@ void fake_uart_ISR(struct uart_periph *p) {
       if( transmit_queue_extract_slot(&(p->tx_queue), &(p->trans_p)) ){
         memcpy(&(p->trans), (p->trans_p), sizeof(struct uart_transaction));
         p->tx_byte_idx = 0;
-        #ifdef _SIM_UART_TRACES_
-        data = *((uint8_t*)(p->trans.data + p->tx_byte_idx++));
-        SIM_UART_TRACE("\tdevice_simUart: fake_uart_ISR:  SENDING BYTE %u (%u)...\n", p->tx_byte_idx, data);
-        #else
-        p->tx_byte_idx++;
-        #endif
+        device_simUart_send_byte(p);
       }
       else{
         SIM_UART_TRACE("\tdevice_simUart: fake_uart_ISR:  NO MORE DATA TO SEND\n");
@@ -124,7 +116,7 @@ extern char*    dev_uart_name(void* periph);
 extern bool_t   dev_uart_check_free_space(void* periph, uint8_t *slot_idx);
 extern void     dev_uart_free_space(void* periph, uint8_t slot_idx);
 // extern uint8_t  dev_uart_transaction_length(void);
-extern void     dev_uart_transaction_pack(void *trans, void* data, uint16_t length, void (*callback)(void*));
+extern void     dev_uart_transaction_pack(void * trans, void * tx_data, uint16_t tx_length, void * rx_data, uint16_t rx_length, void (*callback)(void* trans));
   // specific device_simUart functions
 void     dev_simUart_sendMessage(void* periph, uint8_t idx, void* trans, uint8_t priority);
 uint8_t  dev_simUart_getch(void* periph);
@@ -134,8 +126,8 @@ bool_t   dev_simUart_char_available(void* periph);
 //API functions definition
   // specific device_simUart functions
 void     dev_simUart_sendMessage(void* periph, uint8_t idx, void* trans, uint8_t priority) { fake_uart_sendMessage((struct uart_periph*) periph, idx, trans, priority); }
-uint8_t  dev_simUart_getch(void* periph)                                                   { return 0; }// return uart_getch((struct uart_periph*) periph); }
-bool_t   dev_simUart_char_available(void* periph)                                          { return FALSE; }// return uart_char_available((struct uart_periph*) periph); }
+uint8_t  dev_simUart_getch(void* periph)                                                   { return uart_getch((struct uart_periph*) periph); }
+bool_t   dev_simUart_char_available(void* periph)                                          { return uart_char_available((struct uart_periph*) periph); }
 
 
 //API functions declaration

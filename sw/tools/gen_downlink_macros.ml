@@ -260,7 +260,7 @@ module Gen_onboard = struct
     fprintf h "      /* SET TRANSACTION: CONTAINS MESSAGE POINTER, LENGTH AND CALLBACK */%s" !eol;
     fprintf h "      /* 4.- set transaction in buffer */%s" !eol;
     if (function_type <> "MACROS") then
-      fprintf h "      %s->api.transaction_pack(buff, (buff + ta_len), (tp_hd_len + MSG_HD_LEN + %s + tp_tl_len), &message_callback);%s" !dev_name data_len1 !eol
+      fprintf h "      %s->api.transaction_pack(buff, (buff + ta_len), (tp_hd_len + MSG_HD_LEN + %s + tp_tl_len), NULL, 0, &message_callback);%s" !dev_name data_len1 !eol
     else
       fprintf h "      msg_join(%s, _transaction_pack(buff, (buff + ta_len), (tp_hd_len + MSG_HD_LEN + %s + tp_tl_len), &message_callback));%s" !dev_name data_len2 !eol;
     fprintf h "%s" !eol;

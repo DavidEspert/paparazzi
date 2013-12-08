@@ -48,8 +48,20 @@
 #ifdef _TRANSPORT_TRACES_
 #include <stdio.h>
 #define TRANSPORT_TRACE(...) fprintf (stderr, __VA_ARGS__); fflush(stdout);
+#define TRANSPORT_PRINT_PAYLOAD(_common) { \
+  uint16_t payload_idx; \
+  if (_common.payload_len > 0) { \
+    TRANSPORT_TRACE("\tmessage:    { "); \
+    for(payload_idx = 0; payload_idx < (_common.payload_len-1); payload_idx++){ \
+      TRANSPORT_TRACE("%u, ", _common.payload[payload_idx]); \
+    } \
+    TRANSPORT_TRACE("%u }\n", _common.payload[payload_idx]); \
+  } \
+}
+  
 #else
 #define TRANSPORT_TRACE(...)
+#define TRANSPORT_PRINT_PAYLOAD(_common)
 #endif
 
 

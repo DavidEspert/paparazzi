@@ -9,7 +9,7 @@ char*    dev_uart_name(void* periph);
 bool_t   dev_uart_check_free_space(void* periph, uint8_t *slot_idx);
 void     dev_uart_free_space(void* periph, uint8_t slot_idx);
 // uint8_t  dev_uart_transaction_length(void);
-void     dev_uart_transaction_pack(void *trans, void* data, uint16_t length, void (*callback)(void*));
+void     dev_uart_transaction_pack(void * trans, void * tx_data, uint16_t tx_length, void * rx_data, uint16_t rx_length, void (*callback)(void* trans));
 void     dev_uart_sendMessage(void* periph, uint8_t idx, void* trans, uint8_t priority);
 // bool_t   dev_uart_add_rx_transport(void* periph, struct transport2* rx_tp);
 uint8_t  dev_uart_getch(void* periph);
@@ -23,11 +23,14 @@ bool_t   dev_uart_check_free_space(void* periph, uint8_t *slot_idx)             
 void     dev_uart_free_space(void* periph, uint8_t slot_idx)                            { uart_free_space((struct uart_periph*) periph, slot_idx); }
 // uint8_t  dev_uart_transaction_length(void)                                              { return uart_transaction_length(); }
 #include <string.h> //required for memcpy
-void     dev_uart_transaction_pack(void *trans, void* data, uint16_t length, void (*callback)(void*)) {
+void     dev_uart_transaction_pack(void * trans, void * tx_data, uint16_t tx_length, void * rx_data, uint16_t rx_length, void (*callback)(void* trans)) {
+  //avoid warnings
+  (void)rx_data;
+  (void)rx_length;
 // Due to align problems when working with dynamic buffer, transaction has to be filled in a local variable (aligned)
 // and then moved to 'void' destiny trans in buffer (unaligned).
   struct uart_transaction tr;
-  uart_transaction_pack(&tr, data, length, callback);
+  uart_transaction_pack(&tr, tx_data, tx_length, callback);
   memcpy(trans, &tr, sizeof(struct uart_transaction));
 }
 void     dev_uart_sendMessage(void* periph, uint8_t idx, void* trans, uint8_t priority) { uart_sendMessage((struct uart_periph*) periph, idx, trans, priority); }
