@@ -74,7 +74,7 @@
 #endif
 
 /** Generic Rx data struct */
-struct transport_data {
+struct transport_data_common {
   // transport name
   char name[TP_NAME_SIZE];
   // payload buffer
@@ -91,27 +91,35 @@ struct transport_data {
   // associated Rx device
   struct device* rx_dev;
 };
+#define INITIALIZED_TP_DATA_COMMON(_name) { \
+  .name = _name, \
+  .payload_len = 0, \
+  .error = 0, \
+  .callback[0 ... (TRANSPORT_NUM_CALLBACKS-1)] = NULL, \
+  .rx_dev = NULL \
+}
+
 
 /** Generic Transport API */
 struct transport_api
 {
-  void            (*init)(void* tp_struct, struct device* rx_dev);
-  struct device*  (*rx_device)(void* tp_struct);
-  char*           (*name)(void* tp_struct);
+  void            (*init)(void* data, struct device* rx_dev);
+  struct device*  (*rx_device)(void* data);
+  char*           (*name)(void* data);
   // TX functions
   uint8_t         header_len;
   void            (*header)(uint8_t *buff, uint16_t msg_data_length);
   uint8_t         tail_len;
   void            (*tail)(uint8_t *buff, uint16_t msg_data_length);
   // RX functions
-  bool_t          (*register_callback)(void* tp_struct, void (*callback)(const uint8_t*, const uint16_t) );
-  void            (*parse)(void* tp_struct, uint8_t *c, uint16_t length);
+  bool_t          (*register_callback)(void* data, void (*callback)(const uint8_t*, const uint16_t) );
+  void            (*parse)(void* data, uint8_t *c, uint16_t length);
 };
 
 /** Generic Transport interface */
 struct transport2
 {
-  void * tp_data; //this points to the transport data struct
+  void * data; //this points to the transport data struct
   struct transport_api api;
 };
 

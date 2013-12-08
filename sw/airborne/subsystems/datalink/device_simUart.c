@@ -112,22 +112,22 @@ void fake_uart_ISR(struct uart_periph *p) {
 
 //API functions declaration
   // real device_uart functions
-extern char*    dev_uart_name(void* periph);
-extern bool_t   dev_uart_check_free_space(void* periph, uint8_t *slot_idx);
-extern void     dev_uart_free_space(void* periph, uint8_t slot_idx);
+extern char*    dev_uart_name(void* data);
+extern bool_t   dev_uart_check_free_space(void* data, uint8_t *slot_idx);
+extern void     dev_uart_free_space(void* data, uint8_t slot_idx);
 // extern uint8_t  dev_uart_transaction_length(void);
 extern void     dev_uart_transaction_pack(void * trans, void * tx_data, uint16_t tx_length, void * rx_data, uint16_t rx_length, void (*callback)(void* trans));
   // specific device_simUart functions
-void     dev_simUart_sendMessage(void* periph, uint8_t idx, void* trans, uint8_t priority);
-uint8_t  dev_simUart_getch(void* periph);
-bool_t   dev_simUart_char_available(void* periph);
+void     dev_simUart_sendMessage(void* data, uint8_t idx, void* trans, uint8_t priority);
+uint8_t  dev_simUart_getch(void* data);
+bool_t   dev_simUart_char_available(void* data);
 
 
 //API functions definition
   // specific device_simUart functions
-void     dev_simUart_sendMessage(void* periph, uint8_t idx, void* trans, uint8_t priority) { fake_uart_sendMessage((struct uart_periph*) periph, idx, trans, priority); }
-uint8_t  dev_simUart_getch(void* periph)                                                   { return uart_getch((struct uart_periph*) periph); }
-bool_t   dev_simUart_char_available(void* periph)                                          { return uart_char_available((struct uart_periph*) periph); }
+void     dev_simUart_sendMessage(void* data, uint8_t idx, void* trans, uint8_t priority) { fake_uart_sendMessage((struct uart_periph*) data, idx, trans, priority); }
+uint8_t  dev_simUart_getch(void* data)                                                   { return uart_getch((struct uart_periph*) data); }
+bool_t   dev_simUart_char_available(void* data)                                          { return uart_char_available((struct uart_periph*) data); }
 
 
 //API functions declaration
@@ -145,8 +145,8 @@ bool_t   dev_simUart_char_available(void* periph)                               
 
 
 struct device dev_SIM_UART = {
-  .periph =    &sim_uart,
-  .api = INITIALIZED_DEV_SIM_UART_API
+  .data   =    &sim_uart,
+  .api    =    INITIALIZED_DEV_SIM_UART_API
 };
 
 #endif /* USE_SIM_UART */

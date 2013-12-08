@@ -256,7 +256,7 @@ void init_ap( void ) {
 // #elif DATALINK == W5100
 //   w5100_init();
 #endif /* DATALINK == */
-  (DefaultChannel)->api.init((DefaultChannel)->tp_data, DefaultDevice);
+  (DefaultChannel)->api.init((DefaultChannel)->data, DefaultDevice);
   datalink_register(DefaultChannel, &datalink_pprz_callback);
 #endif /* DATALINK */
 

@@ -243,7 +243,7 @@ module Gen_onboard = struct
 
     fprintf h "  /* 1.- try to get a device's 'transaction' slot */%s" !eol;
     if (function_type <> "MACROS") then
-      fprintf h "  if(%s->api.check_free_space(%s->periph, &dev_slot)){%s" !dev_name !dev_name !eol
+      fprintf h "  if(%s->api.check_free_space(%s->data, &dev_slot)){%s" !dev_name !dev_name !eol
     else
       fprintf h "  if( msg_join(%s, _check_free_space(&dev_slot)) ){%s" !dev_name !eol;
 
@@ -293,7 +293,7 @@ module Gen_onboard = struct
     fprintf h "      /* SUMMIT TRANSACTION */%s" !eol;
     fprintf h "      /* 9.- send message */%s" !eol;
     if (function_type <> "MACROS") then
-      fprintf h "      %s->api.transaction_summit(%s->periph, dev_slot, buff, DL_%s_PRIORITY);%s" !dev_name !dev_name s !eol
+      fprintf h "      %s->api.transaction_summit(%s->data, dev_slot, buff, DL_%s_PRIORITY);%s" !dev_name !dev_name s !eol
     else
       fprintf h "      msg_join(%s, _sendMessage(dev_slot, buff, DL_%s_PRIORITY));%s" !dev_name s !eol;
     fprintf h "    }%s" !eol;
@@ -301,7 +301,7 @@ module Gen_onboard = struct
     fprintf h "    else {%s" !eol;
     fprintf h "      /* 10.- release device's slot */%s" !eol;
     if (function_type <> "MACROS") then
-      fprintf h "      %s->api.free_space(%s->periph, dev_slot);%s" !dev_name !dev_name !eol
+      fprintf h "      %s->api.free_space(%s->data, dev_slot);%s" !dev_name !dev_name !eol
     else
       fprintf h "      msg_join(%s, _free_space(dev_slot));%s" !dev_name !eol;
     fprintf h "    }%s" !eol;

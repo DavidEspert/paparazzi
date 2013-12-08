@@ -17,19 +17,12 @@
 #define NONE 0
 #define	FREE_SLOT 1
 
-//Declaration of initialized buffer: i.e. 'struct dynamic_buffer dynamic_buff = INITIALIZED_DYNAMIC_BUFFER;'
-extern struct dynamic_buffer dynamic_buff;
-#define INITIALIZED_DYNAMIC_BUFFER { \
-  .slot[0 ... (TX_BUFF_NUM_SLOTS-1)] = { .status = ST_FREE, .init = 0, .length = 0, .next_mem = TX_BUFF_NUM_SLOTS}, \
-  .first_mem = TX_BUFF_NUM_SLOTS, \
-  .semaphore_get_mem = 0, \
-  .pdg_action = { .action = NONE, .idx = TX_BUFF_NUM_SLOTS} \
-}
 
 struct dyn_buff_pending_action {
   uint8_t       action;
   uint8_t       idx;
 };
+#define INITIALIZED_DYNAMIC_BUFFER_PDG_ACTION { .action = NONE, .idx = TX_BUFF_NUM_SLOTS}
 
 struct buffer_slot {
   uint8_t       status;         // slot status {FREE, RESERVED}
@@ -37,6 +30,7 @@ struct buffer_slot {
   uint16_t      length;         // slot length
   uint8_t       next_mem;       // index of next slot in memory
 };
+#define INITIALIZED_DYNAMIC_BUFFER_SLOT { .status = ST_FREE, .init = 0, .length = 0, .next_mem = TX_BUFF_NUM_SLOTS}
 
 //#pragma DATA_ALIGN(256)
 struct dynamic_buffer {
@@ -46,6 +40,15 @@ struct dynamic_buffer {
   uint8_t               semaphore_get_mem;
   struct dyn_buff_pending_action pdg_action;
 };
+//Declaration of initialized buffer: i.e. 'struct dynamic_buffer dynamic_buff = INITIALIZED_DYNAMIC_BUFFER;'
+#define INITIALIZED_DYNAMIC_BUFFER { \
+  .slot[0 ... (TX_BUFF_NUM_SLOTS-1)] = INITIALIZED_DYNAMIC_BUFFER_SLOT, \
+  .first_mem = TX_BUFF_NUM_SLOTS, \
+  .semaphore_get_mem = 0, \
+  .pdg_action = INITIALIZED_DYNAMIC_BUFFER_PDG_ACTION \
+}
+extern struct dynamic_buffer dynamic_buff;
+
 
 
 // FUNCTIONS -----------------------------------------------------

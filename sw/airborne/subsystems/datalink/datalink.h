@@ -87,7 +87,6 @@ struct Datalink_device{
   struct device* dev;
   struct transport2* tp[NUM_DATALINK_TP];
 };
-
 #define INITIALIZED_DATALINK_DEV { \
   .dev = NULL, \
   .tp[0 ... (NUM_DATALINK_TP-1)] = NULL \
@@ -98,7 +97,6 @@ struct RxDatalink{
   uint16_t rx_data_len;
   struct Datalink_device dl_dev[NUM_DATALINK_DEV];
 };
-
 #define INITIALIZED_DATALINK { \
   .rx_data_len = 0, \
   .dl_dev[0 ... (NUM_DATALINK_DEV-1)] = INITIALIZED_DATALINK_DEV \
@@ -142,9 +140,9 @@ static inline bool_t datalink_register(struct transport2* tp, void (*dl_parse)(c
 #endif
 
   //1- Get associated device
-  dev = tp->api.rx_device(tp->tp_data);
+  dev = tp->api.rx_device(tp->data);
   if(dev == NULL) { //transport has not been initialized yet
-    DATALINK_TRACE("\tdatalink.h: register:  TRANSPORT %s HAS NOT AN ASSOCIATED DEVICE. EXECUTION ABORTED\n", tp->api.name(tp->tp_data));
+    DATALINK_TRACE("\tdatalink.h: register:  TRANSPORT %s HAS NOT AN ASSOCIATED DEVICE. EXECUTION ABORTED\n", tp->api.name(tp->data));
     return FALSE;
   }
 
@@ -168,20 +166,20 @@ static inline bool_t datalink_register(struct transport2* tp, void (*dl_parse)(c
     }
   }
   if(tp_idx == NUM_DATALINK_TP) { //No more transports can be registered for the specified device
-    DATALINK_TRACE("\tdatalink.h: register:  TRANSPORT %s CANNOT BE STORED. EXECUTION ABORTED\n", tp->api.name(tp->tp_data));
+    DATALINK_TRACE("\tdatalink.h: register:  TRANSPORT %s CANNOT BE STORED. EXECUTION ABORTED\n", tp->api.name(tp->data));
     return FALSE;
   }
 
   //4- Register callback (if possible) in transport
 #ifdef _DATALINK_TRACES_
-  result = tp->api.register_callback(tp->tp_data, dl_parse);
+  result = tp->api.register_callback(tp->data, dl_parse);
   if (result)
-  { DATALINK_TRACE("\tdatalink.h: register:  DATALINK CORRECTLY REGISTERED (device = %s, transport = %s, callback = %p)\n", dev->api.name(dev->periph), tp->api.name(tp->tp_data), dl_parse); }
+  { DATALINK_TRACE("\tdatalink.h: register:  DATALINK CORRECTLY REGISTERED (device = %s, transport = %s, callback = %p)\n", dev->api.name(dev->data), tp->api.name(tp->data), dl_parse); }
   else
   { DATALINK_TRACE("\tdatalink.h: register:  DATALINK CALLBACK CANNOT BE STORED. EXECUTION ABORTED\n"); }
   return result;
 #else
-  return tp->api.register_callback(tp->tp_data, dl_parse);
+  return tp->api.register_callback(tp->data, dl_parse);
 #endif
 }
 
@@ -191,12 +189,12 @@ static inline void DatalinkEvent(void) {
     struct device* dev = datalink.dl_dev[i].dev;
     //Check device and fill a local buffer.
     datalink.rx_data_len = 0;
-    while(datalink.rx_data_len < MSG_SIZE && dev->api.char_available(dev->periph))
-      datalink.rx_buf[datalink.rx_data_len++] = dev->api.getch(dev->periph);
+    while(datalink.rx_data_len < MSG_SIZE && dev->api.char_available(dev->data))
+      datalink.rx_buf[datalink.rx_data_len++] = dev->api.getch(dev->data);
     //Parse buffer through device associated transports
     for(uint8_t j = 0; (j < NUM_DATALINK_TP && datalink.dl_dev[i].tp[j] != NULL);j++) {
       struct transport2* tp = datalink.dl_dev[i].tp[j];
-      tp->api.parse(tp->tp_data, datalink.rx_buf, datalink.rx_data_len);
+      tp->api.parse(tp->data, datalink.rx_buf, datalink.rx_data_len);
     }
   }
 }

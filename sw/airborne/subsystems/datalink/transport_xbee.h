@@ -73,11 +73,17 @@ struct xbee_tail{
 
 struct xbee_transport_rx {
   // generic interface
-  struct transport_data trans;
+  struct transport_data_common common;
   // specific xbee transport variables
   uint8_t status;
   uint8_t payload_idx;
   uint8_t cs;
+};
+#define INITIALIZED_XBEE_DATA(_name) { \
+  .common = INITIALIZED_TP_DATA_COMMON(_name), \
+  .status = XBEE_UNINIT, \
+  .payload_idx = 0, \
+  .cs = 0 \
 };
 
 extern struct xbee_transport_rx xbee_tp_rx;
@@ -134,12 +140,12 @@ static inline uint8_t xbee_try_to_enter_api(void) {
 
 // - XBEE TRANSPORT INTERFACE ----------------------------------------------------
 
-static inline void XBeeTransport_init((struct pprz_transport_rx* t, struct device* rx_dev) {
+static inline void XBeeTransport_init((struct pprz_transport_rx* data, struct device* rx_dev) {
   for (uint8_t i = 0; i < TRANSPORT_NUM_CALLBACKS; i++)
-    t->trans.callback[i] = NULL;
-  t->trans.rx_dev = rx_dev;
-  t->status = XBEE_UNINIT;
-//   t->trans.msg_received = FALSE;
+    data->common.callback[i] = NULL;
+  data->common.rx_dev = rx_dev;
+  data->status = XBEE_UNINIT;
+//   data->common.msg_received = FALSE;
 
   // Empty buffer before init process
   while (TransportLink(XBEE_UART,ChAvailable()))
@@ -194,12 +200,12 @@ static inline void XBeeTransport_init((struct pprz_transport_rx* t, struct devic
 #endif
 }
 
-static inline struct device* XBeeTransport_rx_device(struct xbee_transport_rx* t) {
-  return (t->trans.rx_dev);
+static inline struct device* XBeeTransport_rx_device(struct xbee_transport_rx* data) {
+  return (data->common.rx_dev);
 }
 
-static inline char* XBeeTransport_name(struct xbee_transport_rx* t) {
-  return (t->trans.name);
+static inline char* XBeeTransport_name(struct xbee_transport_rx* data) {
+  return (data->common.name);
 }
 
 static inline uint8_t XBeeTransport_header_len(void){
@@ -228,49 +234,49 @@ static inline void XBeeTransport_tail(uint8_t *buff, uint16_t msg_data_length){
   buff[i] = cksum; //((struct xbee_tail *)(buff + sizeof(struct xbee_header) + msg_data_length))->cksum = cksum;
 }
 
-static inline bool_t XBeeTransport_register_callback(struct xbee_transport_rx* t, void (*callback)(const uint8_t*, const uint16_t) ) {
+static inline bool_t XBeeTransport_register_callback(struct xbee_transport_rx* data, void (*callback)(const uint8_t*, const uint16_t) ) {
   for (uint8_t i = 0; i < TRANSPORT_NUM_CALLBACKS; i++) {
-    if(t->trans.callback[i] == callback || t->trans.callback[i] == NULL) {
-      t->trans.callback[i] = callback;
+    if(data->common.callback[i] == callback || data->common.callback[i] == NULL) {
+      data->common.callback[i] = callback;
       return TRUE;
     }
   }
   return FALSE;
 }
 
-static inline void XBeeTransport_parse(struct xbee_transport_rx* t, uint8_t c) {
-  switch (t->status) {
+static inline void XBeeTransport_parse(struct xbee_transport_rx* data, uint8_t c) {
+  switch (data->status) {
   case XBEE_UNINIT:
     if (c == XBEE_START)
-      t->status++;
+      data->status++;
     break;
   case XBEE_GOT_START:
-//     if (t->trans.msg_received) {
-//       t->trans.ovrn++;
+//     if (data->common.msg_received) {
+//       data->common.ovrn++;
 //       goto error;
 //     }
-    t->trans.payload_len = c<<8;
-    t->status++;
+    data->common.payload_len = c<<8;
+    data->status++;
     break;
   case XBEE_GOT_LENGTH_MSB:
-    t->trans.payload_len |= c;
-    t->status++;
-    t->payload_idx = 0;
-    t->cs=0;
+    data->common.payload_len |= c;
+    data->status++;
+    data->payload_idx = 0;
+    data->cs=0;
     break;
   case XBEE_GOT_LENGTH_LSB:
-    t->trans.payload[t->payload_idx] = c;
-    t->cs += c;
-    t->payload_idx++;
-    if (t->payload_idx == t->trans.payload_len)
-      t->status++;
+    data->common.payload[data->payload_idx] = c;
+    data->cs += c;
+    data->payload_idx++;
+    if (data->payload_idx == data->common.payload_len)
+      data->status++;
     break;
   case XBEE_GOT_PAYLOAD:
-    if (c + t->cs != 0xff)
+    if (c + data->cs != 0xff)
       goto error;
-    for(uint8_t i = 0; (i < TRANSPORT_NUM_CALLBACKS && t->trans.callback[i] != NULL); i++)
-      t->trans.callback[i](&(t->trans.payload), t->trans.payload_len);
-//     t->trans.msg_received = TRUE;
+    for(uint8_t i = 0; (i < TRANSPORT_NUM_CALLBACKS && data->common.callback[i] != NULL); i++)
+      data->common.callback[i](&(data->common.payload), data->common.payload_len);
+//     data->common.msg_received = TRUE;
     goto restart;
     break;
   default:
@@ -278,23 +284,12 @@ static inline void XBeeTransport_parse(struct xbee_transport_rx* t, uint8_t c) {
   }
   return;
  error:
-  t->trans.error++;
+  data->common.error++;
  restart:
-  t->status = XBEE_UNINIT;
+  data->status = XBEE_UNINIT;
   return;
 }
 
-// #define XBeeBuffer(_dev) TransportLink(_dev,ChAvailable())
-// #define ReadXBeeBuffer(_dev,_trans) { while (TransportLink(_dev,ChAvailable())&&!(_trans.trans.msg_received)) parse_xbee(&(_trans),TransportLink(_dev,Getch())); }
-/*#define XBeeCheckAndParse(_dev,_trans) {  \
-  if (XBeeBuffer(_dev)) {                 \
-    ReadXBeeBuffer(_dev,_trans);          \
-    if (_trans.trans.msg_received) {      \
-      xbee_parse_payload(&(_trans));      \
-      _trans.trans.msg_received = FALSE;  \
-    }                                     \
-  }                                       \
-}*/
 
 #define XBeePrintString(_dev, s) TransportLink(_dev,PrintString(s))
 #define XBeePrintHex16(_dev, x) TransportLink(_dev,PrintHex16(x))

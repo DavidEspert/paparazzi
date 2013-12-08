@@ -28,22 +28,22 @@
  * This file provides support for data management according to assigned priorities.
  * Data pointer is stored in a 'slot' of the 'transmit_queue'. Once a slot is ready,
  * it will be inserted in the transmition queue chain.
- * (This file has originally been developed for output device's transactions)
+ * (This file has originally been developed for output device transactions)
  * 
  * The normal use should be:
  * 0) init:             initializes a 'transmit_queue'.
  * ... and for any element we want to add...
- * 1) check_free_space: if a slot is available, 'slot_idx' is set, slot is marked as RESERVED
+ * 1) check_free_space: if a slot is available, 'idx' is set, slot is marked as RESERVED
  *                      and the function returns true.
  * 2) insert_slot:      if the slot is RESERVED (otherwise this function does nothing),
  *                      data pointer is set and the slot is inserted in transmition queue
  *                      (according to its priority) and marked as READY.
- * 3) extract_slot:     if there is/are slot/s in queue, first slot is extracted, data pointer is set,
- *                      slot is marked as FREE and the function returns true.
+ * 3) extract_slot:     if there is/are slot/s in queue, first slot is extracted, data pointer
+ *                      is set, slot is marked as FREE and the function returns true.
  * 4) free_slot:        if slot is RESERVED it will be marked as FREE.
  * 
- * NOTE: Actions 1, 2 and 3 must be executed atomically. In case of 'insert_slot' (2), if it cannot be
- *       executed at the moment but later on, it will be saved as 'pending action'.
+ * NOTE: Actions 1, 2 and 3 must be executed atomically. In case of 'insert_slot' (2), if
+ *       action cannot be executed at the moment but later on, it will be saved as 'pending action'.
  */
 
 #include <stdint.h>
@@ -64,21 +64,13 @@
 #define NONE 0
 #define ADD_QUEUE 1
 
-//Declaration of initialized queue: i.e. 'struct transmit_queue queue = INITIALIZED_TRANSMIT_QUEUE;'
-#define INITIALIZED_TRANSMIT_QUEUE { \
-  .slot[0 ... (TRANSMIT_QUEUE_LEN-1)] = { .status = ST_FREE, .data = NULL, .priority = 0, .next_send = TRANSMIT_QUEUE_LEN}, \
-  .first_send = TRANSMIT_QUEUE_LEN, \
-  .semaphore_get_slot = 0, \
-  .semaphore_queue = 0, \
-  .pdg_action.action = NONE \
-}
-
 //Some actions have to be executed atomically.
 //If an action cannot be executed and has not to return a parameter, it will be stored and executed when possible
 struct tx_queue_pending_action {
   uint8_t       action;
   uint8_t       idx;
 };
+#define INITIALIZED_TRANSMIT_QUEUE_PDG_ACTION { .action = NONE, .idx = TRANSMIT_QUEUE_LEN }
 
 struct transmit_slot{
   uint8_t       status;         // slot status {ST_FREE, ST_RESERVED, ST_READY}
@@ -86,6 +78,7 @@ struct transmit_slot{
   uint8_t       priority;       // transaction priority
   uint8_t       next_send;      // index of next slot to be sent
 };
+#define INITIALIZED_TRANSMIT_SLOT { .status = ST_FREE, .data = NULL, .priority = 0, .next_send = TRANSMIT_QUEUE_LEN}
 
 struct transmit_queue{
   struct transmit_slot  slot[TRANSMIT_QUEUE_LEN];
@@ -94,6 +87,15 @@ struct transmit_queue{
   uint8_t               semaphore_queue;
   struct tx_queue_pending_action pdg_action;
 };
+//Declaration of initialized queue: i.e. 'struct transmit_queue queue = INITIALIZED_TRANSMIT_QUEUE;'
+#define INITIALIZED_TRANSMIT_QUEUE { \
+  .slot[0 ... (TRANSMIT_QUEUE_LEN-1)] = INITIALIZED_TRANSMIT_SLOT, \
+  .first_send = TRANSMIT_QUEUE_LEN, \
+  .semaphore_get_slot = 0, \
+  .semaphore_queue = 0, \
+  .pdg_action = INITIALIZED_TRANSMIT_QUEUE_PDG_ACTION \
+}
+
 
 // FUNCTIONS -----------------------------------------------------
 //Initialize transmit queue.

@@ -15,22 +15,22 @@
 #include "std.h"
 
 struct device_api{
-  char*    (*name)(void* periph);
+  char*    (*name)(void* data);
 //Tx
-  bool_t   (*check_free_space)(void* periph, uint8_t *slot_idx);
-  void     (*free_space)(void* periph, uint8_t slot_idx);
+  bool_t   (*check_free_space)(void* data, uint8_t *slot_idx);
+  void     (*free_space)(void* data, uint8_t slot_idx);
   uint8_t  transaction_len;
 //   uint8_t  (*transaction_len)(void);
   void     (*transaction_pack)(void * trans, void * tx_data, uint16_t tx_length, void * rx_data, uint16_t rx_length, void (*callback)(void* trans));
-  void     (*transaction_summit)(void* periph, uint8_t idx, void* trans, uint8_t priority);
+  void     (*transaction_summit)(void* data, uint8_t idx, void* trans, uint8_t priority);
 //Rx
 //   bool_t   (*add_rx_transport)(void* periph, struct transport2* rx_tp);
-  bool_t   (*char_available)(void* periph);
-  uint8_t  (*getch)(void* periph);
+  bool_t   (*char_available)(void* data);
+  uint8_t  (*getch)(void* data);
 };
 
 struct device{
-  void * periph;
+  void * data;
   struct device_api api;
 };
 

@@ -5,22 +5,22 @@
 #if defined (USE_UART0) || defined (USE_UART1) || defined (USE_UART2) || defined (USE_UART3) || defined (USE_UART4) || defined (USE_UART5) || defined (USE_UART6) || defined (USE_SIM_UART)
 
 //API functions declaration
-char*    dev_uart_name(void* periph);
-bool_t   dev_uart_check_free_space(void* periph, uint8_t *slot_idx);
-void     dev_uart_free_space(void* periph, uint8_t slot_idx);
+char*    dev_uart_name(void* data);
+bool_t   dev_uart_check_free_space(void* data, uint8_t *slot_idx);
+void     dev_uart_free_space(void* data, uint8_t slot_idx);
 // uint8_t  dev_uart_transaction_length(void);
 void     dev_uart_transaction_pack(void * trans, void * tx_data, uint16_t tx_length, void * rx_data, uint16_t rx_length, void (*callback)(void* trans));
-void     dev_uart_sendMessage(void* periph, uint8_t idx, void* trans, uint8_t priority);
-// bool_t   dev_uart_add_rx_transport(void* periph, struct transport2* rx_tp);
-uint8_t  dev_uart_getch(void* periph);
-bool_t   dev_uart_char_available(void* periph);
+void     dev_uart_sendMessage(void* data, uint8_t idx, void* trans, uint8_t priority);
+// bool_t   dev_uart_add_rx_transport(void* data, struct transport2* rx_tp);
+uint8_t  dev_uart_getch(void* data);
+bool_t   dev_uart_char_available(void* data);
 
 
 
 //API functions definition
-char *   dev_uart_name(void* periph)                                                    { return uart_periph_name((struct uart_periph*) periph); }
-bool_t   dev_uart_check_free_space(void* periph, uint8_t *slot_idx)                     { return uart_check_free_space((struct uart_periph*) periph, slot_idx); }
-void     dev_uart_free_space(void* periph, uint8_t slot_idx)                            { uart_free_space((struct uart_periph*) periph, slot_idx); }
+char *   dev_uart_name(void* data)                                                    { return uart_periph_name((struct uart_periph*) data); }
+bool_t   dev_uart_check_free_space(void* data, uint8_t *slot_idx)                     { return uart_check_free_space((struct uart_periph*) data, slot_idx); }
+void     dev_uart_free_space(void* data, uint8_t slot_idx)                            { uart_free_space((struct uart_periph*) data, slot_idx); }
 // uint8_t  dev_uart_transaction_length(void)                                              { return uart_transaction_length(); }
 #include <string.h> //required for memcpy
 void     dev_uart_transaction_pack(void * trans, void * tx_data, uint16_t tx_length, void * rx_data, uint16_t rx_length, void (*callback)(void* trans)) {
@@ -33,10 +33,10 @@ void     dev_uart_transaction_pack(void * trans, void * tx_data, uint16_t tx_len
   uart_transaction_pack(&tr, tx_data, tx_length, callback);
   memcpy(trans, &tr, sizeof(struct uart_transaction));
 }
-void     dev_uart_sendMessage(void* periph, uint8_t idx, void* trans, uint8_t priority) { uart_sendMessage((struct uart_periph*) periph, idx, trans, priority); }
-// bool_t   dev_uart_add_rx_transport(void* periph, struct transport2* rx_tp)              { return uart_add_rx_transport((struct uart_periph*) periph, rx_tp); }
-uint8_t  dev_uart_getch(void* periph)                                                   { return uart_getch((struct uart_periph*) periph); }
-bool_t   dev_uart_char_available(void* periph)                                          { return uart_char_available((struct uart_periph*) periph); }
+void     dev_uart_sendMessage(void* data, uint8_t idx, void* trans, uint8_t priority) { uart_sendMessage((struct uart_periph*) data, idx, trans, priority); }
+// bool_t   dev_uart_add_rx_transport(void* data, struct transport2* rx_tp)              { return uart_add_rx_transport((struct uart_periph*) data, rx_tp); }
+uint8_t  dev_uart_getch(void* data)                                                   { return uart_getch((struct uart_periph*) data); }
+bool_t   dev_uart_char_available(void* data)                                          { return uart_char_available((struct uart_periph*) data); }
 
 
 
@@ -58,49 +58,49 @@ bool_t   dev_uart_char_available(void* periph)                                  
 // DEV_UART STRUCTS -----------------------------------------------------------
 #ifdef USE_UART0
 struct device dev_UART0 = {
-  .periph =    &uart0,
+  .data   =    &uart0,
   .api    =    INITIALIZED_DEV_UART_API
 };
 #endif
 
 #ifdef USE_UART1
 struct device dev_UART1 = {
-  .periph =    &uart1,
+  .data   =    &uart1,
   .api    =    INITIALIZED_DEV_UART_API
 };
 #endif // USE_UART1
 
 #ifdef USE_UART2
 struct device dev_UART2 = {
-  .periph =    &uart2,
+  .data   =    &uart2,
   .api    =    INITIALIZED_DEV_UART_API
 };
 #endif // USE_UART2
 
 #ifdef USE_UART3
 struct device dev_UART3 = {
-  .periph =    &uart3,
+  .data   =    &uart3,
   .api    =    INITIALIZED_DEV_UART_API
 };
 #endif // USE_UART3
 
 #ifdef USE_UART4
 struct device dev_UART4 = {
-  .periph =    &uart4,
+  .data   =    &uart4,
   .api    =    INITIALIZED_DEV_UART_API
 };
 #endif // USE_UART4
 
 #ifdef USE_UART5
 struct device dev_UART5 = {
-  .periph =    &uart5,
+  .data   =    &uart5,
   .api    =    INITIALIZED_DEV_UART_API
 };
 #endif // USE_UART5
 
 #ifdef USE_UART6
 struct device dev_UART6 = {
-  .periph =    &uart6,
+  .data   =    &uart6,
   .api    =    INITIALIZED_DEV_UART_API
 };
 #endif // USE_UART6
