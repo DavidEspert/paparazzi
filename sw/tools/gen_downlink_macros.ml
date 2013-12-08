@@ -181,6 +181,41 @@ module Gen_onboard = struct
     else fprintf h "#define DL_%s_ID        %d\n" message.name message.id
 
 
+  let print_macro_function_link = fun h check_free_space free_space trans_type trans_len trans_pack trans_summit ->
+    fprintf h "#define DEV_CHECK_FREE_SPACE(_x, _y)            %s(_x, _y)\n" check_free_space;
+    fprintf h "#define DEV_FREE_SPACE(_x, _y)                  %s(_x, _y)\n" free_space;
+    fprintf h "#define DEV_TRANSACTION_LEN()                   %s()\n" trans_len;
+    fprintf h "#define DEV_TRANSACTION_PACK(_w, _x, _y, _z)    %s(_w, _x, _y, _z)\n" trans_pack;
+    fprintf h "#define DEV_TRANSACTION_SUMMIT(_w, _x, _y, _z)  %s(_w, _x, _y, _z)\n" trans_summit;
+    fprintf h "#define DEV_TRANSACTION_TYPE                    struct %s\n" trans_type
+      
+  let print_macro_option_header = fun h ->
+    fprintf h "#include \"subsystems/datalink/downlink.h\"\n\n\n";
+    fprintf h "/* initial defines for DEVICE management *****************************************/\n";
+    fprintf h "#ifndef DOWNLINK_DEVICE\n#error \"Downlink enabled but not Downlink Device defined\"\n";
+    fprintf h "#elif DOWNLINK_DEVICE == UART0 || DOWNLINK_DEVICE == UART1 || DOWNLINK_DEVICE == UART2 || DOWNLINK_DEVICE == UART3 || DOWNLINK_DEVICE == UART4 || DOWNLINK_DEVICE == UART5 || DOWNLINK_DEVICE == UART6 || DOWNLINK_DEVICE == SIM_UART\n";
+    fprintf h "\n";
+    fprintf h "#include \"subsystems/datalink/device_simUart.h\"\n";
+    fprintf h "#include \"mcu_periph/uart.h\"\n";
+    print_macro_function_link h "uart_check_free_space"  "uart_free_space"  "uart_transaction"  "uart_transaction_length"  "uart_transaction_pack"  "uart_sendMessage";
+    fprintf h "\n";
+    fprintf h "#if   DOWNLINK_DEVICE == UART0\n  #define DEV_DATA         sim_uart /*uart0*/\n";
+    fprintf h "#elif DOWNLINK_DEVICE == UART1\n  #define DEV_DATA         sim_uart /*uart1*/\n";
+    fprintf h "#elif DOWNLINK_DEVICE == UART2\n  #define DEV_DATA         uart2\n";
+    fprintf h "#elif DOWNLINK_DEVICE == UART3\n  #define DEV_DATA         uart3\n";
+    fprintf h "#elif DOWNLINK_DEVICE == UART4\n  #define DEV_DATA         uart4\n";
+    fprintf h "#elif DOWNLINK_DEVICE == UART5\n  #define DEV_DATA         uart5\n";
+    fprintf h "#elif DOWNLINK_DEVICE == UART6\n  #define DEV_DATA         uart6\n";
+    fprintf h "#elif DOWNLINK_DEVICE == SIM_UART\n  #define DEV_DATA         sim_uart\n";
+    fprintf h "#endif //DOWNLINK_DEVICE ==\n";
+    fprintf h "\n";
+    fprintf h "#else  //DOWNLINK_DEVICE == xxx || ...\n#error \"DOWNLINK_DEVICE not supported\"\n";
+    fprintf h "#endif //DOWNLINK_DEVICE\n";
+    fprintf h "\n";
+    fprintf h "/* initial defines for TRANSPORT management *****************************************/\n";
+    fprintf h "#ifndef DOWNLINK_TRANSPORT\n#error \"Downlink enabled but not Downlink Transport defined\"\n#endif\n";
+    fprintf h "#define __msg_join(_y, _x) _y##_x\n#define _msg_join(_y, _x) __msg_join(_y, _x)\n#define msg_join(_chan, _fun) _msg_join(_chan, _fun)\n\n\n"
+
   (** Prints downlink macro *)
   let print_downlink_macro = fun h function_type message ->
     let s = message.name in
@@ -232,9 +267,12 @@ module Gen_onboard = struct
       fprintf h "  uint8_t tp_hd_len = %s->api.header_len;%s" !trans_name !eol;
       fprintf h "  uint8_t tp_tl_len = %s->api.tail_len;%s" !trans_name !eol;
     end else begin
-      fprintf h "  uint8_t ta_len =    msg_join(%s, _transaction_len());%s" !dev_name !eol;
-      fprintf h "  uint8_t tp_hd_len = msg_join(%s, _header_len);%s" !trans_name !eol;
-      fprintf h "  uint8_t tp_tl_len = msg_join(%s, _tail_len);%s" !trans_name !eol;
+      fprintf h "  uint8_t ta_len =    DEV_TRANSACTION_LEN();%s" !eol;
+      (*fprintf h "  uint8_t ta_len =    msg_join(%s, _transaction_len());%s" !dev_name !eol;*)
+      fprintf h "  uint8_t tp_hd_len = msg_join(DOWNLINK_TRANSPORT, _header_len());%s" !eol;
+      fprintf h "  uint8_t tp_tl_len = msg_join(DOWNLINK_TRANSPORT, _tail_len());%s" !eol;
+      (*fprintf h "  uint8_t tp_hd_len = msg_join(%s, _header_len);%s" !trans_name !eol;
+      fprintf h "  uint8_t tp_tl_len = msg_join(%s, _tail_len);%s" !trans_name !eol;*)
     end;
     fprintf h "%s" !eol;
 
@@ -245,7 +283,7 @@ module Gen_onboard = struct
     if (function_type <> "MACROS") then
       fprintf h "  if(%s->api.check_free_space(%s->data, &dev_slot)){%s" !dev_name !dev_name !eol
     else
-      fprintf h "  if( msg_join(%s, _check_free_space(&dev_slot)) ){%s" !dev_name !eol;
+      fprintf h "  if( DEV_CHECK_FREE_SPACE(& DEV_DATA, &dev_slot) ){%s" !eol;
 
     fprintf h "    /* 2.- try to get a slot in dynamic buffer */%s" !eol;
     if (function_type <> "MACROS") then
@@ -261,8 +299,11 @@ module Gen_onboard = struct
     fprintf h "      /* 4.- set transaction in buffer */%s" !eol;
     if (function_type <> "MACROS") then
       fprintf h "      %s->api.transaction_pack(buff, (buff + ta_len), (tp_hd_len + MSG_HD_LEN + %s + tp_tl_len), NULL, 0, &message_callback);%s" !dev_name data_len1 !eol
-    else
-      fprintf h "      msg_join(%s, _transaction_pack(buff, (buff + ta_len), (tp_hd_len + MSG_HD_LEN + %s + tp_tl_len), &message_callback));%s" !dev_name data_len2 !eol;
+    else begin
+      fprintf h "      DEV_TRANSACTION_TYPE tr;%s" !eol;
+      fprintf h "      DEV_TRANSACTION_PACK(&tr, (buff + ta_len), (tp_hd_len + MSG_HD_LEN + %s + tp_tl_len), &message_callback);%s" data_len2 !eol;
+      fprintf h "      memcpy(buff, &tr, sizeof(DEV_TRANSACTION_TYPE));%s" !eol;
+    end;
     fprintf h "%s" !eol;
 
     fprintf h "      /* SET MESSAGE: CONTAINS TRANSPORT HEADER, MESSAGE HEADER, MESSAGE DATA AND TRANSPORT TAIL */%s" !eol;
@@ -270,7 +311,7 @@ module Gen_onboard = struct
     if (function_type <> "MACROS") then
       fprintf h "      %s->api.header(buff + ta_len, %s + MSG_HD_LEN);%s" !trans_name data_len1 !eol
     else
-      fprintf h "      msg_join(%s, _header(buff + ta_len, %s + MSG_HD_LEN));%s" !trans_name data_len2 !eol;
+      fprintf h "      msg_join(DOWNLINK_TRANSPORT, _header(buff + ta_len, %s + MSG_HD_LEN));%s" data_len2 !eol;
 
     fprintf h "      /* 6.- set message HEADER in buffer */%s" !eol;
     fprintf h "      msg_hd.msg_id = DL_%s_ID;%s" s !eol;
@@ -287,7 +328,7 @@ module Gen_onboard = struct
     if (function_type <> "MACROS") then
       fprintf h "      %s->api.tail(buff + ta_len, %s + MSG_HD_LEN);%s" !trans_name data_len1 !eol
     else
-      fprintf h "      msg_join(%s, _tail(buff + ta_len, %s + MSG_HD_LEN));%s" !trans_name data_len2 !eol;
+      fprintf h "      msg_join(DOWNLINK_TRANSPORT, _tail(buff + ta_len, %s + MSG_HD_LEN));%s" data_len2 !eol;
     fprintf h "%s" !eol;
 
     fprintf h "      /* SUMMIT TRANSACTION */%s" !eol;
@@ -295,7 +336,7 @@ module Gen_onboard = struct
     if (function_type <> "MACROS") then
       fprintf h "      %s->api.transaction_summit(%s->data, dev_slot, buff, DL_%s_PRIORITY);%s" !dev_name !dev_name s !eol
     else
-      fprintf h "      msg_join(%s, _sendMessage(dev_slot, buff, DL_%s_PRIORITY));%s" !dev_name s !eol;
+      fprintf h "      DEV_TRANSACTION_SUMMIT(& DEV_DATA, dev_slot, buff, DL_%s_PRIORITY);%s" s !eol;
     fprintf h "    }%s" !eol;
 
     fprintf h "    else {%s" !eol;
@@ -303,7 +344,7 @@ module Gen_onboard = struct
     if (function_type <> "MACROS") then
       fprintf h "      %s->api.free_space(%s->data, dev_slot);%s" !dev_name !dev_name !eol
     else
-      fprintf h "      msg_join(%s, _free_space(dev_slot));%s" !dev_name !eol;
+      fprintf h "      DEV_CHECK_FREE_SPACE(& DEV_DATA, dev_slot);%s" !eol;
     fprintf h "    }%s" !eol;
     fprintf h "  }%s" !eol;
     fprintf h "}\n\n"
@@ -433,15 +474,17 @@ let () =
     end;
 
     Printf.fprintf h "#include \"subsystems/datalink/messages_header.h\"\n";
-    if class_name = "telemetry" then begin (** FIXME *)
-    Printf.fprintf h "#include \"messages_data.h\"\n";
+    if class_name = "telemetry" then begin
+      Printf.fprintf h "#include \"messages_data.h\"\n";
     end else
-    Printf.fprintf h "#include \"dl_protocol_data.h\"\n";
+      Printf.fprintf h "#include \"dl_protocol_data.h\"\n";
     Printf.fprintf h "#include \"subsystems/datalink/transport2.h\"\n";
-    Printf.fprintf h "#include \"subsystems/datalink/device.h\"\n\n\n";
+    Printf.fprintf h "#include \"subsystems/datalink/device.h\"\n";
 
-    if (function_type <> "FUNCTIONS") then
-      Printf.fprintf h "#define __msg_join(_y, _x) _y##_x\n#define _msg_join(_y, _x) __msg_join(_y, _x)\n#define msg_join(_chan, _fun) _msg_join(_chan, _fun)\n\n\n";
+    if (function_type <> "FUNCTIONS") then begin
+      Gen_onboard.print_macro_option_header h;
+    end else
+      Printf.fprintf h "\n\n";
 
     List.iter (Gen_onboard.print_downlink_macro h function_type) messages;
 

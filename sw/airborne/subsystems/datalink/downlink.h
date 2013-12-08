@@ -35,36 +35,33 @@
 
 #if defined SITL
 
-//THIS IS JUST FOR DEBUG...
-// #define _DOWNLINK_WITH_MACROS_
-
-#ifdef SIM_UART
-#include "sim_uart.h"
-#include "subsystems/datalink/transport_pprz.h"
-// #include "subsystems/datalink/transport_xbee.h"
+// #ifdef SIM_UART
+// #include "sim_uart.h"
 // #include "subsystems/datalink/pprz_transport.h"
 // #include "subsystems/datalink/xbee.h"
-#else /* SIM_UART */
-/** Software In The Loop simulation uses IVY bus directly as the transport layer */
+// #else /* SIM_UART */
+// /** Software In The Loop simulation uses IVY bus directly as the transport layer */
+// #include "ivy_transport.h"
+// #endif
+
+#if defined (DOWNLINK_DEVICE) && DOWNLINK_DEVICE == SIM_UART
 #include "subsystems/datalink/device_simUart.h"
 #include "subsystems/datalink/transport_pprz.h"
-#include "ivy_transport.h"
-#endif
-
-#ifdef _DOWNLINK_WITH_MACROS_
-#define DefaultDevice dev_SIM_UART
+// #include "subsystems/datalink/transport_xbee.h"
 #else
-#define DefaultDevice &dev_SIM_UART
+/** Software In The Loop simulation uses IVY bus directly as the transport layer */
+#include "ivy_transport.h"
 #endif
 
 #else /** SITL */
 
 #include "subsystems/datalink/transport_pprz.h"
 // #include "subsystems/datalink/transport_xbee.h"
-#include "subsystems/datalink/udp.h"
+
+// #include "subsystems/datalink/udp.h"
 // #include "subsystems/datalink/pprz_transport.h"
 // #include "subsystems/datalink/xbee.h"
-#include "subsystems/datalink/w5100.h"
+// #include "subsystems/datalink/w5100.h"
 #if USE_SUPERBITRF
 #include "subsystems/datalink/superbitrf.h"
 #endif
@@ -81,46 +78,35 @@
 
 
 
-// FIXME are DOWNLINK_AP|FBW_DEVICE distinction really necessary ?
-// by default use AP_DEVICE if nothing is set ?
-#ifndef DOWNLINK_DEVICE
-#define DOWNLINK_DEVICE DOWNLINK_AP_DEVICE
-#endif
-
-#ifdef _DOWNLINK_WITH_MACROS_
-
-#ifndef DefaultChannel
-#define DefaultChannel DOWNLINK_TRANSPORT
-#endif
-
-#ifndef DefaultDevice
-#define DefaultDevice DOWNLINK_DEVICE
-#endif
-
-#else // _DOWNLINK_WITH_MACROS_
-//Downlink with static inline functions
-#define __join(_y, _x) _y##_x
-#define _join(_y, _x) __join(_y, _x)
-#define join(_chan, _fun) _join(_chan, _fun)
-
 #ifndef DefaultChannel
 //i.e. built '& PprzTransport' from PprzTransport
 #define var_adr(_x) (& _x)
 #define DefaultChannel var_adr(DOWNLINK_TRANSPORT)
 #endif
 
+
+
+// FIXME are DOWNLINK_AP|FBW_DEVICE distinction really necessary ?
+// by default use AP_DEVICE if nothing is set ?
+#ifndef DOWNLINK_DEVICE
+#define DOWNLINK_DEVICE DOWNLINK_AP_DEVICE
+#endif
+
+#define __join(_y, _x) _y##_x
+#define _join(_y, _x) __join(_y, _x)
+#define join(_chan, _fun) _join(_chan, _fun)
+
 #ifndef DefaultDevice
 #define DefaultDevice2 DOWNLINK_DEVICE
 #define DefaultDevice join(&dev_, DefaultDevice2)
 #endif
-
-#endif // _DOWNLINK_WITH_MACROS_
 
 
 /** Counter of messages not sent because of unavailibity of the output buffer*/
 extern uint8_t downlink_nb_ovrn;
 extern uint16_t downlink_nb_bytes;
 extern uint16_t downlink_nb_msgs;
+
 
 /* Transport macros
  *

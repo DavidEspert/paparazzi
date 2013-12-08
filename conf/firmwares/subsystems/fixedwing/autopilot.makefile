@@ -189,7 +189,7 @@ sim.srcs 		+= $(fbw_srcs) $(ap_srcs)
 sim.CFLAGS 		+= -DSITL
 sim.srcs 		+= $(SRC_ARCH)/sim_ap.c
 
-sim.CFLAGS 		+= -DDOWNLINK -DDOWNLINK_TRANSPORT=PprzTransport -DDefaultPeriodic='&telemetry_Ap'
+sim.CFLAGS 		+= -DDOWNLINK -DDOWNLINK_DEVICE=SIM_UART -DDOWNLINK_TRANSPORT=PprzTransport -DDefaultPeriodic='&telemetry_Ap'
 sim.srcs 		+= subsystems/datalink/telemetry.c subsystems/datalink/downlink.c $(SRC_FIRMWARE)/datalink.c $(SRC_ARCH)/ivy_transport.c
 
 # GJN Addition during development...

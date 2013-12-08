@@ -35,7 +35,7 @@
   .api[1]  = NO_FRAME_ID, \
   .api[2]  = GROUND_STATION_ADDR >> 8, \
   .api[3]  = GROUND_STATION_ADDR & 0xff, \
-  .api[4] = TX_OPTIONS
+  .api[4]  = TX_OPTIONS
 
 #define XBeeTransportPutTXHeader(_dev) { \
   XBeeTransportPutUint8(_dev, XBEE_TX_ID); \

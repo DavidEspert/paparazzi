@@ -31,7 +31,7 @@
 
 #define XBEE_API_LEN 14
 #define INITIALIZED_XBEE_HD_API \
-  .api[0..(XBEE_API_LEN-1)] = 0x00, \
+  .api[0 ... (XBEE_API_LEN-1)] = 0x00, \
   .api[0]  = XBEE_TX_ID, \
   .api[1]  = NO_FRAME_ID, \
   .api[8]  = GROUND_STATION_ADDR >> 8, \

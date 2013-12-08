@@ -21,18 +21,24 @@
  */
 
 /** \file transport2.h
- *  \brief Interface for downlink transport implementation
+ *  \brief Interface for transport implementation
  * 
- * Each transport layer 'X' must contain 4 functions:
- * - uint8_t X_header_len(void):
- * 	Returns header length.
- * - void X_header(uint8_t *buff, uint16_t msg_data_length):
- * 	Fills header in buffer.
- * - uint8_t X_tail_len(void):
- * 	Returns tail length.
- * - void X_tail(uint8_t *buff, uint16_t msg_data_length):
- * 	Fills tail in buffer. It must internally take into account the offset in buffer
- * 	(offset = header_len + msg_data_length)
+ * This file provides a generic interface for transport layer control.
+ * General transport layer is defined with a void 'data' struct (containing
+ * specific and common transport data) and API functions.
+ * 
+ * IMPORTANT NOTE: Since system data adquisition is not synchronized, Rx parsed data
+ * could be a truncated message. In order to keep Rx integrity, transport layer has to ALWAYS
+ * be linked to the same device; in that way, every rx data array will be concatenated
+ * with the previous one and the truncation problem will disapear.
+ * i.e.: if you want 2 Paparazzi transports over 2 devices you need 2 'transport2'
+ *       elements of Paparazzi type.
+ * |---> Uplink manager (datalink.h) ensures that same transport is not associated to
+ *       different devices.
+ *
+ * NOTE 2: If different services expect data from the same device and with the same transport,
+ * it is not necessary to create different 'transport2' elements. Create just one and add their
+ * 'service callback' to it.
  */
 
 #ifndef _TRANSPORT2_H
@@ -51,7 +57,7 @@
 #define TRANSPORT_PRINT_PAYLOAD(_common) { \
   uint16_t payload_idx; \
   if (_common.payload_len > 0) { \
-    TRANSPORT_TRACE("\tmessage:    { "); \
+    TRANSPORT_TRACE("\ttransport2: Rx message:    { "); \
     for(payload_idx = 0; payload_idx < (_common.payload_len-1); payload_idx++){ \
       TRANSPORT_TRACE("%u, ", _common.payload[payload_idx]); \
     } \
