@@ -22,7 +22,8 @@
 #include "datalink.h"
 #include <string.h>     //required for memcpy
 
-struct RxDatalink datalink = INITIALIZED_DATALINK;
+struct device* datalink_dev[NUM_DATALINK_DEV] = INITIALIZED_DATALINK;
+// struct Datalink datalink = INITIALIZED_DATALINK;
 
 
 void datalink_pprz_callback(const uint8_t*payload, const uint16_t payload_len) {

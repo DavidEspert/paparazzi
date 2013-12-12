@@ -7,6 +7,21 @@ telemetry_CFLAGS += -DDOWNLINK_TRANSPORT=PprzTransport -DDATALINK=PPRZ
 telemetry_srcs = subsystems/datalink/downlink.c subsystems/datalink/pprz_transport.c
 
 # GJN Addition during development...
+#transmition transport layers enabled
+telemetry_CFLAGS += -DTRANSPORT_TX_1=PPRZ
+telemetry_CFLAGS += -DTRANSPORT_TX_2=PPRZ
+#Reception transport layers enabled
+telemetry_CFLAGS += -DTRANSPORT_RX_1=PPRZ
+telemetry_CFLAGS += -DTRANSPORT_RX_2=PPRZ
+#Downlink
+telemetry_CFLAGS += -DDOWNLINK
+telemetry_CFLAGS += -DDOWNLINK_DEVICE=SIM_UART
+# telemetry_CFLAGS += -DDOWNLINK_TRANSPORT=TRANSPORT_TX_2
+telemetry_CFLAGS += -DDATALINK
+telemetry_CFLAGS += -DDATALINK_DEVICE_1=SIM_UART
+telemetry_CFLAGS += -DDATALINK_TRANSPORT=TRANSPORT_RX_2
+# telemetry_CFLAGS += -DDATALINK_DEVICE_2=UART1
+# telemetry_CFLAGS += -DDATALINK_TRANSPORT="TRANSPORT_RX_2"
 # telemetry_srcs += mcu_periph/transmit_buffer.c subsystems/datalink/transport_pprz.c
 # telemetry_CFLAGS += -DUSE_UART0 -DDOWNLINK_FBW_DEVICE=UART0 -DDOWNLINK_AP_DEVICE=UART0 -DPPRZ_UART=UART0 -DUART0_BAUD=B9600
 # telemetry_srcs += mcu_periph/device_uart.c

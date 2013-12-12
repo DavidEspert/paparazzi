@@ -236,7 +236,7 @@ module Gen_onboard = struct
     
     if (function_type <> "MACROS") then begin
       f_type := "static inline void";
-      trans_type:= "struct transport2 *";
+      trans_type:= "struct transport_tx *";
       trans_name := "tp";
       dev_type := "struct device *";
       dev_name := "dev";
@@ -362,7 +362,7 @@ module Gen_onboard = struct
     
     if (function_type <> "MACROS") then begin
       f_type := "static inline void";
-      trans_type:= "struct transport2 *";
+      trans_type:= "struct transport_tx *";
       trans_name := "tp";
       dev_type := "struct device *";
       dev_name := "dev";

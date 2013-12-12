@@ -24,10 +24,10 @@
 // #include "generated/airframe.h" // AC_ID is required
 
 
+// TX API ---------------------------------------------------------------------
+
 /** HEADER & TAIL */
-
 #define STX_PPRZ_TX  0x99
-
 struct pprz_header{
   uint8_t       stx;
   uint8_t       length;
@@ -37,53 +37,6 @@ struct pprz_tail{
   uint8_t       ck_a;
   uint8_t       ck_b;
 };
-
-
-
-/** RX PARSING STATE MACHINE */
-
-/** Status of the API packet receiver automata */
-#define UNINIT      0
-#define GOT_STX     1
-#define GOT_LENGTH  2
-#define GOT_PAYLOAD 3
-#define GOT_CRC1    4
-
-struct pprz_transport_rx {
-  // generic interface
-  struct transport_data_common common;
-  // specific pprz transport variables
-  uint8_t status;
-  uint8_t payload_idx;
-  uint8_t ck_a, ck_b;
-};
-#define INITIALIZED_PPRZ_DATA(_name) { \
-  .common = INITIALIZED_TP_DATA_COMMON(_name), \
-  .status = UNINIT, \
-  .payload_idx = 0, \
-  .ck_a = 0, \
-  .ck_b = 0 \
-};
-
-extern struct pprz_transport_rx pprz_tp_rx;
-
-
-// - PAPARAZZI TRANSPORT INTERFACE ----------------------------------------------------
-
-static inline void PprzTransport_init(struct pprz_transport_rx* data, struct device* rx_dev) {
-  for (uint8_t i = 0; i < TRANSPORT_NUM_CALLBACKS; i++)
-    data->common.callback[i] = NULL;
-  data->common.rx_dev = rx_dev;
-  data->status = UNINIT;
-}
-
-static inline struct device* PprzTransport_rx_device(struct pprz_transport_rx* data) {
-  return (data->common.rx_dev);
-}
-
-static inline char* PprzTransport_name(struct pprz_transport_rx* data) {
-  return (data->common.name);
-}
 
 static inline uint8_t PprzTransport_header_len(void){
 // return sizeof(struct pprz_header);  
@@ -124,27 +77,77 @@ static inline void PprzTransport_tail(uint8_t *buff, uint16_t msg_data_length){
   buff[i]   = tl.ck_b; //((struct pprz_tail *)(buff + sizeof(struct pprz_header) + msg_data_length))->ck_b = tl.ck_b;
 }
 
-static inline bool_t PprzTransport_register_callback(struct pprz_transport_rx* data, void (*callback)(const uint8_t*, const uint16_t) ) {
-  for (uint8_t i = 0; i < TRANSPORT_NUM_CALLBACKS; i++) {
-    if(data->common.callback[i] == callback || data->common.callback[i] == NULL) {
-      data->common.callback[i] = callback;
-      return TRUE;
-    }
+// #ifdef TX_TRANSPORT_1 && TX_TRANSPORT_1 == PPRZ
+// extern struct transport_tx transport_tx_1;
+// #elif defined TX_TRANSPORT_2 && TX_TRANSPORT_2 == PPRZ
+// extern struct transport_tx transport_tx_2;
+// #elif defined TX_TRANSPORT_3 && TX_TRANSPORT_3 == PPRZ
+// extern struct transport_tx transport_tx_3;
+// #endif
+
+
+
+// RX API ---------------------------------------------------------------------
+
+
+/** RX PARSING STATE MACHINE */
+#define UNINIT      0
+#define GOT_STX     1
+#define GOT_LENGTH  2
+#define GOT_PAYLOAD 3
+#define GOT_CRC1    4
+
+struct transport_rx_data_pprz {
+  // generic interface
+  struct transport_rx_data_common common;
+  // specific pprz transport variables
+  uint8_t status;
+  uint8_t payload_idx;
+  uint8_t ck_a, ck_b;
+};
+#define INITIALIZED_PPRZ_RX_DATA(_name) { \
+  .common = INITIALIZED_TP_RX_DATA_COMMON(_name), \
+  .status = UNINIT, \
+  .payload_idx = 0, \
+  .ck_a = 0, \
+  .ck_b = 0 \
+};
+
+static inline void PprzTransport_init(struct transport_rx_data_pprz* data) {
+  transport_rx_data_common_init(&(data->common));
+  data->status = UNINIT;
+  data->payload_idx = 0;
+  data->ck_a = 0;
+  data->ck_b = 0;
+}
+
+static inline bool_t PprzTransport_register_device(struct transport_rx_data_pprz* data, struct device* rx_dev) {
+  if(data->common.rx_dev == NULL || data->common.rx_dev == rx_dev) {
+    data->common.rx_dev = rx_dev;
+    return TRUE;
   }
   return FALSE;
 }
 
-static inline void PprzTransport_parse(struct pprz_transport_rx* data, uint8_t c) {
+static inline struct device* PprzTransport_rx_device(struct transport_rx_data_pprz* data) {
+  return (data->common.rx_dev);
+}
+
+static inline char* PprzTransport_name(struct transport_rx_data_pprz* data) {
+  return (data->common.name);
+}
+
+static inline void PprzTransport_parse(struct transport_rx_data_pprz* data, uint8_t c) {
   switch (data->status) {
   case UNINIT:
     if (c == STX_PPRZ_TX)
       data->status++;
     break;
   case GOT_STX:
-//     if (data->common.msg_received) {
-//       data->common.ovrn++;
-//       goto error;
-//     }
+    if (data->common.msg_received) {
+      data->common.ovrn++;
+      goto error;
+    }
     data->common.payload_len = c-4; // Counting STX, LENGTH and CRC1 and CRC2
     data->ck_a = data->ck_b = c;
     data->status++;
@@ -165,11 +168,9 @@ static inline void PprzTransport_parse(struct pprz_transport_rx* data, uint8_t c
   case GOT_CRC1:
     if (c != data->ck_b)
       goto error;
-    TRANSPORT_TRACE("\ttransport_pprz: PprzTransport_parse:  PPRZ MESSAGE FOUND BY %s\n", (data->common.name));
+    TRANSPORT_TRACE("\ttransport_pprz: parse:  PPRZ MESSAGE FOUND BY %s\n", (data->common.name));
     TRANSPORT_PRINT_PAYLOAD(data->common);
-    for(uint8_t i = 0; (i < TRANSPORT_NUM_CALLBACKS && data->common.callback[i] != NULL); i++)
-      data->common.callback[i](data->common.payload, data->common.payload_len);
-//     data->common.msg_received = TRUE;
+    data->common.msg_received = TRUE;
     goto restart;
   default:
     goto error;
@@ -182,7 +183,34 @@ static inline void PprzTransport_parse(struct pprz_transport_rx* data, uint8_t c
   return;
 }
 
+static inline bool_t PprzTransport_message_received(struct transport_rx_data_pprz* data) {
+  return data->common.msg_received;
+}
 
-extern struct transport2 PprzTransport;
+static inline bool_t PprzTransport_register_callback(struct transport_rx_data_pprz* data, void (*callback)(const uint8_t*, const uint16_t) ) {
+  for (uint8_t i = 0; i < TRANSPORT_NUM_CALLBACKS; i++) {
+    if(data->common.callback[i] == callback || data->common.callback[i] == NULL) {
+      data->common.callback[i] = callback;
+      return TRUE;
+    }
+  }
+  return FALSE;
+}
+
+static inline void PprzTransport_callback(struct transport_rx_data_pprz* data) {
+  if(data->common.msg_received) {
+    for(uint8_t i = 0; i < TRANSPORT_NUM_CALLBACKS; i++)
+      if(data->common.callback[i] != NULL)
+        data->common.callback[i](data->common.payload, data->common.payload_len);
+  }
+  data->common.msg_received = FALSE;
+}
+
+// #ifdef RX_TRANSPORT_1 && RX_TRANSPORT_1 == PPRZ
+// extern struct transport_rx transport_rx_1;
+// #endif
+// #ifdef RX_TRANSPORT_2 && RX_TRANSPORT_2 == PPRZ
+// extern struct transport_rx transport_rx_2;
+// #endif
 
 #endif// _TRANSPORT_PPRZ_H_

@@ -44,9 +44,6 @@
 #ifndef _TRANSPORT2_H
 #define _TRANSPORT2_H
 
-// #include <inttypes.h>
-// #include "std.h"
-// #include <stdint.h>
 #include "device.h"
 
 #define _TRANSPORT_TRACES_
@@ -64,13 +61,36 @@
     TRANSPORT_TRACE("%u }\n", _common.payload[payload_idx]); \
   } \
 }
-  
 #else
 #define TRANSPORT_TRACE(...)
 #define TRANSPORT_PRINT_PAYLOAD(_common)
 #endif
 
 
+// TX API ---------------------------------------------------------------------
+struct transport_tx_api {
+  uint8_t         header_len;
+  void            (*header)(uint8_t *buff, uint16_t msg_data_length);
+  uint8_t         tail_len;
+  void            (*tail)(uint8_t *buff, uint16_t msg_data_length);
+};
+
+struct transport_tx {
+  struct transport_tx_api api;
+};
+
+#ifdef TRANSPORT_TX_1
+extern struct transport_tx transport_tx_1;
+#endif
+#ifdef TRANSPORT_TX_2
+extern struct transport_tx transport_tx_2;
+#endif
+
+extern struct transport_tx PprzTransport;
+extern struct transport_tx XBeeTransport;
+
+
+// RX API (and RX_DATA) -------------------------------------------------------
 #define TP_NAME_SIZE            16
 #ifndef TRANSPORT_PAYLOAD_LEN
 #define TRANSPORT_PAYLOAD_LEN   256
@@ -79,8 +99,7 @@
 #define TRANSPORT_NUM_CALLBACKS 1
 #endif
 
-/** Generic Rx data struct */
-struct transport_data_common {
+struct transport_rx_data_common {
   // transport name
   char name[TP_NAME_SIZE];
   // payload buffer
@@ -88,45 +107,57 @@ struct transport_data_common {
   // payload length
   volatile uint16_t payload_len;
   // message received flag
-//   volatile bool_t msg_received;
+  volatile bool_t msg_received;
   // overrun and error flags
-//   uint8_t ovrn, error;
-  uint8_t error;
+  uint8_t ovrn, error;
   //callback functions 
   void (*callback[TRANSPORT_NUM_CALLBACKS])(const uint8_t*payload, const uint16_t payload_len);
   // associated Rx device
   struct device* rx_dev;
 };
-#define INITIALIZED_TP_DATA_COMMON(_name) { \
+#define INITIALIZED_TP_RX_DATA_COMMON(_name) { \
   .name = _name, \
   .payload_len = 0, \
+  .msg_received = FALSE, \
+  .ovrn = 0, \
   .error = 0, \
   .callback[0 ... (TRANSPORT_NUM_CALLBACKS-1)] = NULL, \
   .rx_dev = NULL \
 }
 
+static inline void transport_rx_data_common_init(struct transport_rx_data_common* common) {
+  common->payload_len = 0;
+  common->msg_received = FALSE;
+  common->ovrn = 0;
+  common->error = 0;
+  for (uint8_t i = 0; i < TRANSPORT_NUM_CALLBACKS; i++)
+    common->callback[i] = NULL;
+  common->rx_dev = NULL;
+}
 
-/** Generic Transport API */
-struct transport_api
-{
-  void            (*init)(void* data, struct device* rx_dev);
+struct device;  //even if "device.h" is included, forward definition is required due to circular dependencies.
+struct transport_rx_api {
+  void            (*init)(void* data);
+  bool_t          (*register_device)(void* data, struct device* rx_dev);  //register always through datalink.h!
   struct device*  (*rx_device)(void* data);
   char*           (*name)(void* data);
-  // TX functions
-  uint8_t         header_len;
-  void            (*header)(uint8_t *buff, uint16_t msg_data_length);
-  uint8_t         tail_len;
-  void            (*tail)(uint8_t *buff, uint16_t msg_data_length);
-  // RX functions
+  void            (*parse)(void* data, uint8_t byte);
+  bool_t          (*message_received)(void* data);
   bool_t          (*register_callback)(void* data, void (*callback)(const uint8_t*, const uint16_t) );
-  void            (*parse)(void* data, uint8_t *c, uint16_t length);
+  void            (*callback)(void* data);
 };
 
-/** Generic Transport interface */
-struct transport2
-{
+struct transport_rx{
   void * data; //this points to the transport data struct
-  struct transport_api api;
+  struct transport_rx_api api;
 };
+
+#ifdef TRANSPORT_RX_1
+extern struct transport_rx transport_rx_1;
+#endif
+#ifdef TRANSPORT_RX_2
+extern struct transport_rx transport_rx_2;
+#endif
+
 
 #endif /* _TRANSPORT2_H */

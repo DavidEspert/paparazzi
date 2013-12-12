@@ -184,6 +184,7 @@ static void send_uart_err(void) {
 void uart_periph_init(struct uart_periph* p) {
   p->rx_insert_idx = 0;
   p->rx_extract_idx = 0;
+  p->rx_tp = NULL;
   transmit_queue_init(&(p->tx_queue));
   p->tx_byte_idx = 0;
   p->tx_running = FALSE;

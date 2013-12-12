@@ -18,6 +18,7 @@
 
 #include "device.h"
 extern struct device dev_SIM_UART;
+
 #include "mcu_periph/uart.h"
 extern struct uart_periph sim_uart;
 

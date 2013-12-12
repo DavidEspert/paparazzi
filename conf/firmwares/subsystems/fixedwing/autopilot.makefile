@@ -189,14 +189,32 @@ sim.srcs 		+= $(fbw_srcs) $(ap_srcs)
 sim.CFLAGS 		+= -DSITL
 sim.srcs 		+= $(SRC_ARCH)/sim_ap.c
 
-sim.CFLAGS 		+= -DDOWNLINK -DDOWNLINK_DEVICE=SIM_UART -DDOWNLINK_TRANSPORT=PprzTransport -DDefaultPeriodic='&telemetry_Ap'
+sim.CFLAGS 		+= -DDOWNLINK -DDefaultPeriodic='&telemetry_Ap'
 sim.srcs 		+= subsystems/datalink/telemetry.c subsystems/datalink/downlink.c $(SRC_FIRMWARE)/datalink.c $(SRC_ARCH)/ivy_transport.c
 
 # GJN Addition during development...
-sim.CFLAGS 		+= -DDATALINK
-sim.srcs		+= mcu_periph/transmit_queue.c mcu_periph/dynamic_buffer.c subsystems/datalink/transport_pprz.c subsystems/datalink/datalink.c
-sim.CFLAGS 		+= -DUSE_SIM_UART
+# transmition transport layers enabled
+sim.CFLAGS 		+= -DTRANSPORT_TX_1=PPRZ
+sim.CFLAGS 		+= -DTRANSPORT_TX_2=PPRZ
+# Reception transport layers enabled
+sim.CFLAGS 		+= -DTRANSPORT_RX_1=PPRZ
+sim.CFLAGS 		+= -DTRANSPORT_RX_2=PPRZ
+
+# Downlink
+sim.CFLAGS 		+= -DDOWNLINK
+sim.srcs		+= mcu_periph/transmit_queue.c mcu_periph/dynamic_buffer.c subsystems/datalink/datalink.c
+sim.CFLAGS 		+= -DDOWNLINK_DEVICE=SIM_UART -DUSE_SIM_UART
 sim.srcs		+= subsystems/datalink/device_uart.c subsystems/datalink/device_simUart.c
+# sim.CFLAGS 		+= -DDOWNLINK_TRANSPORT=XBeeTransport -DXBEE_BAUD=B9600 
+# sim.srcs		+= subsystems/datalink/transport_xbee.c
+sim.CFLAGS 		+= -DDOWNLINK_TRANSPORT=PprzTransport
+sim.srcs		+= subsystems/datalink/transport_pprz.c
+# sim.CFLAGS 		+= -DDOWNLINK_TRANSPORT=TRANSPORT_TX_2
+
+  # Uplink
+sim.CFLAGS 		+= -DDATALINK
+sim.CFLAGS 		+= -DDATALINK_DEVICE_1=SIM_UART
+sim.CFLAGS 		+= -DDATALINK_TRANSPORT=TRANSPORT_RX2
 # ... end of GJN Addition
 
 sim.srcs 		+= $(SRC_ARCH)/sim_gps.c $(SRC_ARCH)/sim_adc_generic.c

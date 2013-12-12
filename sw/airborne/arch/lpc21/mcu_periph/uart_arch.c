@@ -180,7 +180,8 @@ static inline void uart_ISR(struct uart_periph* p)
           }
           else{
             //message ended. Callback
-            p->trans.callback(p->trans_p);
+            if(p->trans.callback != NULL)
+              p->trans.callback(p->trans_p);
             // check if there is a new message
             if( transmit_queue_extract_slot(&(p->tx_queue), &(p->trans_p)) ){
               memcpy(&(p->trans), (p->trans_p), sizeof(struct uart_transaction));

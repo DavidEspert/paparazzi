@@ -92,13 +92,13 @@
 #define DOWNLINK_DEVICE DOWNLINK_AP_DEVICE
 #endif
 
-#define __join(_y, _x) _y##_x
-#define _join(_y, _x) __join(_y, _x)
-#define join(_chan, _fun) _join(_chan, _fun)
+#define __dl_join(_y, _x) _y##_x
+#define _dl_join(_y, _x) __dl_join(_y, _x)
+#define dl_join(_chan, _fun) _dl_join(_chan, _fun)
 
 #ifndef DefaultDevice
 #define DefaultDevice2 DOWNLINK_DEVICE
-#define DefaultDevice join(&dev_, DefaultDevice2)
+#define DefaultDevice dl_join(&dev_, DefaultDevice2)
 #endif
 
 

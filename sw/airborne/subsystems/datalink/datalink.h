@@ -65,6 +65,7 @@
 
 #include "std.h"
 #include "dl_protocol.h"
+#include "transport2.h"
 
 EXTERN bool_t dl_msg_available;
 /** Flag provided to control calls to ::dl_parse_msg. NOT used in this module*/
@@ -80,30 +81,60 @@ EXTERN void dl_parse_msg(void);
 
 #define NUM_DATALINK_DEV                2
 #define DATALINK_DEV_NOT_REGISTERED     NUM_DATALINK_DEV
-#define NUM_DATALINK_TP                 2
-#define DATALINK_TP_NOT_REGISTERED      NUM_DATALINK_TP
 
-struct Datalink_device{
-  struct device* dev;
-  struct transport2* tp[NUM_DATALINK_TP];
-};
-#define INITIALIZED_DATALINK_DEV { \
-  .dev = NULL, \
-  .tp[0 ... (NUM_DATALINK_TP-1)] = NULL \
-}
+extern struct device* datalink_dev[NUM_DATALINK_DEV];
+#define INITIALIZED_DATALINK    { NULL }
 
-struct RxDatalink{
-  uint8_t rx_buf[MSG_SIZE];
-  uint16_t rx_data_len;
-  struct Datalink_device dl_dev[NUM_DATALINK_DEV];
-};
-#define INITIALIZED_DATALINK { \
-  .rx_data_len = 0, \
-  .dl_dev[0 ... (NUM_DATALINK_DEV-1)] = INITIALIZED_DATALINK_DEV \
-}
+// struct Datalink{
+// //   uint8_t rx_buf[MSG_SIZE];
+// //   uint16_t rx_data_len;
+//   struct device* dev[NUM_DATALINK_DEV];
+// };
+/* #define INITIALIZED_DATALINK { \
+  .dev[0 ... (NUM_DATALINK_DEV-1)] = NULL \
+}*/
 
-extern struct RxDatalink datalink;
+extern struct Datalink datalink;
 
+#ifdef DATALINK
+
+#ifndef DATALINK_TRANSPORT
+#error "DATALINK is enabled but there is no DATALINK_TRANSPORT defined"
+
+#elif defined TRANSPORT_RX_1 && DATALINK_TRANSPORT == TRANSPORT_RX_1
+#define DLK_TP 1
+#else
+#error "2 TRANSPORT_RX_x checked but no matches found with DATALINK_TRANSPORT (x = {1,2})"
+#endif
+
+#ifdef DLK_TP
+#define UplinkTransport ul_join(transport_rx_, DLK_TP)
+#endif
+
+// Device
+#define __ul_join(_y, _x) _y##_x
+#define _ul_join(_y, _x) __ul_join(_y, _x)
+#define ul_join(_chan, _fun) _ul_join(_chan, _fun)
+
+#ifndef DATALINK_DEVICE_1
+#error "DATALINK defined but not RX_DEVICE_1. At least one datalink device is required"
+#else
+#define UplinkDevice1 ul_join(dev_, DATALINK_DEVICE_1)
+#endif
+#ifdef DATALINK_DEVICE_2
+#define UplinkDevice2 ul_join(dev_, DATALINK_DEVICE_2)
+#endif
+//...
+
+#endif //DATALINK
+
+
+
+/** Datalink kinds */
+#define PPRZ 1
+#define XBEE 2
+#define UDP 3
+#define SUPERBITRF 4
 
 /** Check for new message and parse */
 #define DlCheckAndParse() {   \
@@ -113,43 +144,52 @@ extern struct RxDatalink datalink;
   }                            \
 }
 
-/** Datalink kinds */
-#define PPRZ 1
-#define XBEE 2
-#define UDP 3
-#define SUPERBITRF 4
-
-
 #if defined DATALINK && (DATALINK == PPRZ || DATALINK == XBEE)
 
-#if DATALINK == PPRZ
-#define UplinkDevice datalink_join(&dev_, PPRZ_UART)
-#define UplinkTransport PprzTransport
-
-#elif DATALINK == XBEE
-#define UplinkDevice datalink_join(&dev_, XBEE_UART)
-#define UplinkTransport XBeeTransport
-#endif
-
-static inline bool_t datalink_register(struct transport2* tp, void (*dl_parse)(const uint8_t *dl_msg, const uint16_t dl_msg_len)) {
+// #if DATALINK == PPRZ
+// #define UplinkDevice datalink_join(&dev_, PPRZ_UART)
+// #define UplinkTransport PprzTransport
+// 
+// #elif DATALINK == XBEE
+// #define UplinkDevice datalink_join(&dev_, XBEE_UART)
+// #define UplinkTransport XBeeTransport
+// #endif
+// 
+static inline bool_t datalink_register(struct transport_rx* tp_rx, struct device* dev, void (*callback)(const uint8_t *dl_msg, const uint16_t dl_msg_len)) {
   uint8_t dev_idx;
-  uint8_t tp_idx;
-  struct device* dev;
-#ifdef _DATALINK_TRACES_
-  bool_t result;
-#endif
 
-  //1- Get associated device
-  dev = tp->api.rx_device(tp->data);
-  if(dev == NULL) { //transport has not been initialized yet
-    DATALINK_TRACE("\tdatalink.h: register:  TRANSPORT %s HAS NOT AN ASSOCIATED DEVICE. EXECUTION ABORTED\n", tp->api.name(tp->data));
+  //0- verify device and transport
+  if(dev == NULL) {
+    DATALINK_TRACE("\tdatalink.h: register:  NO DEVICE PROVIDED. EXECUTION ABORTED\n");
+    return FALSE;
+  }
+  if(tp_rx == NULL) {
+    DATALINK_TRACE("\tdatalink.h: register:  NO TRANSPORT PROVIDED. EXECUTION ABORTED\n");
     return FALSE;
   }
 
-  //2- Register device (if possible) in datalink
+  //1- verify device <--> transport association
+  {
+    struct device* assoc_dev = tp_rx->api.rx_device(tp_rx->data);
+    if(assoc_dev != NULL && assoc_dev != dev) {
+      //Unacceptable: transport cannot parse data from different devices. Unregister and register again!
+      DATALINK_TRACE("\tdatalink.h: register:  ATTEMPTING TO ASSOCIATE TRANSPORT %s WITH DEVICE %s BUT %s IS ALREADY ASSOCIATED WITH DEVICE %s. EXECUTION ABORTED\n", tp_rx->api.name(tp_rx->data), dev->api.name(dev->data), tp_rx->api.name(tp_rx->data), assoc_dev->api.name(assoc_dev->data));
+      return FALSE;
+    }
+  }
+  {
+    struct transport_rx* assoc_tp = dev->api.rx_transport(dev->data);
+    if(assoc_tp != NULL && assoc_tp != tp_rx) {
+      //Maybe in future...
+      DATALINK_TRACE("\tdatalink.h: register:  ATTEMPTING TO ASSOCIATE DEVICE %s WITH TRANSPORT %s BUT %s IS ALREADY ASSOCIATED WITH TRANSPORT %s. EXECUTION ABORTED\n", dev->api.name(dev->data), tp_rx->api.name(tp_rx->data), dev->api.name(dev->data), assoc_tp->api.name(assoc_tp->data));
+      return FALSE;
+    }
+  }
+
+  //2- register device (if possible) in datalink
   for (dev_idx = 0; dev_idx < NUM_DATALINK_DEV; dev_idx++) {
-    if(datalink.dl_dev[dev_idx].dev == dev || datalink.dl_dev[dev_idx].dev == NULL) {
-      datalink.dl_dev[dev_idx].dev = dev;
+    if(datalink_dev[dev_idx] == dev || datalink_dev[dev_idx] == NULL) {
+      datalink_dev[dev_idx] = dev;
       break;
     }
   }
@@ -158,43 +198,37 @@ static inline bool_t datalink_register(struct transport2* tp, void (*dl_parse)(c
     return FALSE;
   }
 
-  //3- Register transport (if possible) in datalink
-  for (tp_idx = 0; tp_idx < NUM_DATALINK_TP; tp_idx++) {
-    if(datalink.dl_dev[dev_idx].tp[tp_idx] == tp || datalink.dl_dev[dev_idx].tp[tp_idx] == NULL) {
-      datalink.dl_dev[dev_idx].tp[tp_idx] = tp;
-      break;
-    }
+  //3 register callback (if possible) in transport
+  if (tp_rx->api.register_callback(tp_rx->data, callback)) {
+    //4- associate device <--> transport
+    tp_rx->api.register_device(tp_rx->data, dev);     //this registration prevends against multiple transport association
+    dev->api.register_transport(dev->data, tp_rx);    //this registration provides link for device 'check and parse'
+    DATALINK_TRACE("\tdatalink.h: register:  DATALINK CORRECTLY REGISTERED (device = %s, transport = %s, callback = %p)\n", dev->api.name(dev->data), tp_rx->api.name(tp_rx->data), callback);
+    return TRUE;
   }
-  if(tp_idx == NUM_DATALINK_TP) { //No more transports can be registered for the specified device
-    DATALINK_TRACE("\tdatalink.h: register:  TRANSPORT %s CANNOT BE STORED. EXECUTION ABORTED\n", tp->api.name(tp->data));
+  else {
+    DATALINK_TRACE("\tdatalink.h: register:  DATALINK CALLBACK CANNOT BE STORED. EXECUTION ABORTED\n");
     return FALSE;
   }
-
-  //4- Register callback (if possible) in transport
-#ifdef _DATALINK_TRACES_
-  result = tp->api.register_callback(tp->data, dl_parse);
-  if (result)
-  { DATALINK_TRACE("\tdatalink.h: register:  DATALINK CORRECTLY REGISTERED (device = %s, transport = %s, callback = %p)\n", dev->api.name(dev->data), tp->api.name(tp->data), dl_parse); }
-  else
-  { DATALINK_TRACE("\tdatalink.h: register:  DATALINK CALLBACK CANNOT BE STORED. EXECUTION ABORTED\n"); }
-  return result;
-#else
-  return tp->api.register_callback(tp->data, dl_parse);
-#endif
 }
 
 static inline void DatalinkEvent(void) {
-  DATALINK_TRACE("\tdatalink.h: event:  HOLA\n");
-  for(uint8_t i=0; (i < NUM_DATALINK_DEV && datalink.dl_dev[i].dev != NULL); i++) {
-    struct device* dev = datalink.dl_dev[i].dev;
-    //Check device and fill a local buffer.
-    datalink.rx_data_len = 0;
-    while(datalink.rx_data_len < MSG_SIZE && dev->api.char_available(dev->data))
-      datalink.rx_buf[datalink.rx_data_len++] = dev->api.getch(dev->data);
-    //Parse buffer through device associated transports
-    for(uint8_t j = 0; (j < NUM_DATALINK_TP && datalink.dl_dev[i].tp[j] != NULL);j++) {
-      struct transport2* tp = datalink.dl_dev[i].tp[j];
-      tp->api.parse(tp->data, datalink.rx_buf, datalink.rx_data_len);
+  for(uint8_t i=0; i < NUM_DATALINK_DEV; i++) {
+    struct device* dev = datalink_dev[i];
+    if(dev != NULL) {
+//       DATALINK_TRACE("\tdatalink.h: event:  STARTING CHECK_AND_PARSE FROM DEVICE %s\n", dev->api.name(dev->data));
+      //check and parse device data
+      struct transport_rx* tp_rx = dev->api.rx_transport(dev->data);
+      while (dev->api.byte_available(dev->data)) {
+        uint8_t c = dev->api.get_byte(dev->data);
+        //In future: if different TP per device allowed, parse data through all TPs
+        //and callback if any message is found (stop parsing)
+        tp_rx->api.parse(tp_rx->data, c);
+        if(tp_rx->api.message_received(tp_rx->data))
+          break; //goto callback;
+      }
+// callback:
+      tp_rx->api.callback(tp_rx->data);
     }
   }
 }
