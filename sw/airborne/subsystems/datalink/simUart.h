@@ -1,4 +1,4 @@
-/** \file device_simUart.h
+/** \file simUart.h
  *  \brief Interface for basic peripheric control
  * 
  *  This file provides an API for a simulated UART management as a generic peripheral device.
@@ -16,10 +16,20 @@
 
 #ifdef USE_SIM_UART
 
-#include "device.h"
-extern struct device dev_SIM_UART;
-
 #include "mcu_periph/uart.h"
+
+//Baudrate definitions
+#define B1200    1200
+#define B2400    2400
+#define B4800    4800
+#define B9600    9600
+#define B19200   19200
+#define B38400   38400
+#define B57600   57600
+#define B100000  100000
+#define B115200  115200
+#define B230400  230400
+
 extern struct uart_periph sim_uart;
 
 #endif /* USE_SIM_UART */

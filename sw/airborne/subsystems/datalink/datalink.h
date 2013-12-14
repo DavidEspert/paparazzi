@@ -48,8 +48,6 @@
 #define EXTERN extern
 #endif
 
-#define _DATALINK_TRACES_
-
 #ifdef _DATALINK_TRACES_
 #include <stdio.h>
 #define DATALINK_TRACE(...) fprintf (stderr, __VA_ARGS__); fflush(stdout);
@@ -84,15 +82,6 @@ EXTERN void dl_parse_msg(void);
 
 extern struct device* datalink_dev[NUM_DATALINK_DEV];
 #define INITIALIZED_DATALINK    { NULL }
-
-// struct Datalink{
-// //   uint8_t rx_buf[MSG_SIZE];
-// //   uint16_t rx_data_len;
-//   struct device* dev[NUM_DATALINK_DEV];
-// };
-/* #define INITIALIZED_DATALINK { \
-  .dev[0 ... (NUM_DATALINK_DEV-1)] = NULL \
-}*/
 
 extern struct Datalink datalink;
 

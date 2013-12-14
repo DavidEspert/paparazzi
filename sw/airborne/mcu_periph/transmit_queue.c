@@ -1,13 +1,12 @@
 #include "transmit_queue.h"
 
+
+
+// NOTE: About '_TRANSMIT_QUEUE_PUBLIC_CHECKS_' and '_TRANSMIT_QUEUE_PRIVATE_CHECKS_'
 // Checks ensure that a given parameter 'slot index'
 // corresponds to an existing and reserved slot in queue.
 // PUBLIC  checks find possible user errors --> What to do with this? Always enabled? Just for Debug?
 // PRIVATE checks find internal errors --> DISABLE AFTER DEVELOPMENT
-// #define _TRANSMIT_QUEUE_PUBLIC_CHECKS_
-// #define _TRANSMIT_QUEUE_PRIVATE_CHECKS_
-
-// #define _TRANSMIT_QUEUE_TRACES_
 
 #ifdef _TRANSMIT_QUEUE_TRACES_
 #include <stdio.h>

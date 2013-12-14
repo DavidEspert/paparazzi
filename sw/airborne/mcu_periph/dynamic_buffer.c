@@ -2,14 +2,11 @@
 #include <string.h>     //required for memcpy
 
 
+// NOTE: About '_DYNAMIC_BUFFER_PUBLIC_CHECKS_' and '_DYNAMIC_BUFFER_PRIVATE_CHECKS_'
 // Checks ensure that a given parameter 'slot index' or 'initial memory pointer'
 // corresponds to an existing and correctly initialized mem space.
 // PUBLIC  checks find possible user errors --> What to do with this? Always enabled? Just for Debug?
 // PRIVATE checks find internal errors --> DISABLE AFTER DEVELOPMENT
-// #define _DYNAMIC_BUFFER_PUBLIC_CHECKS_
-// #define _DYNAMIC_BUFFER_PRIVATE_CHECKS_
-
-// #define _DYNAMIC_BUFFER_TRACES_
 
 #ifdef _DYNAMIC_BUFFER_TRACES_
 #include <stdio.h>
@@ -211,7 +208,7 @@ uint8_t * dynamic_buffer_get_slot_pointer(struct dynamic_buffer *buff, uint8_t i
 }
 
 //Public
-uint8_t dynamic_buffer_get_slot_index(struct dynamic_buffer *buff, uint8_t* ptr){
+uint8_t dynamic_buffer_get_slot_index(__attribute__((unused)) struct dynamic_buffer *buff, uint8_t* ptr){
   #ifdef _DYNAMIC_BUFFER_PUBLIC_CHECKS_
   if(!dynamic_buffer_validate_slot_pointer(buff, ptr)) return TX_BUFF_NUM_SLOTS;
   #endif // _DYNAMIC_BUFFER_PUBLIC_CHECKS_

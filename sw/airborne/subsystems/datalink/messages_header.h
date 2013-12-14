@@ -7,9 +7,7 @@
 #include "mcu_periph/dynamic_buffer.h"
 
 
-// #define _DOWNLINK_SEND_DEBUG_
-
-#ifdef _DOWNLINK_SEND_DEBUG_
+#ifdef _DOWNLINK_SEND_TRACES_
 #include <stdio.h> 
 #define _DOWNLINK_SEND_TRACE_(...) fprintf (stderr, __VA_ARGS__); fflush(stdout);
 #else

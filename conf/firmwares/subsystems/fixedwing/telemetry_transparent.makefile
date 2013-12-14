@@ -2,7 +2,7 @@
 
 telemetry_CFLAGS = -DUSE_$(MODEM_PORT)
 telemetry_CFLAGS += -D$(MODEM_PORT)_BAUD=$(MODEM_BAUD)
-telemetry_CFLAGS += -DDOWNLINK -DDOWNLINK_DEVICE=$(MODEM_PORT) -DPPRZ_UART=$(MODEM_PORT)
+# telemetry_CFLAGS += -DDOWNLINK -DDOWNLINK_DEVICE=$(MODEM_PORT) -DPPRZ_UART=$(MODEM_PORT)
 telemetry_CFLAGS += -DDOWNLINK_TRANSPORT=PprzTransport -DDATALINK=PPRZ
 telemetry_srcs = subsystems/datalink/downlink.c subsystems/datalink/pprz_transport.c
 
@@ -40,5 +40,6 @@ fbw.srcs += $(telemetry_srcs)
 
 # GJN Addition during development...
 ap.srcs += subsystems/datalink/device_uart.c subsystems/datalink/datalink.c
-ap.srcs += mcu_periph/transmit_queue.c mcu_periph/dynamic_buffer.c subsystems/datalink/transport_pprz.c
+ap.srcs += subsystems/datalink/transport_pprz.c
+# ap.srcs += mcu_periph/transmit_queue.c mcu_periph/dynamic_buffer.c subsystems/datalink/transport_pprz.c
 #... end of GJN Addition

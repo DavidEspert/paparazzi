@@ -44,8 +44,8 @@
 // #include "ivy_transport.h"
 // #endif
 
-#if defined (DOWNLINK_DEVICE) && DOWNLINK_DEVICE == SIM_UART
-#include "subsystems/datalink/device_simUart.h"
+#if defined (DOWNLINK_SIM_DEVICE) && DOWNLINK_SIM_DEVICE == SIM_UART
+#include "subsystems/datalink/simUart.h"
 #include "subsystems/datalink/transport_pprz.h"
 // #include "subsystems/datalink/transport_xbee.h"
 #else
@@ -76,7 +76,9 @@
 #endif /** !SITL */
 
 
-
+#ifndef DOWNLINK_TRANSPORT
+#error "Downlink enabled but not Downlink Transport defined"
+#endif
 
 #ifndef DefaultChannel
 //i.e. built '& PprzTransport' from PprzTransport
@@ -91,6 +93,14 @@
 #ifndef DOWNLINK_DEVICE
 #define DOWNLINK_DEVICE DOWNLINK_AP_DEVICE
 #endif
+
+#define DOWNLINK_SIM_DEVICE SIM_UART
+#ifdef DOWNLINK_SIM_DEVICE
+//We are in simulation: ignore default device and use simulation one
+#undef DOWNLINK_DEVICE
+#define DOWNLINK_DEVICE DOWNLINK_SIM_DEVICE
+#endif
+
 
 #define __dl_join(_y, _x) _y##_x
 #define _dl_join(_y, _x) __dl_join(_y, _x)
@@ -108,52 +118,4 @@ extern uint16_t downlink_nb_bytes;
 extern uint16_t downlink_nb_msgs;
 
 
-/* Transport macros
- *
- * call transport functions from channel
- */
-/*#define __Transport(dev, _x) dev##_x
-#define _Transport(dev, _x) __Transport(dev, _x)
-#define Transport(_chan, _fun) _Transport(_chan, _fun)
-*/
-
-/** Set of macros for generated code (messages.h) from messages.xml */
-/** 2 = ac_id + msg_id */
-/*#define DownlinkIDsSize(_trans, _dev, _x) (_x+2)
-#define DownlinkSizeOf(_trans, _dev, _x) Transport(_trans, SizeOf(_dev, DownlinkIDsSize(_trans, _dev, _x)))
-
-#define DownlinkCheckFreeSpace(_trans, _dev, _x) Transport(_trans, CheckFreeSpace(_dev, (uint8_t)(_x)))
-
-#define DownlinkPutUint8(_trans, _dev, _x) Transport(_trans, PutUint8(_dev, _x))
-
-#define DownlinkPutInt8ByAddr(_trans, _dev, _x) Transport(_trans, PutInt8ByAddr(_dev, _x))
-#define DownlinkPutUint8ByAddr(_trans, _dev, _x) Transport(_trans, PutUint8ByAddr(_dev, _x))
-#define DownlinkPutInt16ByAddr(_trans, _dev, _x) Transport(_trans, PutInt16ByAddr(_dev, _x))
-#define DownlinkPutUint16ByAddr(_trans, _dev, _x) Transport(_trans, PutUint16ByAddr(_dev, _x))
-#define DownlinkPutInt32ByAddr(_trans, _dev, _x) Transport(_trans, PutInt32ByAddr(_dev, _x))
-#define DownlinkPutUint32ByAddr(_trans, _dev, _x) Transport(_trans, PutUint32ByAddr(_dev, _x))
-#define DownlinkPutFloatByAddr(_trans, _dev, _x) Transport(_trans, PutFloatByAddr(_dev, _x))
-
-#define DownlinkPutDoubleByAddr(_trans, _dev, _x) Transport(_trans, PutDoubleByAddr(_dev, _x))
-
-#define DownlinkPutFloatArray(_trans, _dev, _n, _x) Transport(_trans, PutFloatArray(_dev, _n, _x))
-#define DownlinkPutDoubleArray(_trans, _dev, _n, _x) Transport(_trans, PutDoubleArray(_dev, _n, _x))
-#define DownlinkPutInt16Array(_trans, _dev, _n, _x) Transport(_trans, PutInt16Array(_dev, _n, _x))
-#define DownlinkPutUint16Array(_trans, _dev, _n, _x) Transport(_trans, PutUint16Array(_dev, _n, _x))
-#define DownlinkPutInt32Array(_trans, _dev, _n, _x) Transport(_trans, PutInt32Array(_dev, _n, _x))
-#define DownlinkPutUint32Array(_trans, _dev, _n, _x) Transport(_trans, PutUint32Array(_dev, _n, _x))
-#define DownlinkPutUint8Array(_trans, _dev, _n, _x) Transport(_trans, PutUint8Array(_dev, _n, _x))
-
-#define DownlinkOverrun(_trans, _dev) downlink_nb_ovrn++;
-#define DownlinkCountBytes(_trans, _dev, _n) downlink_nb_bytes += _n;
-
-#define DownlinkStartMessage(_trans, _dev, _name, msg_id, payload_len) { \
-  downlink_nb_msgs++; \
-  Transport(_trans, Header(_dev, DownlinkIDsSize(_trans, _dev, payload_len))); \
-  Transport(_trans, PutUint8(_dev, AC_ID)); \
-  Transport(_trans, PutNamedUint8(_dev, _name, msg_id)); \
-}
-
-#define DownlinkEndMessage(_trans, _dev) Transport(_trans, Trailer(_dev))
-*/
 #endif /* DOWNLINK_H */

@@ -46,8 +46,6 @@
 
 #include "device.h"
 
-#define _TRANSPORT_TRACES_
-
 #ifdef _TRANSPORT_TRACES_
 #include <stdio.h>
 #define TRANSPORT_TRACE(...) fprintf (stderr, __VA_ARGS__); fflush(stdout);

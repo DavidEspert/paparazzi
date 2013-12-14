@@ -2,6 +2,7 @@
 
 #include "device_uart.h"
 #include "mcu_periph/uart.h"
+#include "simUart.h"
 
 // DEV_UART FUNCTIONS -----------------------------------------------------------
 //API functions declaration
@@ -44,8 +45,6 @@ void     dev_uart_sendMessage(void* data, uint8_t idx, void* trans, uint8_t prio
 uint8_t  dev_uart_getch(void* data)                                                   { return uart_getch((struct uart_periph*) data); }
 bool_t   dev_uart_char_available(void* data)                                          { return uart_char_available((struct uart_periph*) data); }
 
-
-
 #define INITIALIZED_DEV_UART_API { \
 /*  .init               =    &dev_uart_init,*/ \
 /*  .set_baudrate       =    &dev_uart_set_baudrate,*/ \
@@ -61,6 +60,8 @@ bool_t   dev_uart_char_available(void* data)                                    
   .byte_available     =    &dev_uart_char_available, \
   .get_byte           =    &dev_uart_getch \
 }
+
+
 
 // DEV_UART STRUCTS -----------------------------------------------------------
 #ifdef USE_UART0
@@ -111,6 +112,13 @@ struct device dev_UART6 = {
   .api    =    INITIALIZED_DEV_UART_API
 };
 #endif // USE_UART6
+
+#ifdef USE_SIM_UART
+struct device dev_SIM_UART = {
+  .data   =    &sim_uart,
+  .api    =    INITIALIZED_DEV_UART_API
+};
+#endif // USE_SIM_UART
 
 #endif //defined (USE_UARTx) ||...
 

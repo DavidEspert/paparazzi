@@ -44,5 +44,9 @@ extern struct device dev_UART5;
 extern struct device dev_UART6;
 #endif // USE_UART6
 
+#ifdef USE_SIM_UART
+extern struct device dev_SIM_UART;
+#endif // USE_SIM_UART
+
 #endif // _DEVICE_UART_H_
 
