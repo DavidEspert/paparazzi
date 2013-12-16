@@ -108,12 +108,10 @@ static inline void XBeeTransport_tail(uint8_t *buff, uint16_t msg_data_length){
   buff[i] = cksum; //((struct xbee_tail *)(buff + sizeof(struct xbee_header) + msg_data_length))->cksum = cksum;
 }
 
-// #ifdef TX_TRANSPORT_1 && TX_TRANSPORT_1 == PPRZ
+// #if defined TRANSPORT_TX_1 && TRANSPORT_TX_1 == XBEE
 // extern struct transport_tx transport_tx_1;
-// #elif defined TX_TRANSPORT_2 && TX_TRANSPORT_2 == PPRZ
+// #elif defined TRANSPORT_TX_2 && TRANSPORT_TX_2 == XBEE
 // extern struct transport_tx transport_tx_2;
-// #elif defined TX_TRANSPORT_3 && TX_TRANSPORT_3 == PPRZ
-// extern struct transport_tx transport_tx_3;
 // #endif
 
 
@@ -231,9 +229,9 @@ static inline uint8_t xbee_text_reply_is_ok(struct device* rx_dev) {
   int count = 0;
 
 //   while (TransportLink(XBEE_UART,ChAvailable()))
-  while (rx_dev->api.char_available(rx_dev->data))
+  while (rx_dev->api.byte_available(rx_dev->data))
   {
-    char cc = rx_dev->api.getch(rx_dev->data);
+    char cc = rx_dev->api.get_byte(rx_dev->data);
     if (count < 2)
       c[count] = cc;
     count++;
@@ -271,21 +269,21 @@ static inline void xbee_config_link(struct transport_rx_data_xbee* data, struct 
   // Empty buffer before init process
 //   while (TransportLink(XBEE_UART,ChAvailable()))
 //     TransportLink(XBEE_UART,Getch());
-  while(rx_dev->api.char_available(rx_dev->data))
-    rx_dev->api.getch(rx_dev->data);
+  while(dev->api.byte_available(dev->data))
+    dev->api.get_byte(dev->data);
 
 #ifndef NO_XBEE_API_INIT
   /** - busy wait 1.25s */
   sys_time_usleep(1250000);
 
-  if (! xbee_try_to_enter_api(rx_dev) )
+  if (! xbee_try_to_enter_api(dev) )
   {
     #ifdef XBEE_BAUD_ALTERNATE
 
       // Badly configured... try the alternate baudrate:
 //       XBeeUartSetBaudrate(XBEE_BAUD_ALTERNATE);
-      rx_dev->api.set_baudrate(rx_dev->data, XBEE_BAUD_ALTERNATE);
-      if ( xbee_try_to_enter_api(rx_dev) )
+      dev->api.set_baudrate(dev->data, XBEE_BAUD_ALTERNATE);
+      if ( xbee_try_to_enter_api(dev) )
       {
         // The alternate baudrate worked,
 //         XBeePrintString(XBEE_UART,XBEE_ATBD_CODE);
@@ -300,7 +298,7 @@ static inline void xbee_config_link(struct transport_rx_data_xbee* data, struct 
         // Set the default baudrate, just in case everything is right
 //         XBeeUartSetBaudrate(XBEE_BAUD);
 //         XBeePrintString(XBEE_UART,"\r");
-        rx_dev->api.set_baudrate(rx_dev->data, XBEE_BAUD);
+        dev->api.set_baudrate(dev->data, XBEE_BAUD);
         offset += XBeeTransport_print_string(eol, &buff[offset]);
       }
 
@@ -336,11 +334,11 @@ static inline void xbee_config_link(struct transport_rx_data_xbee* data, struct 
   char exit[7] = AT_EXIT;
   offset += XBeeTransport_print_string(exit, &buff[offset]);
 
-  XBeeTransport_send_data(rx_dev, buff, offset);
+  XBeeTransport_send_data(dev, buff, offset);
 
 //   XBeeUartSetBaudrate(XBEE_BAUD);
   sys_time_usleep(0025000); //wait 0.025s before switch back (data has to be transmitted)
-  rx_dev->api.set_baudrate(rx_dev->data, XBEE_BAUD);
+  dev->api.set_baudrate(dev->data, XBEE_BAUD);
 
 #endif
 }
@@ -447,11 +445,12 @@ static inline void XBeeTransport_callback(struct transport_rx_data_xbee* data) {
   data->common.msg_received = FALSE;
 }
 
-// #ifdef RX_TRANSPORT_1 && RX_TRANSPORT_1 == XBEE
-// extern struct transport_rx transport_rx_1;
-// #endif
-// #ifdef RX_TRANSPORT_2 && RX_TRANSPORT_2 == XBEE
-// extern struct transport_rx transport_rx_2;
-// #endif
+#ifdef TRANSPORT_RX_XBEE_1
+extern struct transport_rx transport_rx_XBEE_1;
+#endif
+#ifdef TRANSPORT_RX_XBEE_2
+extern struct transport_rx transport_rx_XBEE_2;
+#endif
+
 
 #endif//_DOWNLINK_TRANSPORT_XBEE_H_

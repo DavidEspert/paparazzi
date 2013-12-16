@@ -32,6 +32,7 @@
 
 #include "subsystems/datalink/device_uart.h"
 #include "generated/modules.h"
+#include "subsystems/datalink/transport2.h"
 
 #if defined SITL
 
@@ -46,7 +47,6 @@
 
 #if defined (DOWNLINK_SIM_DEVICE) && DOWNLINK_SIM_DEVICE == SIM_UART
 #include "subsystems/datalink/simUart.h"
-#include "subsystems/datalink/transport_pprz.h"
 // #include "subsystems/datalink/transport_xbee.h"
 #else
 /** Software In The Loop simulation uses IVY bus directly as the transport layer */
@@ -76,39 +76,46 @@
 #endif /** !SITL */
 
 
+#define __dl_join(_y, _x) _y##_x
+#define _dl_join(_y, _x) __dl_join(_y, _x)
+#define dl_join(_chan, _fun) _dl_join(_chan, _fun)
+
+
+// #ifndef DOWNLINK_TRANSPORT
+// #error "Downlink enabled but not Downlink Transport defined"
+// #endif
+// 
+// #ifndef DefaultChannel
+// //i.e. built '& PprzTransport' from PprzTransport
+// #define var_adr(_x) (& _x)
+// #define DefaultChannel var_adr(DOWNLINK_TRANSPORT)
+// #endif
+
+
+// Transport
 #ifndef DOWNLINK_TRANSPORT
-#error "Downlink enabled but not Downlink Transport defined"
+   #error "DATALINK is enabled but there is no DOWNLINK_TRANSPORT defined"
+#elif defined TRANSPORT_TX_1 && DOWNLINK_TRANSPORT == TRANSPORT_TX_1
+   #define DefaultChannel &transport_tx_1
+#elif defined TRANSPORT_TX_2 && DOWNLINK_TRANSPORT == TRANSPORT_TX_2
+   #define DefaultChannel &transport_tx_2
+#else
+   #error "2 TRANSPORT_TX_x checked but no matches found with DOWNLINK_TRANSPORT (x = {1,2})"
 #endif
 
-#ifndef DefaultChannel
-//i.e. built '& PprzTransport' from PprzTransport
-#define var_adr(_x) (& _x)
-#define DefaultChannel var_adr(DOWNLINK_TRANSPORT)
-#endif
-
-
-
+// Device
 // FIXME are DOWNLINK_AP|FBW_DEVICE distinction really necessary ?
 // by default use AP_DEVICE if nothing is set ?
 #ifndef DOWNLINK_DEVICE
 #define DOWNLINK_DEVICE DOWNLINK_AP_DEVICE
 #endif
-
-#define DOWNLINK_SIM_DEVICE SIM_UART
 #ifdef DOWNLINK_SIM_DEVICE
-//We are in simulation: ignore default device and use simulation one
-#undef DOWNLINK_DEVICE
-#define DOWNLINK_DEVICE DOWNLINK_SIM_DEVICE
+   #undef DOWNLINK_DEVICE
+   #define DOWNLINK_DEVICE DOWNLINK_SIM_DEVICE
 #endif
 
-
-#define __dl_join(_y, _x) _y##_x
-#define _dl_join(_y, _x) __dl_join(_y, _x)
-#define dl_join(_chan, _fun) _dl_join(_chan, _fun)
-
 #ifndef DefaultDevice
-#define DefaultDevice2 DOWNLINK_DEVICE
-#define DefaultDevice dl_join(&dev_, DefaultDevice2)
+#define DefaultDevice dl_join(&dev_, DOWNLINK_DEVICE)
 #endif
 
 

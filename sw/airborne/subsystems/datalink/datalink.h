@@ -83,47 +83,44 @@ EXTERN void dl_parse_msg(void);
 extern struct device* datalink_dev[NUM_DATALINK_DEV];
 #define INITIALIZED_DATALINK    { NULL }
 
-extern struct Datalink datalink;
-
 #ifdef DATALINK
 
-#ifndef DATALINK_TRANSPORT
-#error "DATALINK is enabled but there is no DATALINK_TRANSPORT defined"
-
-#elif defined TRANSPORT_RX_1 && DATALINK_TRANSPORT == TRANSPORT_RX_1
-#define DLK_TP 1
-#else
-#error "2 TRANSPORT_RX_x checked but no matches found with DATALINK_TRANSPORT (x = {1,2})"
-#endif
-
-#ifdef DLK_TP
-#define UplinkTransport ul_join(transport_rx_, DLK_TP)
-#endif
-
-// Device
 #define __ul_join(_y, _x) _y##_x
 #define _ul_join(_y, _x) __ul_join(_y, _x)
 #define ul_join(_chan, _fun) _ul_join(_chan, _fun)
 
-#ifndef DATALINK_DEVICE_1
-#error "DATALINK defined but not RX_DEVICE_1. At least one datalink device is required"
-#else
-#define UplinkDevice1 ul_join(dev_, DATALINK_DEVICE_1)
-#endif
-#ifdef DATALINK_DEVICE_2
-#define UplinkDevice2 ul_join(dev_, DATALINK_DEVICE_2)
-#endif
-//...
 
+// Transport
+#ifndef DATALINK_TRANSPORT
+   #error "DATALINK is enabled but there is no DATALINK_TRANSPORT defined"
+#else
+   #define UplinkTransport ul_join (transport_rx_, DATALINK_TRANSPORT)
+#endif
+
+// Device
+#ifdef DATALINK_SIM_DEVICE
+   #undef DATALINK_DEVICE
+   #define DATALINK_DEVICE DATALINK_SIM_DEVICE
+#elif !defined(DATALINK_DEVICE)
+   #error "DATALINK defined but not DATALINK_DEVICE. At least one datalink device is required"
+#endif
+
+#ifndef UplinkDevice
+   #define UplinkDevice ul_join(dev_, DATALINK_DEVICE)
+#endif
+
+//...
+#else
+#error "no datalink"
 #endif //DATALINK
 
 
 
 /** Datalink kinds */
-#define PPRZ 1
-#define XBEE 2
-#define UDP 3
-#define SUPERBITRF 4
+// #define PPRZ 1
+// #define XBEE 2
+// #define UDP 3
+// #define SUPERBITRF 4
 
 /** Check for new message and parse */
 #define DlCheckAndParse() {   \

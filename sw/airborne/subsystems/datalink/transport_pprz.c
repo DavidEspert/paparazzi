@@ -31,7 +31,7 @@ struct transport_tx     transport_tx_3 = { .api =  INITIALIZED_PPRZ_TX_API };
 #endif
 
 
-struct transport_tx PprzTransport =  { .api = INITIALIZED_PPRZ_TX_API };
+// struct transport_tx PprzTransport =  { .api = INITIALIZED_PPRZ_TX_API };
 
 
 
@@ -71,16 +71,16 @@ void pprz_callback(void* data)                                                  
 }
 
 //API struct declaration
-#if defined TRANSPORT_RX_1 && TRANSPORT_RX_1 == PPRZ
+#ifdef TRANSPORT_RX_PPRZ_1
 struct transport_rx_data_pprz   tp_rx_data_pprz_1 = INITIALIZED_PPRZ_RX_DATA("PPRZ_1");
-struct transport_rx transport_rx_1 = {
+struct transport_rx transport_rx_PPRZ_1 = {
   .data      =  &tp_rx_data_pprz_1,
   .api       =  INITIALIZED_PPRZ_RX_API
 };
 #endif
-#if defined TRANSPORT_RX_2 && TRANSPORT_RX_2 == PPRZ
+#ifdef TRANSPORT_RX_PPRZ_2
 struct transport_rx_data_pprz   tp_rx_data_pprz_2 = INITIALIZED_PPRZ_RX_DATA("PPRZ_2");
-struct transport_rx transport_rx_2 = {
+struct transport_rx transport_rx_PPRZ_2 = {
   .data      =  &tp_rx_data_pprz_2,
   .api       =  INITIALIZED_PPRZ_RX_API
 };

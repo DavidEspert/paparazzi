@@ -2,44 +2,42 @@
 
 telemetry_CFLAGS = -DUSE_$(MODEM_PORT)
 telemetry_CFLAGS += -D$(MODEM_PORT)_BAUD=$(MODEM_BAUD)
-# telemetry_CFLAGS += -DDOWNLINK -DDOWNLINK_DEVICE=$(MODEM_PORT) -DPPRZ_UART=$(MODEM_PORT)
-telemetry_CFLAGS += -DDOWNLINK_TRANSPORT=PprzTransport -DDATALINK=PPRZ
-telemetry_srcs = subsystems/datalink/downlink.c subsystems/datalink/pprz_transport.c
 
-# GJN Addition during development...
-#transmition transport layers enabled
+#Common files for both Downlink and Datalink
+  #devices & transports
+telemetry_srcs = subsystems/datalink/device_uart.c
+telemetry_srcs += subsystems/datalink/transport_pprz.c
+
+
+
+#--- DOWNLINK ---
+telemetry_CFLAGS += -DDOWNLINK -DDOWNLINK_DEVICE=$(MODEM_PORT) -DPPRZ_UART=$(MODEM_PORT)
+  #specific Downlink required files
+telemetry_srcs += subsystems/datalink/downlink.c mcu_periph/dynamic_buffer.c
+  #TX transport layers enabled
 telemetry_CFLAGS += -DTRANSPORT_TX_1=PPRZ
-telemetry_CFLAGS += -DTRANSPORT_TX_2=PPRZ
-#Reception transport layers enabled
-telemetry_CFLAGS += -DTRANSPORT_RX_1=PPRZ
-telemetry_CFLAGS += -DTRANSPORT_RX_2=PPRZ
-#Downlink
-telemetry_CFLAGS += -DDOWNLINK
-telemetry_CFLAGS += -DDOWNLINK_DEVICE=SIM_UART
-# telemetry_CFLAGS += -DDOWNLINK_TRANSPORT=TRANSPORT_TX_2
-telemetry_CFLAGS += -DDATALINK
-telemetry_CFLAGS += -DDATALINK_DEVICE_1=SIM_UART
-telemetry_CFLAGS += -DDATALINK_TRANSPORT=TRANSPORT_RX_2
-# telemetry_CFLAGS += -DDATALINK_DEVICE_2=UART1
-# telemetry_CFLAGS += -DDATALINK_TRANSPORT="TRANSPORT_RX_2"
-# telemetry_srcs += mcu_periph/transmit_buffer.c subsystems/datalink/transport_pprz.c
-# telemetry_CFLAGS += -DUSE_UART0 -DDOWNLINK_FBW_DEVICE=UART0 -DDOWNLINK_AP_DEVICE=UART0 -DPPRZ_UART=UART0 -DUART0_BAUD=B9600
-# telemetry_srcs += mcu_periph/device_uart.c
+telemetry_CFLAGS += -DTRANSPORT_TX_2=XBEE
+  #Downlink transport layer (fixed now but maybe modifiable in future)
+telemetry_CFLAGS += -DDOWNLINK_TRANSPORT=TRANSPORT_TX_1
+# telemetry_CFLAGS += -DDOWNLINK_TRANSPORT=PprzTransport
 
 
+
+#--- UPLINK ---
+telemetry_CFLAGS += -DDATALINK -DDATALINK_DEVICE=UART0
+  #specific Uplink required files
+telemetry_srcs += subsystems/datalink/datalink.c $(SRC_FIRMWARE)/datalink.c
+  #RX transport layers enabled
+telemetry_CFLAGS += -DTRANSPORT_RX_PPRZ_1
+telemetry_CFLAGS += -DTRANSPORT_RX_PPRZ_2
+  #Uplinktransport layer
+telemetry_CFLAGS += -DDATALINK_TRANSPORT=PPRZ_1
+
+
+# Add telemetry to Ap and FBW
 ap.CFLAGS += $(telemetry_CFLAGS)
-ap.srcs += $(telemetry_srcs) $(SRC_FIRMWARE)/datalink.c
+ap.srcs += $(telemetry_srcs)
 
 fbw.CFLAGS += $(telemetry_CFLAGS)
 fbw.srcs += $(telemetry_srcs)
 
-# ap.CFLAGS += -DDOWNLINK -DDOWNLINK_FBW_DEVICE=$(MODEM_PORT) -DDOWNLINK_AP_DEVICE=$(MODEM_PORT) -DPPRZ_UART=$(MODEM_PORT)
-# ap.CFLAGS += -DDOWNLINK_TRANSPORT=PprzTransport -DDATALINK=PPRZ
-# ap.srcs += subsystems/datalink/downlink.c subsystems/datalink/pprz_transport.c
-# ap.srcs += $(SRC_FIRMWARE)/datalink.c
-
-# GJN Addition during development...
-ap.srcs += subsystems/datalink/device_uart.c subsystems/datalink/datalink.c
-ap.srcs += subsystems/datalink/transport_pprz.c
-# ap.srcs += mcu_periph/transmit_queue.c mcu_periph/dynamic_buffer.c subsystems/datalink/transport_pprz.c
-#... end of GJN Addition

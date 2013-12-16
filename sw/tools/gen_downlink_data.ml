@@ -245,8 +245,9 @@ module Gen_onboard = struct
           fprintf h "  DOWNLINK_PUT_%s_BYTE(_%s);\n" (Syntax.sizeof (Basic t)) s;
           print_data_pack_body_PADDING h name fields
       | (Array (t,varname), s, _)::fields -> 
-          fprintf h "  *(ptr)   = _%s;\n" (Syntax.length_name s);
-          fprintf h "\n  memcpy((buff + DOWNLINK_DATA_%s_LENGTH_CNST), _%s, DOWNLINK_DATA_%s_LENGTH_VAR);\n" name s name
+          fprintf h "  DOWNLINK_PUT_1_BYTE(_%s);\n\n" (Syntax.length_name s);
+          (*fprintf h "  memcpy((buff + DOWNLINK_DATA_%s_LENGTH_CNST), _%s, DOWNLINK_DATA_%s_LENGTH_VAR);\n" name s name*)
+          fprintf h "  memcpy(ptr, _%s, DOWNLINK_DATA_%s_LENGTH_VAR);\n" s name
       | [] ->
           ()
 
@@ -263,27 +264,10 @@ module Gen_onboard = struct
       | [] ->
           fprintf h "\n  memcpy(buff, &packet, DOWNLINK_DATA_%s_LENGTH_CNST);\n" name 
 
-  let rec detect_padding = fun h padding_detected fields ->
-    match fields with
-      (Basic t, s, _)::fields ->
-          if !padding_detected >= (int_of_string(Syntax.sizeof (Basic t))) then begin
-            padding_detected := int_of_string(Syntax.sizeof (Basic t));
-            detect_padding h padding_detected fields
-          end else  (*Padding detected!!!*)
-            padding_detected := 1
-      | (Array (t,varname), s, _)::fields -> 
-            padding_detected := 0
-      | [] ->
-            padding_detected := 0
-
-  let print_data_pack_function = fun h {name=s; fields = fields} ->
+  let print_data_pack_function = fun h padding_detected {name=s; fields = fields} ->
     if List.length fields > 0 then begin
-      fprintf h "static inline void downlink_data_%s_pack(uint8_t *buff, " s;
-      print_data_pack_header_parameters h fields;
-      fprintf h ") {\n";
-      let padding_detected = ref 8 in
-      detect_padding h padding_detected fields;
-      if !padding_detected > 0 then begin
+      fprintf h "static inline void downlink_data_%s_pack(uint8_t *buff, " s; print_data_pack_header_parameters h fields; fprintf h ") {\n";
+      if padding_detected > 0 then begin
         fprintf h "  uint8_t *ptr = buff;\n\n";
         print_data_pack_body_PADDING h s fields;
       end else begin
@@ -295,18 +279,36 @@ module Gen_onboard = struct
       fprintf h "/*static inline void downlink_data_%s_pack(uint8_t *buff) {}*/\n\n" s
 
 (** Prints the data_encode function **************************************************************)
-  let rec print_encode_body_var  = fun h name fields ->
+  let rec print_data_encode_body_PADDING = fun h name fields ->
     match fields with
-      (Basic t, _, _)::fields -> print_encode_body_var  h name fields
-      | (Array (t,varname), s, _)::fields ->
-        fprintf h "  memcpy((buff + DOWNLINK_DATA_%s_LENGTH_CNST), packet->%s, ((packet->%s)*%s));\n" name s (Syntax.length_name s) (Syntax.sizeof (Basic t))
-      | [] -> ()
+      (Basic t, s, _)::fields ->
+          fprintf h "  DOWNLINK_PUT_%s_BYTE(&(packet->%s));\n" (Syntax.sizeof (Basic t)) s;
+          print_data_encode_body_PADDING h name fields
+      | (Array (t,varname), s, _)::fields -> 
+          fprintf h "  DOWNLINK_PUT_1_BYTE(_%s);\n\n" (Syntax.length_name s);
+          (*fprintf h "  memcpy((buff + DOWNLINK_DATA_%s_LENGTH_CNST), packet->%s, ((packet->%s)*%s));\n" name s (Syntax.length_name s) (Syntax.sizeof (Basic t))*)
+          fprintf h "  memcpy(ptr, packet->%s, ((packet->%s)*%s));\n" s (Syntax.length_name s) (Syntax.sizeof (Basic t))
+      | [] ->
+          ()
 
-  let print_data_encode_function = fun h {name=s; fields = fields} ->
+  let rec print_data_encode_body_NO_PADDING = fun h name fields ->
+    match fields with
+      (Basic t, s, _)::fields -> print_data_encode_body_NO_PADDING h name fields
+      | (Array (t,varname), s, _)::fields -> 
+          fprintf h "  memcpy(buff, packet, DOWNLINK_DATA_%s_LENGTH_CNST);\n" name;
+          fprintf h "  memcpy((buff + DOWNLINK_DATA_%s_LENGTH_CNST), packet->%s, ((packet->%s)*%s));\n" name s (Syntax.length_name s) (Syntax.sizeof (Basic t))
+      | [] ->
+          fprintf h "  memcpy(buff, packet, DOWNLINK_DATA_%s_LENGTH_CNST);\n" name 
+
+  let print_data_encode_function = fun h padding_detected {name=s; fields = fields} ->
     if List.length fields > 0 then begin
-      fprintf h "static inline void downlink_data_%s_encode(uint8_t *buff, struct downlink_data_%s *packet) {\n\n" s s;
-      fprintf h "  memcpy(buff, packet, DOWNLINK_DATA_%s_LENGTH_CNST);\n" s;
-      print_encode_body_var h s fields;
+      fprintf h "static inline void downlink_data_%s_encode(uint8_t *buff, struct downlink_data_%s *packet) {\n" s s;
+      if padding_detected > 0 then begin
+        fprintf h "  uint8_t *ptr = buff;\n\n";
+        print_data_encode_body_PADDING h s fields;
+      end else begin
+        print_data_encode_body_NO_PADDING h s fields;
+      end;
       fprintf h "}\n\n"
     end else
       fprintf h "/*static inline void downlink_data_%s_encode(uint8_t *buff, struct downlink_data_%s *packet) {}*/\n\n" s s
@@ -322,8 +324,7 @@ module Gen_onboard = struct
     match field with
       (Array (t, varname), s, _) ->
         fprintf h "  uint8_t _%-20s = DL_%s_%s_length(buff);\n" (Syntax.length_name s) msg_name s;
-        fprintf h "  void*    %-20s = DL_%s_%s(buff);\n" (s^"_p") msg_name s
-(*        fprintf h "  %s *%s = DL_%s_%s(buff);\n" (c_type (Syntax.nameof (Basic t))) s msg_name s*)
+        fprintf h "  void*    %-20s = DL_%s_%s(buff);\n\n" (s^"_p") msg_name s
       | (t, s, _) -> fprintf h ""
 
   let print_parameter_decode_body  = fun h msg_name field ->
@@ -340,7 +341,6 @@ module Gen_onboard = struct
       List.iter (print_parameter_decode_header h s) fields;
       fprintf h ") {\n";
       List.iter (print_parameter_decode_body2 h s) fields;
-      fprintf h "\n";
       List.iter (print_parameter_decode_body h s) fields;
       fprintf h "}\n\n"
     end else
@@ -414,20 +414,35 @@ module Gen_onboard = struct
     List.iter parse_field message.fields;
     fprintf h "\n"
 
+  let rec detect_padding = fun h padding_detected fields ->
+    match fields with
+      (Basic t, s, _)::fields ->
+          if !padding_detected >= (int_of_string(Syntax.sizeof (Basic t))) then begin
+            padding_detected := int_of_string(Syntax.sizeof (Basic t));
+            detect_padding h padding_detected fields
+          end else  (*Padding detected!!!*)
+            padding_detected := 1
+      | (Array (t,varname), s, _)::fields -> 
+            padding_detected := 0
+      | [] ->
+            padding_detected := 0
+
   let print_message_functions = fun h check_alignment message ->
     fprintf h "\n\n// %s ----------------------------------------------------------\n" message.name;
-    print_data_struct h message;
+(*1*)    print_data_struct h message;
     fprintf h "// --- serialize data ---\n";
-    print_data_pack_function h message;
-    print_data_encode_function h message;
+    let padding_detected = ref 8 in
+    detect_padding h padding_detected message.fields;
+(*2*)    print_data_pack_function h !padding_detected message;
+(*3*)    print_data_encode_function h !padding_detected message;
     fprintf h "// --- deserialize data ---\n";
-    print_get_macros h check_alignment message;
-    print_data_decode_function h message
+(*4*)    print_get_macros h check_alignment message;
+(*5*)    print_data_decode_function h message
 
 end (* module Gen_onboard *)
 
 
-(********************* Main **************************************************)
+(************************************************** Main **************************************************)
 let () =
   if Array.length Sys.argv <> 3 then begin
     failwith (sprintf "Usage: %s <.xml file> <class_name>" Sys.argv.(0))
@@ -451,11 +466,11 @@ let () =
 
     Printf.fprintf h "#ifdef __IEEE_BIG_ENDIAN /* From machine/ieeefp.h */\n#define Swap32IfBigEndian(_u) { _u = (_u << 32) | (_u >> 32); }\n#else\n#define Swap32IfBigEndian(_) {}\n#endif\n\n";
 
-    Printf.fprintf h "#define DOWNLINK_PUT_1_BYTE(_x)  *(ptr++) = *( (uint8_t*)(_x) )\n";
+(*    Printf.fprintf h "#define DOWNLINK_PUT_1_BYTE(_x)  *(ptr++) = *( (uint8_t* )(_x) )\n";
     Printf.fprintf h "#define DOWNLINK_PUT_2_BYTE(_x)  DOWNLINK_PUT_1_BYTE(_x); DOWNLINK_PUT_1_BYTE(_x+1)\n";
     Printf.fprintf h "#define DOWNLINK_PUT_4_BYTE(_x)  DOWNLINK_PUT_2_BYTE(_x); DOWNLINK_PUT_2_BYTE(_x+2)\n";
     Printf.fprintf h "#define DOWNLINK_PUT_8_BYTE(_x)  DOWNLINK_PUT_4_BYTE(_x); DOWNLINK_PUT_4_BYTE(_x+4)\n\n";
-
+*)
     (** Data structs declaration *)
     (*Printf.fprintf h "#ifdef DOWNLINK\n";*)
     Gen_onboard.print_lengths_ordered h messages;

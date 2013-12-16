@@ -246,7 +246,7 @@ void init_ap( void ) {
 // #elif DATALINK == W5100
 //   w5100_init();
   UplinkTransport.api.init(UplinkTransport.data);
-  datalink_register(&UplinkTransport, &UplinkDevice1, &datalink_pprz_callback);
+  datalink_register(&UplinkTransport, &UplinkDevice, &datalink_pprz_callback);
 #endif /* DATALINK */
 
 #if defined AEROCOMM_DATA_PIN

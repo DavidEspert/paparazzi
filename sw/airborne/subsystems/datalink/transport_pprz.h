@@ -19,7 +19,7 @@
 #ifndef _TRANSPORT_PPRZ_H_
 #define _TRANSPORT_PPRZ_H_
 
-#include "subsystems/datalink/datalink.h"
+// #include "subsystems/datalink/datalink.h"
 #include "subsystems/datalink/transport2.h"
 // #include "generated/airframe.h" // AC_ID is required
 
@@ -77,14 +77,11 @@ static inline void PprzTransport_tail(uint8_t *buff, uint16_t msg_data_length){
   buff[i]   = tl.ck_b; //((struct pprz_tail *)(buff + sizeof(struct pprz_header) + msg_data_length))->ck_b = tl.ck_b;
 }
 
-// #ifdef TX_TRANSPORT_1 && TX_TRANSPORT_1 == PPRZ
+// #if defined TRANSPORT_TX_1 && TRANSPORT_TX_1 == PPRZ
 // extern struct transport_tx transport_tx_1;
-// #elif defined TX_TRANSPORT_2 && TX_TRANSPORT_2 == PPRZ
+// #elif defined TRANSPORT_TX_2 && TRANSPORT_TX_2 == PPRZ
 // extern struct transport_tx transport_tx_2;
-// #elif defined TX_TRANSPORT_3 && TX_TRANSPORT_3 == PPRZ
-// extern struct transport_tx transport_tx_3;
 // #endif
-
 
 
 // RX API ---------------------------------------------------------------------
@@ -206,11 +203,11 @@ static inline void PprzTransport_callback(struct transport_rx_data_pprz* data) {
   data->common.msg_received = FALSE;
 }
 
-// #ifdef RX_TRANSPORT_1 && RX_TRANSPORT_1 == PPRZ
-// extern struct transport_rx transport_rx_1;
-// #endif
-// #ifdef RX_TRANSPORT_2 && RX_TRANSPORT_2 == PPRZ
-// extern struct transport_rx transport_rx_2;
-// #endif
+#ifdef TRANSPORT_RX_PPRZ_1
+extern struct transport_rx transport_rx_PPRZ_1;
+#endif
+#ifdef TRANSPORT_RX_PPRZ_2
+extern struct transport_rx transport_rx_PPRZ_2;
+#endif
 
 #endif// _TRANSPORT_PPRZ_H_

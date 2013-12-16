@@ -74,16 +74,16 @@ void xbee_init_callback(void *slot_p) {
 }
 
 //API struct declaration
-#if defined TRANSPORT_RX_1 && TRANSPORT_RX_1 == XBEE
+#ifdef TRANSPORT_RX_XBEE_1
 struct transport_rx_data_xbee   tp_rx_data_xbee_1 = INITIALIZED_XBEE_RX_DATA("XBEE_1");
-struct transport_rx transport_rx_1 = {
+struct transport_rx transport_rx_XBEE_1 = {
   .data      =  &tp_rx_data_xbee_1,
   .api       =  INITIALIZED_XBEE_RX_API
 };
 #endif
-#if defined TRANSPORT_RX_2 && TRANSPORT_RX_2 == XBEE
+#ifdef TRANSPORT_RX_XBEE_2
 struct transport_rx_data_xbee   tp_rx_data_xbee_2 = INITIALIZED_XBEE_RX_DATA("XBEE_2");
-struct transport_rx transport_rx_2 = {
+struct transport_rx transport_rx_XBEE_2 = {
   .data      =  &tp_rx_data_xbee_2,
   .api       =  INITIALIZED_XBEE_RX_API
 };

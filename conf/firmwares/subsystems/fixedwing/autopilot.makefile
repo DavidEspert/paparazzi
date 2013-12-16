@@ -125,7 +125,6 @@ ns_srcs 		+= mcu_periph/uart.c
 ns_srcs 		+= $(SRC_ARCH)/mcu_periph/uart_arch.c
  # uart dependencies
 ns_srcs			+= mcu_periph/transmit_queue.c
-ns_srcs			+= mcu_periph/dynamic_buffer.c
 
 
 #
@@ -185,7 +184,7 @@ ifeq ("$(UNAME)","Darwin")
   sim.CFLAGS += $(shell if test -d /opt/paparazzi/include; then echo "-I/opt/paparazzi/include"; elif test -d /opt/local/include; then echo "-I/opt/local/include"; fi)
 endif
 
-sim.CFLAGS  	+= $(CPPFLAGS)
+sim.CFLAGS  		+= $(CPPFLAGS)
 sim.CFLAGS 		+= $(fbw_CFLAGS) $(ap_CFLAGS)
 sim.srcs 		+= $(fbw_srcs) $(ap_srcs)
 
@@ -196,11 +195,31 @@ sim.CFLAGS 		+= -DDOWNLINK -DDefaultPeriodic='&telemetry_Ap'
 sim.srcs 		+= subsystems/datalink/telemetry.c subsystems/datalink/downlink.c $(SRC_FIRMWARE)/datalink.c $(SRC_ARCH)/ivy_transport.c
 
 # GJN Addition during development...
-# include simulated UART (and its dependencies) if DOWNLINK or DATALINK are defined
+sim.srcs		+= mcu_periph/dynamic_buffer.c
+sim.CFLAGS 		+= -DDOWNLINK_SIM_DEVICE=SIM_UART
+sim.CFLAGS 		+= -DDATALINK_SIM_DEVICE=SIM_UART
+
+# include simulated UART (and its dependencies)
 sim.CFLAGS 		+= -DUSE_SIM_UART
-sim.CFLAGS 		+= -D_SIM_UART_TRACES_
 sim.srcs		+= subsystems/datalink/simUart.c
-sim.srcs		+= mcu_periph/transmit_queue.c mcu_periph/dynamic_buffer.c
+sim.srcs		+= subsystems/datalink/device_uart.c mcu_periph/transmit_queue.c
+
+# transmition transport layers enabled
+sim.CFLAGS 		+= -DTRANSPORT_TX_1=PPRZ
+sim.CFLAGS 		+= -DTRANSPORT_TX_2=XBEE
+sim.srcs		+= subsystems/datalink/transport_pprz.c
+# sim.srcs		+= subsystems/datalink/transport_xbee.c
+sim.CFLAGS 		+= -DDOWNLINK_TRANSPORT=TRANSPORT_TX_1
+
+sim.CFLAGS 		+= -DDATALINK
+sim.srcs		+= subsystems/datalink/datalink.c
+sim.CFLAGS 		+= -DTRANSPORT_RX_PPRZ_1
+sim.CFLAGS 		+= -DTRANSPORT_RX_PPRZ_2
+sim.CFLAGS 		+= -DDATALINK_TRANSPORT=PPRZ_2
+
+
+
+# --- TRACES ---
   # Transmit queue traces and extra checks
 # sim.CFLAGS 		+= -D_TRANSMIT_QUEUE_TRACES_
 # sim.CFLAGS 		+= -D_TRANSMIT_QUEUE_PUBLIC_CHECKS_
@@ -209,33 +228,15 @@ sim.srcs		+= mcu_periph/transmit_queue.c mcu_periph/dynamic_buffer.c
 # sim.CFLAGS 		+= -D_DYNAMIC_BUFFER_TRACES_
 # sim.CFLAGS 		+= -D_DYNAMIC_BUFFER_PUBLIC_CHECKS_
 # sim.CFLAGS 		+= -D_DYNAMIC_BUFFER_PRIVATE_CHECKS_
-
-# transmition transport layers enabled
-sim.CFLAGS 		+= -DTRANSPORT_TX_1=PPRZ
-sim.CFLAGS 		+= -DTRANSPORT_TX_2=PPRZ
-# Reception transport layers enabled
-sim.CFLAGS 		+= -DTRANSPORT_RX_1=PPRZ
-sim.CFLAGS 		+= -DTRANSPORT_RX_2=PPRZ
+  #Downlink traces
+# sim.CFLAGS 		+= -D_DOWNLINK_SEND_TRACES_
+  #Datalink traces
+sim.CFLAGS 		+= -D_DATALINK_TRACES_
   # Transport traces
 sim.CFLAGS 		+= -D_TRANSPORT_TRACES_
+  # Simulated UART traces
+sim.CFLAGS 		+= -D_SIM_UART_TRACES_
 
-# Downlink
-sim.CFLAGS 		+= -DDOWNLINK
-# sim.CFLAGS 		+= -D_DOWNLINK_SEND_TRACES_
-sim.CFLAGS 		+= -DDOWNLINK_DEVICE=SIM_UART
-sim.srcs		+= subsystems/datalink/device_uart.c
-# sim.CFLAGS 		+= -DDOWNLINK_TRANSPORT=XBeeTransport -DXBEE_BAUD=B9600 
-# sim.srcs		+= subsystems/datalink/transport_xbee.c
-sim.CFLAGS 		+= -DDOWNLINK_TRANSPORT=PprzTransport
-sim.srcs		+= subsystems/datalink/transport_pprz.c
-# sim.CFLAGS 		+= -DDOWNLINK_TRANSPORT=TRANSPORT_TX_2
-
-# Uplink
-sim.CFLAGS 		+= -DDATALINK
-# sim.CFLAGS 		+= -D_DATALINK_TRACES_
-sim.srcs		+= subsystems/datalink/datalink.c
-sim.CFLAGS 		+= -DDATALINK_DEVICE_1=SIM_UART
-sim.CFLAGS 		+= -DDATALINK_TRANSPORT=TRANSPORT_RX2
 # ... end of GJN Addition
 
 sim.srcs 		+= $(SRC_ARCH)/sim_gps.c $(SRC_ARCH)/sim_adc_generic.c

@@ -14,6 +14,11 @@
 #define _DOWNLINK_SEND_TRACE_(...)
 #endif
 
+#define DOWNLINK_PUT_1_BYTE(_x)  *(ptr++) = *( (uint8_t*)(_x) )
+#define DOWNLINK_PUT_2_BYTE(_x)  DOWNLINK_PUT_1_BYTE(_x); DOWNLINK_PUT_1_BYTE(_x+1)
+#define DOWNLINK_PUT_4_BYTE(_x)  DOWNLINK_PUT_2_BYTE(_x); DOWNLINK_PUT_2_BYTE(_x+2)
+#define DOWNLINK_PUT_8_BYTE(_x)  DOWNLINK_PUT_4_BYTE(_x); DOWNLINK_PUT_4_BYTE(_x+4)
+
 
 
 struct msgHeader {

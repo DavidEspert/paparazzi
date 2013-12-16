@@ -6,8 +6,8 @@
 
 // DEV_UART FUNCTIONS -----------------------------------------------------------
 //API functions declaration
-// void     dev_uart_init(void* data);
-// void     dev_uart_set_baudrate(void* data, uint32_t baudrate);
+void     dev_uart_init(void* data);
+void     dev_uart_set_baudrate(void* data, uint32_t baudrate);
 char*    dev_uart_name(void* data);
 bool_t   dev_uart_register_transport(void* data, struct transport_rx* rx_tp);
 struct transport_rx* dev_uart_rx_transport(void* data);
@@ -22,8 +22,8 @@ bool_t   dev_uart_char_available(void* data);
 
 
 //API functions definition
-// void     dev_uart_init(void* data)                                                    { uart_periph_init((struct uart_periph*) data); }
-// void     dev_uart_set_baudrate(void* data, uint32_t baudrate)                         { uart_periph_set_baudrate((struct uart_periph*) data, baudrate); }
+void     dev_uart_init(void* data)                                                    { uart_periph_init((struct uart_periph*) data); }
+void     dev_uart_set_baudrate(void* data, uint32_t baudrate)                         { uart_periph_set_baudrate((struct uart_periph*) data, baudrate); }
 char *   dev_uart_name(void* data)                                                    { return uart_periph_name((struct uart_periph*) data); }
 bool_t   dev_uart_register_transport(void* data, struct transport_rx* rx_tp)          { return uart_register_transport((struct uart_periph*) data, rx_tp); }
 struct transport_rx* dev_uart_rx_transport(void* data)                                { return uart_rx_transport((struct uart_periph*) data);}
@@ -46,8 +46,8 @@ uint8_t  dev_uart_getch(void* data)                                             
 bool_t   dev_uart_char_available(void* data)                                          { return uart_char_available((struct uart_periph*) data); }
 
 #define INITIALIZED_DEV_UART_API { \
-/*  .init               =    &dev_uart_init,*/ \
-/*  .set_baudrate       =    &dev_uart_set_baudrate,*/ \
+  .init               =    &dev_uart_init, \
+  .set_baudrate       =    &dev_uart_set_baudrate, \
   .register_transport   =  &dev_uart_register_transport, \
   .rx_transport =          &dev_uart_rx_transport, \
   .name               =    &dev_uart_name, \

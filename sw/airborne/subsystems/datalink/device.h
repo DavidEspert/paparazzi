@@ -18,8 +18,8 @@
 struct transport_rx;  //even if "transport2.h" is included, forward definition is required due to circular dependencies.
 
 struct device_api{
-//   void                  (*init)(void* data);
-//   void                  (*set_baudrate)(void* data, uint32_t baudrate);
+  void                  (*init)(void* data);
+  void                  (*set_baudrate)(void* data, uint32_t baudrate);
   char*                 (*name)(void* data);
   bool_t                (*register_transport)(void* data, struct transport_rx* rx_tp);  //register always through datalink.h!
   struct transport_rx*  (*rx_transport)(void* data);

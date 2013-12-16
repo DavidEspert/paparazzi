@@ -65,6 +65,15 @@
 #endif
 
 
+/* Transport types */
+#define PPRZ 1
+#define XBEE 2
+// #define UDP 3
+// #define SUPERBITRF 4
+
+
+
+
 // TX API ---------------------------------------------------------------------
 struct transport_tx_api {
   uint8_t         header_len;
@@ -77,15 +86,13 @@ struct transport_tx {
   struct transport_tx_api api;
 };
 
-#ifdef TRANSPORT_TX_1
+#if defined TRANSPORT_TX_1
 extern struct transport_tx transport_tx_1;
-#endif
-#ifdef TRANSPORT_TX_2
+#elif defined TRANSPORT_TX_2
 extern struct transport_tx transport_tx_2;
 #endif
 
-extern struct transport_tx PprzTransport;
-extern struct transport_tx XBeeTransport;
+
 
 
 // RX API (and RX_DATA) -------------------------------------------------------
@@ -149,13 +156,6 @@ struct transport_rx{
   void * data; //this points to the transport data struct
   struct transport_rx_api api;
 };
-
-#ifdef TRANSPORT_RX_1
-extern struct transport_rx transport_rx_1;
-#endif
-#ifdef TRANSPORT_RX_2
-extern struct transport_rx transport_rx_2;
-#endif
 
 
 #endif /* _TRANSPORT2_H */
