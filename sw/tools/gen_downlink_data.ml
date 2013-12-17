@@ -245,7 +245,7 @@ module Gen_onboard = struct
           fprintf h "  DOWNLINK_PUT_%s_BYTE(_%s);\n" (Syntax.sizeof (Basic t)) s;
           print_data_pack_body_PADDING h name fields
       | (Array (t,varname), s, _)::fields -> 
-          fprintf h "  DOWNLINK_PUT_1_BYTE(_%s);\n\n" (Syntax.length_name s);
+          fprintf h "  *(ptr++) = _%s;\n\n" (Syntax.length_name s);
           (*fprintf h "  memcpy((buff + DOWNLINK_DATA_%s_LENGTH_CNST), _%s, DOWNLINK_DATA_%s_LENGTH_VAR);\n" name s name*)
           fprintf h "  memcpy(ptr, _%s, DOWNLINK_DATA_%s_LENGTH_VAR);\n" s name
       | [] ->
@@ -285,7 +285,7 @@ module Gen_onboard = struct
           fprintf h "  DOWNLINK_PUT_%s_BYTE(&(packet->%s));\n" (Syntax.sizeof (Basic t)) s;
           print_data_encode_body_PADDING h name fields
       | (Array (t,varname), s, _)::fields -> 
-          fprintf h "  DOWNLINK_PUT_1_BYTE(_%s);\n\n" (Syntax.length_name s);
+          fprintf h "  *(ptr++) = packet->%s;\n\n" (Syntax.length_name s);
           (*fprintf h "  memcpy((buff + DOWNLINK_DATA_%s_LENGTH_CNST), packet->%s, ((packet->%s)*%s));\n" name s (Syntax.length_name s) (Syntax.sizeof (Basic t))*)
           fprintf h "  memcpy(ptr, packet->%s, ((packet->%s)*%s));\n" s (Syntax.length_name s) (Syntax.sizeof (Basic t))
       | [] ->
@@ -417,11 +417,14 @@ module Gen_onboard = struct
   let rec detect_padding = fun h padding_detected fields ->
     match fields with
       (Basic t, s, _)::fields ->
-          if !padding_detected >= (int_of_string(Syntax.sizeof (Basic t))) then begin
-            padding_detected := int_of_string(Syntax.sizeof (Basic t));
-            detect_padding h padding_detected fields
-          end else  (*Padding detected!!!*)
-            padding_detected := 1
+          if (int_of_string(Syntax.sizeof (Basic t))) == 8 then
+            padding_detected := 1 (*actually this doesn't mean padding but padding solution also solves endianness problem for double*)
+          else
+            if !padding_detected >= (int_of_string(Syntax.sizeof (Basic t))) then begin
+              padding_detected := int_of_string(Syntax.sizeof (Basic t));
+              detect_padding h padding_detected fields
+            end else  (*Padding detected!!!*)
+              padding_detected := 1
       | (Array (t,varname), s, _)::fields -> 
             padding_detected := 0
       | [] ->
@@ -466,11 +469,17 @@ let () =
 
     Printf.fprintf h "#ifdef __IEEE_BIG_ENDIAN /* From machine/ieeefp.h */\n#define Swap32IfBigEndian(_u) { _u = (_u << 32) | (_u >> 32); }\n#else\n#define Swap32IfBigEndian(_) {}\n#endif\n\n";
 
-(*    Printf.fprintf h "#define DOWNLINK_PUT_1_BYTE(_x)  *(ptr++) = *( (uint8_t* )(_x) )\n";
+    Printf.fprintf h "#define DOWNLINK_PUT_1_BYTE(_x)  *(ptr++) = *( (const uint8_t*)(_x) )\n";
     Printf.fprintf h "#define DOWNLINK_PUT_2_BYTE(_x)  DOWNLINK_PUT_1_BYTE(_x); DOWNLINK_PUT_1_BYTE(_x+1)\n";
     Printf.fprintf h "#define DOWNLINK_PUT_4_BYTE(_x)  DOWNLINK_PUT_2_BYTE(_x); DOWNLINK_PUT_2_BYTE(_x+2)\n";
-    Printf.fprintf h "#define DOWNLINK_PUT_8_BYTE(_x)  DOWNLINK_PUT_4_BYTE(_x); DOWNLINK_PUT_4_BYTE(_x+4)\n\n";
-*)
+    Printf.fprintf h "#ifdef __IEEE_BIG_ENDIAN /* From machine/ieeefp.h */\n";
+    Printf.fprintf h "#define DOWNLINK_PUT_8_BYTE(_x)  DOWNLINK_PUT_4_BYTE(_x+4); DOWNLINK_PUT_4_BYTE(_x)\n";
+    Printf.fprintf h "#define Swap32IfBigEndian(_u) { _u = (_u << 32) | (_u >> 32); }\n";
+    Printf.fprintf h "#else\n";
+    Printf.fprintf h "#define DOWNLINK_PUT_8_BYTE(_x)  DOWNLINK_PUT_4_BYTE(_x); DOWNLINK_PUT_4_BYTE(_x+4)\n";
+    Printf.fprintf h "#define Swap32IfBigEndian(_) {}\n";
+    Printf.fprintf h "#endif\n\n";
+
     (** Data structs declaration *)
     (*Printf.fprintf h "#ifdef DOWNLINK\n";*)
     Gen_onboard.print_lengths_ordered h messages;

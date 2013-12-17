@@ -196,19 +196,19 @@ sim.srcs 		+= subsystems/datalink/telemetry.c subsystems/datalink/downlink.c $(S
 
 # GJN Addition during development...
 sim.srcs		+= mcu_periph/dynamic_buffer.c
+
+# include simulated UART (and its dependencies)
+sim.srcs		+= subsystems/datalink/simUart.c
+sim.srcs		+= subsystems/datalink/device_uart.c mcu_periph/transmit_queue.c
+sim.CFLAGS 		+= -DUSE_SIM_UART
 sim.CFLAGS 		+= -DDOWNLINK_SIM_DEVICE=SIM_UART
 sim.CFLAGS 		+= -DDATALINK_SIM_DEVICE=SIM_UART
 
-# include simulated UART (and its dependencies)
-sim.CFLAGS 		+= -DUSE_SIM_UART
-sim.srcs		+= subsystems/datalink/simUart.c
-sim.srcs		+= subsystems/datalink/device_uart.c mcu_periph/transmit_queue.c
-
-# transmition transport layers enabled
-sim.CFLAGS 		+= -DTRANSPORT_TX_1=PPRZ
-sim.CFLAGS 		+= -DTRANSPORT_TX_2=XBEE
+# transport layers enabled
 sim.srcs		+= subsystems/datalink/transport_pprz.c
-# sim.srcs		+= subsystems/datalink/transport_xbee.c
+
+sim.CFLAGS 		+= -DTRANSPORT_TX_1=PPRZ
+sim.CFLAGS 		+= -DTRANSPORT_TX_2=XBEE -DXBEE_BAUD=B9600
 sim.CFLAGS 		+= -DDOWNLINK_TRANSPORT=TRANSPORT_TX_1
 
 sim.CFLAGS 		+= -DDATALINK

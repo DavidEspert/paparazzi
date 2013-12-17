@@ -109,18 +109,9 @@ extern struct device* datalink_dev[NUM_DATALINK_DEV];
    #define UplinkDevice ul_join(dev_, DATALINK_DEVICE)
 #endif
 
-//...
-#else
-#error "no datalink"
 #endif //DATALINK
 
 
-
-/** Datalink kinds */
-// #define PPRZ 1
-// #define XBEE 2
-// #define UDP 3
-// #define SUPERBITRF 4
 
 /** Check for new message and parse */
 #define DlCheckAndParse() {   \
@@ -132,15 +123,6 @@ extern struct device* datalink_dev[NUM_DATALINK_DEV];
 
 #if defined DATALINK && (DATALINK == PPRZ || DATALINK == XBEE)
 
-// #if DATALINK == PPRZ
-// #define UplinkDevice datalink_join(&dev_, PPRZ_UART)
-// #define UplinkTransport PprzTransport
-// 
-// #elif DATALINK == XBEE
-// #define UplinkDevice datalink_join(&dev_, XBEE_UART)
-// #define UplinkTransport XBeeTransport
-// #endif
-// 
 static inline bool_t datalink_register(struct transport_rx* tp_rx, struct device* dev, void (*callback)(const uint8_t *dl_msg, const uint16_t dl_msg_len)) {
   uint8_t dev_idx;
 
