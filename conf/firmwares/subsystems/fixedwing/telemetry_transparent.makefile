@@ -18,7 +18,7 @@ telemetry_srcs += subsystems/datalink/downlink.c mcu_periph/dynamic_buffer.c
 telemetry_CFLAGS += -DTRANSPORT_TX_1=PPRZ
 telemetry_CFLAGS += -DTRANSPORT_TX_2=XBEE -DXBEE_BAUD=B9600
   #Downlink transport layer (fixed now but maybe modifiable in future)
-telemetry_CFLAGS += -DDOWNLINK_TRANSPORT=TRANSPORT_TX_1
+telemetry_CFLAGS += -DDOWNLINK_TRANSPORT=TRANSPORT_TX_2
 # telemetry_CFLAGS += -DDOWNLINK_TRANSPORT=PprzTransport
 
 

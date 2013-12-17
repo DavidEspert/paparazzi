@@ -67,6 +67,7 @@
 /** Ground station address */
 #define GROUND_STATION_ADDR 0x100
 
+#define XBEE_HEADER_LEN (3 + XBEE_API_LEN)
 struct xbee_header{
   uint8_t  start;
   uint16_t len;
@@ -74,26 +75,32 @@ struct xbee_header{
 };
 #define INITIALIZED_XBEE_HD(_msg_data_length) { \
   .start = XBEE_START, \
-  .len = ((_msg_data_length) + sizeof(struct xbee_header) + sizeof(struct xbee_tail)), \
+  .len = ((_msg_data_length) + XBEE_API_LEN), \
+/*  .len = ((_msg_data_length) + XBEE_HEADER_LEN + XBEE_TAIL_LEN),*/ \
   INITIALIZED_XBEE_HD_API \
 }
 
+#define XBEE_TAIL_LEN 1
 struct xbee_tail{
   uint8_t  cksum;
 };
 
 static inline uint8_t XBeeTransport_header_len(void){
-  return sizeof(struct xbee_header);
+  return XBEE_HEADER_LEN;
 }
 
 static inline void XBeeTransport_header(uint8_t *buff, uint16_t msg_data_length){
+  uint8_t *ptr = buff;
   struct xbee_header hd = INITIALIZED_XBEE_HD(msg_data_length);
-  memcpy(buff, &hd, sizeof(struct xbee_header));
+  
+  *(ptr++) = *(&(hd.start));
+  *(ptr++) = *((uint8_t*)(&hd.len) + 1);
+  *(ptr++) = *(&(hd.len));
+  memcpy(ptr, hd.api, XBEE_API_LEN);
 }
 
 static inline uint8_t XBeeTransport_tail_len(void){
-//   return sizeof(struct xbee_tail);
-  return 1;
+  return XBEE_TAIL_LEN;
 }
 
 static inline void XBeeTransport_tail(uint8_t *buff, uint16_t msg_data_length){
@@ -106,15 +113,14 @@ static inline void XBeeTransport_tail(uint8_t *buff, uint16_t msg_data_length){
   }
   
   cksum = 0xff - cksum;
-  buff[i] = cksum; //((struct xbee_tail *)(buff + sizeof(struct xbee_header) + msg_data_length))->cksum = cksum;
+  buff[i] = cksum;
 }
 
-// #if defined TRANSPORT_TX_1 && TRANSPORT_TX_1 == XBEE
-// extern struct transport_tx transport_tx_1;
-// #elif defined TRANSPORT_TX_2 && TRANSPORT_TX_2 == XBEE
-// extern struct transport_tx transport_tx_2;
-// #endif
-
+#if defined TRANSPORT_TX_1 && TRANSPORT_TX_1 == XBEE
+extern struct transport_tx transport_tx_1;
+#elif defined TRANSPORT_TX_2 && TRANSPORT_TX_2 == XBEE
+extern struct transport_tx transport_tx_2;
+#endif
 
 
 // RX API ---------------------------------------------------------------------
@@ -141,12 +147,6 @@ struct transport_rx_data_xbee {
   .payload_idx = 0, \
   .cs = 0 \
 };
-
-
-
-// - auxiliar functions for initialzation (baudrate config) ------------------
-// - End of auxiliar functions ------------------------------------------------
-
 
 static inline void XBeeTransport_init(struct transport_rx_data_xbee* data) {
   transport_rx_data_common_init(&(data->common));
@@ -185,6 +185,7 @@ static inline void XBeeTransport_parse(struct transport_rx_data_xbee* data, uint
   case XBEE_GOT_START:
     if (data->common.msg_received) {
       data->common.ovrn++;
+      TRANSPORT_TRACE("\ttransport_xbee: parse:  OVERUN!!!\n");
       goto error;
     }
     data->common.payload_len = c<<8;
@@ -206,7 +207,7 @@ static inline void XBeeTransport_parse(struct transport_rx_data_xbee* data, uint
   case XBEE_GOT_PAYLOAD:
     if (c + data->cs != 0xff)
       goto error;
-    TRANSPORT_TRACE("\ttransport_xbee: parse:  PPRZ MESSAGE FOUND BY %s\n", (data->common.name));
+    TRANSPORT_TRACE("\ttransport_xbee: parse:  XBEE MESSAGE FOUND BY %s\n", (data->common.name));
     TRANSPORT_PRINT_PAYLOAD(data->common);
     for(uint8_t i = 0; (i < TRANSPORT_NUM_CALLBACKS && data->common.callback[i] != NULL); i++)
       data->common.callback[i](data->common.payload, data->common.payload_len);

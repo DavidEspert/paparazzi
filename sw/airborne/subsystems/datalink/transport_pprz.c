@@ -15,9 +15,9 @@ void pprz_tail(uint8_t *buff, uint16_t msg_data_length)                         
 
 //API struct initialization
 #define INITIALIZED_PPRZ_TX_API { \
-  .header_len =         2, /*pprz_header_len*/ \
+  .header_len =         PPRZ_HEADER_LEN, /*pprz_header_len*/ \
   .header =             &pprz_header, \
-  .tail_len =           2, /*pprz_tail_len*/ \
+  .tail_len =           PPRZ_TAIL_LEN, /*pprz_tail_len*/ \
   .tail =               &pprz_tail \
 }
 
@@ -26,8 +26,6 @@ void pprz_tail(uint8_t *buff, uint16_t msg_data_length)                         
 struct transport_tx     transport_tx_1 = { .api =  INITIALIZED_PPRZ_TX_API };
 #elif defined TRANSPORT_TX_2 && TRANSPORT_TX_2 == PPRZ
 struct transport_tx     transport_tx_2 = { .api =  INITIALIZED_PPRZ_TX_API };
-#elif defined TRANSPORT_TX_3 && TRANSPORT_TX_3 == PPRZ
-struct transport_tx     transport_tx_3 = { .api =  INITIALIZED_PPRZ_TX_API };
 #endif
 
 

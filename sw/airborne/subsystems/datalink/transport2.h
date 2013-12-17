@@ -88,7 +88,8 @@ struct transport_tx {
 
 #if defined TRANSPORT_TX_1
 extern struct transport_tx transport_tx_1;
-#elif defined TRANSPORT_TX_2
+#endif
+#if defined TRANSPORT_TX_2
 extern struct transport_tx transport_tx_2;
 #endif
 

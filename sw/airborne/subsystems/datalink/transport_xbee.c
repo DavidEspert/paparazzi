@@ -15,22 +15,18 @@ void xbee_tail(uint8_t *buff, uint16_t msg_data_length)                         
 
 //API struct initialization
 #define INITIALIZED_XBEE_TX_API { \
-  .header_len =         (3+XBEE_API_LEN), /*xbee_header_len*/ \
+  .header_len =         XBEE_HEADER_LEN, /*xbee_header_len*/ \
   .header =             &xbee_header, \
-  .tail_len =           1, /*xbee_tail_len*/ \
+  .tail_len =           XBEE_TAIL_LEN, /*xbee_tail_len*/ \
   .tail =               &xbee_tail \
 }
 
 //API struct declaration
-#if defined TRANSPORT_TX_1 && RANSPORT_TX_T1 == XBEE
+#if defined TRANSPORT_TX_1 && TRANSPORT_TX_1 == XBEE
 struct transport_tx     transport_tx_1 = { .api       =  INITIALIZED_XBEE_TX_API };
 #elif defined TRANSPORT_TX_2 && TRANSPORT_TX_2 == XBEE
 struct transport_tx     transport_tx_2 = { .api       =  INITIALIZED_XBEE_TX_API };
-#elif defined TRANSPORT_TX_3 && TRANSPORT_TX_3 == XBEE
-struct transport_tx     transport_tx_3 = { .api       =  INITIALIZED_XBEE_TX_API };
 #endif
-
-struct transport_tx XBeeTransport =  { .api       =  INITIALIZED_XBEE_TX_API };
 
 
 

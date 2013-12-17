@@ -47,7 +47,6 @@
 
 #if defined (DOWNLINK_SIM_DEVICE) && DOWNLINK_SIM_DEVICE == SIM_UART
 #include "subsystems/datalink/simUart.h"
-// #include "subsystems/datalink/transport_xbee.h"
 #else
 /** Software In The Loop simulation uses IVY bus directly as the transport layer */
 #include "ivy_transport.h"
@@ -56,7 +55,7 @@
 #else /** SITL */
 
 #include "subsystems/datalink/transport_pprz.h"
-// #include "subsystems/datalink/transport_xbee.h"
+#include "subsystems/datalink/transport_xbee.h"
 
 // #include "subsystems/datalink/udp.h"
 // #include "subsystems/datalink/pprz_transport.h"

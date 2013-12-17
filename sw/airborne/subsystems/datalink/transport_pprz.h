@@ -19,28 +19,28 @@
 #ifndef _TRANSPORT_PPRZ_H_
 #define _TRANSPORT_PPRZ_H_
 
-// #include "subsystems/datalink/datalink.h"
 #include "subsystems/datalink/transport2.h"
-// #include "generated/airframe.h" // AC_ID is required
 
 
 // TX API ---------------------------------------------------------------------
 
 /** HEADER & TAIL */
 #define STX_PPRZ_TX  0x99
+
+#define PPRZ_HEADER_LEN 2
 struct pprz_header{
   uint8_t       stx;
   uint8_t       length;
 };
 
+#define PPRZ_TAIL_LEN 2
 struct pprz_tail{
   uint8_t       ck_a;
   uint8_t       ck_b;
 };
 
 static inline uint8_t PprzTransport_header_len(void){
-// return sizeof(struct pprz_header);  
-  return 2;
+  return PPRZ_HEADER_LEN;
 }
 
 static inline void PprzTransport_header(uint8_t *buff, uint16_t msg_data_length){
@@ -50,14 +50,14 @@ static inline void PprzTransport_header(uint8_t *buff, uint16_t msg_data_length)
   //set header
   buff[0] = STX_PPRZ_TX;                //((struct pprz_header *)buff)->stx = STX_PPRZ_TX;
   if(msg_data_length < 252)
-    buff[1] = msg_data_length + 4;      //((struct pprz_header *)buff)->length = 2+msg_data_length+2;
+    buff[1] = msg_data_length + PPRZ_HEADER_LEN + PPRZ_TAIL_LEN;      //((struct pprz_header *)buff)->length = 2+msg_data_length+2;
   else
-    buff[1] = 4;                        //rx parse will reject the message
+    buff[1] = PPRZ_HEADER_LEN + PPRZ_TAIL_LEN;                        //rx parse will reject the message
 }
 
 static inline uint8_t PprzTransport_tail_len(void){
 //  return sizeof(struct pprz_tail);
-  return 2;
+  return PPRZ_TAIL_LEN;
 }
 
 static inline void PprzTransport_tail(uint8_t *buff, uint16_t msg_data_length){
@@ -68,20 +68,20 @@ static inline void PprzTransport_tail(uint8_t *buff, uint16_t msg_data_length){
   tl.ck_a = buff[1];
   tl.ck_b = buff[1];
 
-  for(i = 2; i < (2 + msg_data_length); i++){
+  for(i = PPRZ_HEADER_LEN; i < (PPRZ_HEADER_LEN + msg_data_length); i++){
     tl.ck_a += buff[i];
     tl.ck_b += tl.ck_a;
   }
   
-  buff[i++] = tl.ck_a; //((struct pprz_tail *)(buff + sizeof(struct pprz_header) + msg_data_length))->ck_a = tl.ck_a;
-  buff[i]   = tl.ck_b; //((struct pprz_tail *)(buff + sizeof(struct pprz_header) + msg_data_length))->ck_b = tl.ck_b;
+  buff[i++] = tl.ck_a;
+  buff[i]   = tl.ck_b;
 }
 
-// #if defined TRANSPORT_TX_1 && TRANSPORT_TX_1 == PPRZ
-// extern struct transport_tx transport_tx_1;
-// #elif defined TRANSPORT_TX_2 && TRANSPORT_TX_2 == PPRZ
-// extern struct transport_tx transport_tx_2;
-// #endif
+#if defined TRANSPORT_TX_1 && TRANSPORT_TX_1 == PPRZ
+extern struct transport_tx transport_tx_1;
+#elif defined TRANSPORT_TX_2 && TRANSPORT_TX_2 == PPRZ
+extern struct transport_tx transport_tx_2;
+#endif
 
 
 // RX API ---------------------------------------------------------------------
