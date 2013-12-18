@@ -78,9 +78,6 @@
 // #include "subsystems/datalink/xbee.h"
 #include "subsystems/datalink/w5100.h"
 #include "messages.h"
-#include "subsystems/datalink/device.h"
-#include "subsystems/datalink/transport_pprz.h"
-#include "subsystems/datalink/transport_xbee.h"
 
 // modules & settings
 #include "generated/modules.h"
@@ -242,11 +239,13 @@ void init_ap( void ) {
   mcu_int_enable();
 
 #if defined DATALINK
-//   xbee_init();
-// #elif DATALINK == W5100
-//   w5100_init();
+#if DATALINK == W5100
+  w5100_init();
+#else // defined DATALINK == XBEE || DATALINK == PPRZ
   UplinkTransport.api.init(UplinkTransport.data);
   datalink_register(&UplinkTransport, &UplinkDevice, &datalink_pprz_callback);
+//   xbee_init();
+#endif
 #endif /* DATALINK */
 
 #if defined AEROCOMM_DATA_PIN

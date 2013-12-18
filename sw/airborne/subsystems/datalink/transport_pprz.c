@@ -22,16 +22,10 @@ void pprz_tail(uint8_t *buff, uint16_t msg_data_length)                         
 }
 
 //API struct declaration
-#if defined TRANSPORT_TX_1 && TRANSPORT_TX_1 == PPRZ
-struct transport_tx     transport_tx_1 = { .api =  INITIALIZED_PPRZ_TX_API };
-#elif defined TRANSPORT_TX_2 && TRANSPORT_TX_2 == PPRZ
-struct transport_tx     transport_tx_2 = { .api =  INITIALIZED_PPRZ_TX_API };
+#if (defined TRANSPORT_TX_1 && TRANSPORT_TX_1 == PPRZ) || \
+    (defined TRANSPORT_TX_2 && TRANSPORT_TX_2 == PPRZ)
+struct transport_tx     transport_tx_PPRZ = { .api =  INITIALIZED_PPRZ_TX_API };
 #endif
-
-
-// struct transport_tx PprzTransport =  { .api = INITIALIZED_PPRZ_TX_API };
-
-
 
 
 // RX API ---------------------------------------------------------------------

@@ -55,15 +55,13 @@
 #define DATALINK_TRACE(...)
 #endif
 
-// #ifdef __IEEE_BIG_ENDIAN /* From machine/ieeefp.h */
-// #define Swap32IfBigEndian(_u) { _u = (_u << 32) | (_u >> 32); }
-// #else
-// #define Swap32IfBigEndian(_) {}
-// #endif
-
 #include "std.h"
 #include "dl_protocol.h"
-#include "transport2.h"
+//Available Devices
+#include "subsystems/datalink/device_uart.h"
+//Available Transports
+#include "subsystems/datalink/transport_pprz.h"
+#include "subsystems/datalink/transport_xbee.h"
 
 EXTERN bool_t dl_msg_available;
 /** Flag provided to control calls to ::dl_parse_msg. NOT used in this module*/
@@ -90,14 +88,19 @@ extern struct device* datalink_dev[NUM_DATALINK_DEV];
 #define ul_join(_chan, _fun) _ul_join(_chan, _fun)
 
 
-// Transport
+// - Datalink transports --------------------------------------------------------------------------
 #ifndef DATALINK_TRANSPORT
-   #error "DATALINK is enabled but there is no DATALINK_TRANSPORT defined"
+  #error "DATALINK is enabled but there is no DATALINK_TRANSPORT defined"
 #else
-   #define UplinkTransport ul_join (transport_rx_, DATALINK_TRANSPORT)
+  #define UplinkTransport       ul_join (transport_rx_, DATALINK_TRANSPORT)
+  #if DATALINK_TRANSPORT == PPRZ_1 || DATALINK_TRANSPORT == PPRZ_2
+    #define UplinkCallback      datalink_pprz_callback
+  #elif DATALINK_TRANSPORT == XBEE_1 || DATALINK_TRANSPORT == XBEE_2
+    #define UplinkCallback      datalink_xbee_callback
+  #endif
 #endif
 
-// Device
+// - Datalink devices -----------------------------------------------------------------------------
 #ifdef DATALINK_SIM_DEVICE
    #undef DATALINK_DEVICE
    #define DATALINK_DEVICE DATALINK_SIM_DEVICE
@@ -109,10 +112,9 @@ extern struct device* datalink_dev[NUM_DATALINK_DEV];
    #define UplinkDevice ul_join(dev_, DATALINK_DEVICE)
 #endif
 
-#endif //DATALINK
 
 
-
+// - Datalink functions ---------------------------------------------------------------------------
 /** Check for new message and parse */
 #define DlCheckAndParse() {   \
   if (dl_msg_available) {      \
@@ -121,7 +123,29 @@ extern struct device* datalink_dev[NUM_DATALINK_DEV];
   }                            \
 }
 
-#if defined DATALINK && (DATALINK == PPRZ || DATALINK == XBEE)
+
+#if DATALINK == W5100
+
+#define DatalinkEvent() {                       \
+    W5100CheckAndParse(W5100, w5100_tp);        \
+    DlCheckAndParse();                          \
+  }
+
+#elif DATALINK == UDP
+
+#define DatalinkEvent() {                       \
+    UdpCheckAndParse();                         \
+    DlCheckAndParse();                          \
+  }
+
+#elif DATALINK == SUPERBITRF
+
+#define DatalinkEvent() {                       \
+    SuperbitRFCheckAndParse();                  \
+    DlCheckAndParse();                          \
+  }
+
+#else
 
 static inline bool_t datalink_register(struct transport_rx* tp_rx, struct device* dev, void (*callback)(const uint8_t *dl_msg, const uint16_t dl_msg_len)) {
   uint8_t dev_idx;
@@ -201,36 +225,12 @@ static inline void DatalinkEvent(void) {
   }
 }
 
-#elif defined DATALINK && DATALINK == W5100
-
-#define DatalinkEvent() {                       \
-    W5100CheckAndParse(W5100, w5100_tp);        \
-    DlCheckAndParse();                          \
-  }
-
-#elif defined DATALINK && DATALINK == UDP
-
-#define DatalinkEvent() {                       \
-    UdpCheckAndParse();                         \
-    DlCheckAndParse();                          \
-  }
-
-#elif defined DATALINK && DATALINK == SUPERBITRF
-
-#define DatalinkEvent() {                       \
-    SuperbitRFCheckAndParse();                  \
-    DlCheckAndParse();                          \
-  }
-
-#else
-// Unknown DATALINK
-#define DatalinkEvent() {}
-#endif // DATALINK ==
-
-
-// CALLBACK FUNCTIONS ------------------------------------------------------------------
 extern void datalink_pprz_callback(const uint8_t*payload, const uint16_t payload_len);
 
 extern void datalink_xbee_callback(const uint8_t*payload, const uint16_t payload_len);
+
+#endif // DATALINK == ...
+
+#endif // DATALINK
 
 #endif /* DATALINK_H */

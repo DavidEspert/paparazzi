@@ -30,36 +30,28 @@
 
 #include <inttypes.h>
 
-#include "subsystems/datalink/device_uart.h"
 #include "generated/modules.h"
-#include "subsystems/datalink/transport2.h"
+//Available Devices
+#include "subsystems/datalink/device_uart.h"
+//Available Transports
+#include "subsystems/datalink/transport_pprz.h"
+#include "subsystems/datalink/transport_xbee.h"
 
-#if defined SITL
 
-// #ifdef SIM_UART
-// #include "sim_uart.h"
-// #include "subsystems/datalink/pprz_transport.h"
-// #include "subsystems/datalink/xbee.h"
-// #else /* SIM_UART */
-// /** Software In The Loop simulation uses IVY bus directly as the transport layer */
-// #include "ivy_transport.h"
-// #endif
+
+#if defined SITL /* Software In The Loop (Simulation) */
 
 #if defined (DOWNLINK_SIM_DEVICE) && DOWNLINK_SIM_DEVICE == SIM_UART
 #include "subsystems/datalink/simUart.h"
+#undef  DOWNLINK_DEVICE
+#define DOWNLINK_DEVICE DOWNLINK_SIM_DEVICE
 #else
 /** Software In The Loop simulation uses IVY bus directly as the transport layer */
 #include "ivy_transport.h"
 #endif
 
 #else /** SITL */
-
-#include "subsystems/datalink/transport_pprz.h"
-#include "subsystems/datalink/transport_xbee.h"
-
 // #include "subsystems/datalink/udp.h"
-// #include "subsystems/datalink/pprz_transport.h"
-// #include "subsystems/datalink/xbee.h"
 // #include "subsystems/datalink/w5100.h"
 #if USE_SUPERBITRF
 #include "subsystems/datalink/superbitrf.h"
@@ -70,9 +62,10 @@
 #ifdef USE_USB_SERIAL
 #include "mcu_periph/usb_serial.h"
 #endif
-#include "mcu_periph/uart.h"
 
 #endif /** !SITL */
+
+
 
 
 #define __dl_join(_y, _x) _y##_x
@@ -80,26 +73,14 @@
 #define dl_join(_chan, _fun) _dl_join(_chan, _fun)
 
 
-// #ifndef DOWNLINK_TRANSPORT
-// #error "Downlink enabled but not Downlink Transport defined"
-// #endif
-// 
-// #ifndef DefaultChannel
-// //i.e. built '& PprzTransport' from PprzTransport
-// #define var_adr(_x) (& _x)
-// #define DefaultChannel var_adr(DOWNLINK_TRANSPORT)
-// #endif
-
 
 // Transport
-#ifndef DOWNLINK_TRANSPORT
-   #error "DATALINK is enabled but there is no DOWNLINK_TRANSPORT defined"
-#elif defined TRANSPORT_TX_1 && DOWNLINK_TRANSPORT == TRANSPORT_TX_1
-   #define DefaultChannel &transport_tx_1
-#elif defined TRANSPORT_TX_2 && DOWNLINK_TRANSPORT == TRANSPORT_TX_2
-   #define DefaultChannel &transport_tx_2
+#if DOWNLINK_TRANSPORT == PPRZ
+   #define DefaultChannel  &transport_tx_PPRZ
+#elif DOWNLINK_TRANSPORT == XBEE
+   #define DefaultChannel  &transport_tx_XBEE
 #else
-   #error "2 TRANSPORT_TX_x checked but no matches found with DOWNLINK_TRANSPORT (x = {1,2})"
+   #error DOWNLINK defined but no DOWNLINK_TRANSPORT found.
 #endif
 
 // Device
@@ -107,10 +88,6 @@
 // by default use AP_DEVICE if nothing is set ?
 #ifndef DOWNLINK_DEVICE
 #define DOWNLINK_DEVICE DOWNLINK_AP_DEVICE
-#endif
-#ifdef DOWNLINK_SIM_DEVICE
-   #undef DOWNLINK_DEVICE
-   #define DOWNLINK_DEVICE DOWNLINK_SIM_DEVICE
 #endif
 
 #ifndef DefaultDevice

@@ -22,13 +22,10 @@ void xbee_tail(uint8_t *buff, uint16_t msg_data_length)                         
 }
 
 //API struct declaration
-#if defined TRANSPORT_TX_1 && TRANSPORT_TX_1 == XBEE
-struct transport_tx     transport_tx_1 = { .api       =  INITIALIZED_XBEE_TX_API };
-#elif defined TRANSPORT_TX_2 && TRANSPORT_TX_2 == XBEE
-struct transport_tx     transport_tx_2 = { .api       =  INITIALIZED_XBEE_TX_API };
+#if (defined TRANSPORT_TX_1 && TRANSPORT_TX_1 == XBEE) || \
+    (defined TRANSPORT_TX_2 && TRANSPORT_TX_2 == XBEE)
+struct transport_tx     transport_tx_XBEE = { .api       =  INITIALIZED_XBEE_TX_API };
 #endif
-
-
 
 
 // RX API ---------------------------------------------------------------------

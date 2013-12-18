@@ -206,14 +206,13 @@ module Gen_onboard = struct
     List.iter (print_size_of_message h) sizes;
     fprintf h "*/\n\n"
 
-  let rec fields_count = fun fields size ->
+(*  let rec fields_count = fun fields size ->
     match fields with
       (Basic t, _, _)::fields -> fields_count fields (size+1)
       | (Array (t,varname), _, _)::fields -> fields_count fields (size+2)
-      | [] -> size
+      | [] -> size*)
 
-
-  (** Prints data struct *)
+(** Prints the data struct ***********************************************************************)
   let print_data_struct = fun h {name=s; fields = fields} ->
     let size_full = size_fields_full fields 0 in
     fprintf h "#define DOWNLINK_DATA_%s_LENGTH        (%s)\n" s size_full;
@@ -246,7 +245,6 @@ module Gen_onboard = struct
           print_data_pack_body_PADDING h name fields
       | (Array (t,varname), s, _)::fields -> 
           fprintf h "  *(ptr++) = _%s;\n\n" (Syntax.length_name s);
-          (*fprintf h "  memcpy((buff + DOWNLINK_DATA_%s_LENGTH_CNST), _%s, DOWNLINK_DATA_%s_LENGTH_VAR);\n" name s name*)
           fprintf h "  memcpy(ptr, _%s, DOWNLINK_DATA_%s_LENGTH_VAR);\n" s name
       | [] ->
           ()
@@ -286,7 +284,6 @@ module Gen_onboard = struct
           print_data_encode_body_PADDING h name fields
       | (Array (t,varname), s, _)::fields -> 
           fprintf h "  *(ptr++) = packet->%s;\n\n" (Syntax.length_name s);
-          (*fprintf h "  memcpy((buff + DOWNLINK_DATA_%s_LENGTH_CNST), packet->%s, ((packet->%s)*%s));\n" name s (Syntax.length_name s) (Syntax.sizeof (Basic t))*)
           fprintf h "  memcpy(ptr, packet->%s, ((packet->%s)*%s));\n" s (Syntax.length_name s) (Syntax.sizeof (Basic t))
       | [] ->
           ()
@@ -481,14 +478,11 @@ let () =
     Printf.fprintf h "#endif\n\n";
 
     (** Data structs declaration *)
-    (*Printf.fprintf h "#ifdef DOWNLINK\n";*)
     Gen_onboard.print_lengths_ordered h messages;
-(*    List.iter (Gen_onboard.print_data_pack_function h) messages;*)
 
     (** Macros for airborne datalink (receiving) *)
     let check_alignment = class_name <> "telemetry" in
-(*    List.iter (Gen_onboard.print_get_macros h check_alignment) messages;*)
-    List.iter (Gen_onboard.print_message_functions h check_alignment) messages;
+      List.iter (Gen_onboard.print_message_functions h check_alignment) messages;
 
     Printf.fprintf h "#endif // _DOWNLINK_DATA_%s_H_\n" class_name
 

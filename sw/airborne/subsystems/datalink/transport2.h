@@ -86,12 +86,12 @@ struct transport_tx {
   struct transport_tx_api api;
 };
 
-#if defined TRANSPORT_TX_1
-extern struct transport_tx transport_tx_1;
-#endif
-#if defined TRANSPORT_TX_2
-extern struct transport_tx transport_tx_2;
-#endif
+// #if defined TRANSPORT_TX_1
+// extern struct transport_tx transport_tx_1;
+// #endif
+// #if defined TRANSPORT_TX_2
+// extern struct transport_tx transport_tx_2;
+// #endif
 
 
 

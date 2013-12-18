@@ -2,6 +2,7 @@
 #include "device.h"
 #include "mcu_periph/dynamic_buffer.h"
 #include <string.h> //required for memcpy
+#include "mcu_periph/sys_time_arch.h"
 
 #define XBEE_MY_ADDR AC_ID
 

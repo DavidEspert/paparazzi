@@ -260,11 +260,8 @@ module Gen_onboard = struct
       fprintf h "  uint8_t tp_tl_len = %s->api.tail_len;%s" !trans_name !eol;
     end else begin
       fprintf h "  uint8_t ta_len =    DEV_TRANSACTION_LEN();%s" !eol;
-      (*fprintf h "  uint8_t ta_len =    dl_join(%s, _transaction_len());%s" !dev_name !eol;*)
       fprintf h "  uint8_t tp_hd_len = dl_join(DOWNLINK_TRANSPORT, _header_len());%s" !eol;
       fprintf h "  uint8_t tp_tl_len = dl_join(DOWNLINK_TRANSPORT, _tail_len());%s" !eol;
-      (*fprintf h "  uint8_t tp_hd_len = dl_join(%s, _header_len);%s" !trans_name !eol;
-      fprintf h "  uint8_t tp_tl_len = dl_join(%s, _tail_len);%s" !trans_name !eol;*)
     end;
     fprintf h "%s" !eol;
 

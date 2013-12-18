@@ -77,15 +77,13 @@ static inline void PprzTransport_tail(uint8_t *buff, uint16_t msg_data_length){
   buff[i]   = tl.ck_b;
 }
 
-#if defined TRANSPORT_TX_1 && TRANSPORT_TX_1 == PPRZ
-extern struct transport_tx transport_tx_1;
-#elif defined TRANSPORT_TX_2 && TRANSPORT_TX_2 == PPRZ
-extern struct transport_tx transport_tx_2;
+#if (defined TRANSPORT_TX_1 && TRANSPORT_TX_1 == PPRZ) || \
+    (defined TRANSPORT_TX_2 && TRANSPORT_TX_2 == PPRZ)
+extern struct transport_tx transport_tx_PPRZ;
 #endif
 
 
 // RX API ---------------------------------------------------------------------
-
 
 /** RX PARSING STATE MACHINE */
 #define UNINIT      0

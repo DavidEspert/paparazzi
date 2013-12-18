@@ -116,15 +116,13 @@ static inline void XBeeTransport_tail(uint8_t *buff, uint16_t msg_data_length){
   buff[i] = cksum;
 }
 
-#if defined TRANSPORT_TX_1 && TRANSPORT_TX_1 == XBEE
-extern struct transport_tx transport_tx_1;
-#elif defined TRANSPORT_TX_2 && TRANSPORT_TX_2 == XBEE
-extern struct transport_tx transport_tx_2;
+#if (defined TRANSPORT_TX_1 && TRANSPORT_TX_1 == XBEE) || \
+    (defined TRANSPORT_TX_2 && TRANSPORT_TX_2 == XBEE)
+extern struct transport_tx transport_tx_XBEE;
 #endif
 
 
 // RX API ---------------------------------------------------------------------
-
 
 /** RX PARSING STATE MACHINE */
 #define XBEE_UNINIT         0

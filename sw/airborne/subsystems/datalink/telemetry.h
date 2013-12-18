@@ -49,10 +49,8 @@
  */
 
 #include "std.h"
-#include "messages.h"
-// #include "mcu_periph/uart.h"
-#include "subsystems/datalink/device_uart.h"
-#include "subsystems/datalink/downlink.h"
-#include "generated/periodic_telemetry.h"
+#include "generated/periodic_telemetry.h"       //Periodicity management
+#include "subsystems/datalink/downlink.h"       //Transport and Device management
+#include "messages.h"                           //Message transmition management
 
 #endif /* TELEMETRY_H */

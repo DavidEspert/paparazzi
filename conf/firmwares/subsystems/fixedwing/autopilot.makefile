@@ -206,17 +206,18 @@ sim.CFLAGS 		+= -DDATALINK_SIM_DEVICE=SIM_UART
 
 # transport layers enabled
 sim.srcs		+= subsystems/datalink/transport_pprz.c
+sim.srcs		+= subsystems/datalink/transport_xbee.c
 
 sim.CFLAGS 		+= -DTRANSPORT_TX_1=PPRZ
-# sim.CFLAGS 		+= -DTRANSPORT_TX_2=XBEE -DXBEE_BAUD=B9600
-sim.CFLAGS 		+= -DDOWNLINK_TRANSPORT=TRANSPORT_TX_1
+sim.CFLAGS 		+= -DTRANSPORT_TX_2=XBEE -DXBEE_BAUD=B9600
+sim.CFLAGS 		+= -DDOWNLINK_TRANSPORT=TRANSPORT_TX_2
 
 sim.CFLAGS 		+= -DDATALINK
 sim.srcs		+= subsystems/datalink/datalink.c
 sim.CFLAGS 		+= -DTRANSPORT_RX_PPRZ_1
 sim.CFLAGS 		+= -DTRANSPORT_RX_PPRZ_2
-# sim.CFLAGS 		+= -DTRANSPORT_RX_XBEE_1
-sim.CFLAGS 		+= -DDATALINK_TRANSPORT=PPRZ_2
+sim.CFLAGS 		+= -DTRANSPORT_RX_XBEE_1
+sim.CFLAGS 		+= -DDATALINK_TRANSPORT=XBEE_1
 
 
 
