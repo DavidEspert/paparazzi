@@ -65,7 +65,7 @@ int32_t stabilization_att_ff_cmd[COMMANDS_NB];
 #define GAIN_PRESCALER_D 48
 #define GAIN_PRESCALER_I 48
 
-#if DOWNLINK
+#if PERIODIC_TELEMETRY
 #include "subsystems/datalink/telemetry.h"
 
 static void send_att(void) { //FIXME really use this message here ?
@@ -92,6 +92,22 @@ static void send_att(void) { //FIXME really use this message here ?
 }
 
 static void send_att_ref(void) {
+  DOWNLINK_SEND_STAB_ATTITUDE_REF_INT(DefaultChannel, DefaultDevice,
+                                      &stab_att_sp_euler.phi,
+                                      &stab_att_sp_euler.theta,
+                                      &stab_att_sp_euler.psi,
+                                      &stab_att_ref_euler.phi,
+                                      &stab_att_ref_euler.theta,
+                                      &stab_att_ref_euler.psi,
+                                      &stab_att_ref_rate.p,
+                                      &stab_att_ref_rate.q,
+                                      &stab_att_ref_rate.r,
+                                      &stab_att_ref_accel.p,
+                                      &stab_att_ref_accel.q,
+                                      &stab_att_ref_accel.r);
+}
+
+static void send_ahrs_ref_quat(void) {
   struct Int32Quat* quat = stateGetNedToBodyQuat_i();
   DOWNLINK_SEND_AHRS_REF_QUAT(DefaultChannel, DefaultDevice,
       &stab_att_ref_quat.qi,
@@ -111,6 +127,12 @@ void stabilization_attitude_init(void) {
 
   INT32_QUAT_ZERO( stabilization_att_sum_err_quat );
   INT_EULERS_ZERO( stabilization_att_sum_err );
+
+#if PERIODIC_TELEMETRY
+  register_periodic_telemetry(DefaultPeriodic, "STAB_ATTITUDE", send_att);
+  register_periodic_telemetry(DefaultPeriodic, "STAB_ATTITUDE_REF", send_att_ref);
+  register_periodic_telemetry(DefaultPeriodic, "AHRS_REF_QUAT", send_ahrs_ref_quat);
+#endif
 }
 
 void stabilization_attitude_enter(void) {
@@ -123,10 +145,6 @@ void stabilization_attitude_enter(void) {
   INT32_QUAT_ZERO(stabilization_att_sum_err_quat);
   INT_EULERS_ZERO(stabilization_att_sum_err);
 
-#if DOWNLINK
-  register_periodic_telemetry(DefaultPeriodic, "STAB_ATTITUDE", send_att);
-  register_periodic_telemetry(DefaultPeriodic, "STAB_AHRS_REF_QUAT", send_att_ref);
-#endif
 }
 
 void stabilization_attitude_set_failsafe_setpoint(void) {

@@ -220,12 +220,12 @@ void actuators_ardrone_motor_status(void)
 void actuators_ardrone_led_run(void);
 void actuators_ardrone_led_run(void)
 {
-	static uint32_t previous_led_hw_values = 0x00;
-	if (previous_led_hw_values != led_hw_values)
-	{
-		previous_led_hw_values = led_hw_values;
-		actuators_ardrone_set_leds(BIT_NUMBER(led_hw_values,0), BIT_NUMBER(led_hw_values,2), BIT_NUMBER(led_hw_values,4), BIT_NUMBER(led_hw_values,6) );
-	}
+  static uint32_t previous_led_hw_values = 0x00;
+  if (previous_led_hw_values != led_hw_values)
+  {
+    previous_led_hw_values = led_hw_values;
+    actuators_ardrone_set_leds(BIT_NUMBER(led_hw_values,0), BIT_NUMBER(led_hw_values,2), BIT_NUMBER(led_hw_values,4), BIT_NUMBER(led_hw_values,6) );
+  }
 }
 
 void actuators_ardrone_commit(void)
@@ -270,7 +270,7 @@ void actuators_ardrone_set_leds(uint8_t led0, uint8_t led1, uint8_t led2, uint8_
   led2 &= 0x03;
   led3 &= 0x03;
 
-  printf("LEDS: %d %d %d %d \n", led0, led1, led2, led3);
+  //printf("LEDS: %d %d %d %d \n", led0, led1, led2, led3);
 
   cmd[0]=0x60 | ((led0&1)<<4) | ((led1&1)<<3) | ((led2&1)<<2) | ((led3&1) <<1);
   cmd[1]=((led0&2)<<3) | ((led1&2)<<2) | ((led2&2)<<1) | ((led3&2)<<0);

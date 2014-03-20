@@ -30,6 +30,8 @@
 
 #include <inttypes.h>
 
+#ifndef PPRZ_DATALINK_EXPORT
+
 #include "generated/modules.h"
 //Available Devices
 #include "subsystems/datalink/device_uart.h"
@@ -51,8 +53,11 @@
 #endif
 
 #else /** SITL */
-// #include "subsystems/datalink/udp.h"
-// #include "subsystems/datalink/w5100.h"
+//#include "subsystems/datalink/udp.h"
+#include "subsystems/datalink/pprz_transport.h"
+//#include "subsystems/datalink/pprzlog_transport.h"
+#include "subsystems/datalink/xbee.h"
+//#include "subsystems/datalink/w5100.h"
 #if USE_SUPERBITRF
 #include "subsystems/datalink/superbitrf.h"
 #endif
@@ -65,14 +70,9 @@
 
 #endif /** !SITL */
 
-
-
-
 #define __dl_join(_y, _x) _y##_x
 #define _dl_join(_y, _x) __dl_join(_y, _x)
 #define dl_join(_chan, _fun) _dl_join(_chan, _fun)
-
-
 
 // Transport
 #if DOWNLINK_TRANSPORT == PPRZ
@@ -81,6 +81,20 @@
    #define DefaultChannel  &transport_tx_XBEE
 #else
    #error DOWNLINK defined but no DOWNLINK_TRANSPORT found.
+#endif
+
+#else /* PPRZ_DATALINK_EXPORT defined */
+
+#include "messages.h"
+#include "pprz_transport.h"
+#ifndef AC_ID
+#define AC_ID 0
+#endif
+
+#endif
+
+#ifndef DefaultChannel
+#define DefaultChannel DOWNLINK_TRANSPORT
 #endif
 
 // Device

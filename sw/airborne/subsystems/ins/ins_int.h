@@ -34,14 +34,20 @@
 #include "math/pprz_geodetic_int.h"
 #include "math/pprz_algebra_float.h"
 
-#if USE_SONAR
-#include "filters/median_filter.h"
-#endif
-
 /** Ins implementation state (fixed point) */
 struct InsInt {
   struct LtpDef_i  ltp_def;
   bool_t           ltp_initialized;
+
+  /** request to realign horizontal filter.
+   * Sets to current position (local origin unchanged).
+   */
+  bool_t hf_realign;
+
+  /** request to reset vertical filter.
+   * Sets the z-position to zero and resets the the z-reference to current altitude.
+   */
+  bool_t vf_reset;
 
   /* output LTP NED */
   struct NedCoor_i ltp_pos;
@@ -54,10 +60,7 @@ struct InsInt {
   bool_t baro_initialized;
 
 #if USE_SONAR
-  bool_t  update_on_agl; /* use sonar to update agl if available */
-  int32_t sonar_alt;
-  int32_t sonar_offset;
-  struct MedianFilterInt sonar_median;
+  bool_t update_on_agl; ///< use sonar to update agl if available
 #endif
 };
 

@@ -49,6 +49,22 @@
 #define MIN_FRAME_SPACE  70  // 7ms
 #define MAX_BYTE_SPACE  3   // .3ms
 
+
+#ifndef NVIC_TIM6_IRQ_PRIO
+#define NVIC_TIM6_IRQ_PRIO 2
+#endif
+
+#ifndef NVIC_TIM6_DAC_IRQ_PRIO
+#define NVIC_TIM6_DAC_IRQ_PRIO 2
+#endif
+
+
+#ifdef NVIC_UART_IRQ_PRIO
+#define NVIC_PRIMARY_UART_PRIO NVIC_UART_IRQ_PRIO
+#else
+#define NVIC_PRIMARY_UART_PRIO 2
+#endif
+
 /*
  * in the makefile we set RADIO_CONTROL_SPEKTRUM_PRIMARY_PORT to be UARTx
  * but in uart_hw.c the initialisation functions are
@@ -470,7 +486,7 @@ void RadioControlEventImp(void (*frame_handler)(void)) {
 void SpektrumTimerInit( void ) {
 
   /* enable TIM6 clock */
-  rcc_peripheral_enable_clock(&RCC_APB1ENR, RCC_APB1ENR_TIM6EN);
+  rcc_periph_clock_enable(RCC_TIM6);
 
   /* TIM6 configuration */
   timer_set_mode(TIM6, TIM_CR1_CKD_CK_INT,
@@ -481,11 +497,11 @@ void SpektrumTimerInit( void ) {
 
   /* Enable TIM6 interrupts */
 #ifdef STM32F1
-  nvic_set_priority(NVIC_TIM6_IRQ, 2);
+  nvic_set_priority(NVIC_TIM6_IRQ, NVIC_TIM6_IRQ_PRIO);
   nvic_enable_irq(NVIC_TIM6_IRQ);
 #elif defined STM32F4
   /* the define says DAC IRQ, but it is also the global TIM6 IRQ*/
-  nvic_set_priority(NVIC_TIM6_DAC_IRQ, 2);
+  nvic_set_priority(NVIC_TIM6_DAC_IRQ, NVIC_TIM6_DAC_IRQ_PRIO);
   nvic_enable_irq(NVIC_TIM6_DAC_IRQ);
 #endif
 
@@ -526,10 +542,10 @@ void tim6_dac_isr( void ) {
 void SpektrumUartInit(void) {
   /* init RCC */
   gpio_enable_clock(PrimaryUart(_BANK));
-  rcc_peripheral_enable_clock(PrimaryUart(_RCC_REG), PrimaryUart(_RCC_DEV));
+  rcc_periph_clock_enable(PrimaryUart(_RCC));
 
   /* Enable USART interrupts */
-  nvic_set_priority(PrimaryUart(_IRQ), 2);
+  nvic_set_priority(PrimaryUart(_IRQ), NVIC_PRIMARY_UART_PRIO);
   nvic_enable_irq(PrimaryUart(_IRQ));
 
   /* Init GPIOS */
@@ -553,10 +569,10 @@ void SpektrumUartInit(void) {
 #ifdef RADIO_CONTROL_SPEKTRUM_SECONDARY_PORT
   /* init RCC */
   gpio_enable_clock(SecondaryUart(_BANK));
-  rcc_peripheral_enable_clock(SecondaryUart(_RCC_REG), SecondaryUart(_RCC_DEV));
+  rcc_periph_clock_enable(SecondaryUart(_RCC));
 
   /* Enable USART interrupts */
-  nvic_set_priority(SecondaryUart(_IRQ), 3);
+  nvic_set_priority(SecondaryUart(_IRQ), NVIC_PRIMARY_UART_PRIO+1);
   nvic_enable_irq(SecondaryUart(_IRQ));
 
   /* Init GPIOS */;
@@ -706,7 +722,7 @@ void radio_control_spektrum_try_bind(void) {
 static void SpektrumDelayInit( void ) {
 
   /* Enable timer clock */
-  rcc_peripheral_enable_clock(&RCC_APB1ENR, RCC_APB1ENR_TIM6EN);
+  rcc_periph_clock_enable(RCC_TIM6);
 
   /* Make sure the timer is reset to default values. */
   timer_reset(TIM6);

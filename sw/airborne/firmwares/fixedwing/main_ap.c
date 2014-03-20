@@ -56,6 +56,7 @@
 #include "subsystems/air_data.h"
 #if USE_BARO_BOARD
 #include "subsystems/sensors/baro.h"
+PRINT_CONFIG_MSG_VALUE("USE_BARO_BOARD is TRUE, reading onboard baro: ", BARO_BOARD)
 #endif
 #include "subsystems/ins.h"
 
@@ -132,6 +133,11 @@ PRINT_CONFIG_VAR(AHRS_PROPAGATE_FREQUENCY)
 #define AHRS_CORRECT_FREQUENCY PERIODIC_FREQUENCY
 #endif
 PRINT_CONFIG_VAR(AHRS_CORRECT_FREQUENCY)
+
+#if (AHRS_PROPAGATE_FREQUENCY > PERIODIC_FREQUENCY)
+#warning "PERIODIC_FREQUENCY should be least equal or greater than AHRS_PROPAGATE_FREQUENCY"
+INFO_VALUE("it is recommended to configure in your airframe PERIODIC_FREQUENCY to at least ",AHRS_PROPAGATE_FREQUENCY)
+#endif
 
 static inline void on_gyro_event( void );
 static inline void on_accel_event( void );
@@ -416,6 +422,7 @@ static inline void telecommand_task( void ) {
 
   vsupply = fbw_state->vsupply;
   current = fbw_state->current;
+  energy = fbw_state->energy;
 
 #ifdef RADIO_CONTROL
   if (!autopilot_flight_time) {
@@ -450,7 +457,7 @@ void reporting_task( void ) {
 
 
 #ifdef FAILSAFE_DELAY_WITHOUT_GPS
-#define GpsTimeoutError (sys_time.nb_sec - gps.last_fix_time > FAILSAFE_DELAY_WITHOUT_GPS)
+#define GpsTimeoutError (sys_time.nb_sec - gps.last_3dfix_time > FAILSAFE_DELAY_WITHOUT_GPS)
 #endif
 
 /**
@@ -513,7 +520,6 @@ void navigation_task( void ) {
 
     // climb_loop(); //4Hz
   }
-  energy += ((float)current) / 3600.0f * 0.25f;	// mAh = mA * dt (4Hz -> hours)
 }
 
 
@@ -592,14 +598,22 @@ void sensors_task( void ) {
   baro_periodic();
 #endif
 
+#if USE_GPS
+  gps_periodic_check();
+#endif
+
   ins_periodic();
 }
 
 
+#ifdef LOW_BATTERY_KILL_DELAY
+#warning LOW_BATTERY_KILL_DELAY has been renamed to CATASTROPHIC_BAT_KILL_DELAY, please update your airframe file!
+#endif
 
-
-/** Maximum time allowed for low battery level before going into kill mode */
-#define LOW_BATTERY_DELAY 5
+/** Maximum time allowed for catastrophic battery level before going into kill mode */
+#ifndef CATASTROPHIC_BAT_KILL_DELAY
+#define CATASTROPHIC_BAT_KILL_DELAY 5
+#endif
 
 /** Maximum distance from HOME waypoint before going into kill mode */
 #ifndef KILL_MODE_DISTANCE
@@ -622,7 +636,7 @@ void monitor_task( void ) {
     t++;
   else
     t = 0;
-  kill_throttle |= (t >= LOW_BATTERY_DELAY);
+  kill_throttle |= (t >= CATASTROPHIC_BAT_KILL_DELAY);
   kill_throttle |= launch && (dist2_to_home > Square(KILL_MODE_DISTANCE));
 
   if (!autopilot_flight_time &&

@@ -81,7 +81,6 @@
     <define name="CARROT" value="5." unit="s"/>
  <!--   <define name="XBEE_INIT" value="&quot;ATPL2\rATRN5\rATTT80\r&quot;"/>
     <define name="NO_XBEE_API_INIT" value="TRUE"/> -->
-    <define name="ALT_KALMAN_ENABLED" value="TRUE"/>
 
     <define name="DEFAULT_CIRCLE_RADIUS" value="80."/>
 
@@ -161,9 +160,7 @@
       <define name="CHIMU_BIG_ENDIAN" />
     </load>
     <load name="cam_point.xml" />
-    <load name="gps_ubx_ucenter.xml">
-      <define name="GPS_PORT_ID" value="GPS_PORT_UART2" />
-    </load>
+    <load name="gps_ubx_ucenter.xml"/>
   </modules>
 
   <firmware name="fixedwing">
@@ -172,7 +169,6 @@
     <define name="WIND_INFO"/>
     <define name="WIND_INFO_RET"/>
     <define name="LOITER_TRIM"/>
-    <define name="ALT_KALMAN"/>
     <define name="POINT_CAM_PITCH_ROLL" />
 
     <target name="ap" board="tiny_2.11">

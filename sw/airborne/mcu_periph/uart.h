@@ -158,7 +158,7 @@ static inline bool_t uart_char_available(struct uart_periph* p) {
 
 // -- SPECIFIC UART FUNCTIONS -------------------------------------------------
 
-#ifdef USE_UART0
+#if USE_UART0
 extern struct uart_periph uart0;
 
 // -- 'UART Periph management' --
@@ -184,8 +184,7 @@ static inline bool_t    UART0ChAvailable(void)                                  
 
 #endif // USE_UART0
 
-
-#ifdef USE_UART1
+#if USE_UART1
 extern struct uart_periph uart1;
 
 // -- 'UART Periph management' --
@@ -211,8 +210,7 @@ static inline bool_t    UART1ChAvailable(void)                                  
 
 #endif // USE_UART1
 
-
-#ifdef USE_UART2
+#if USE_UART2
 extern struct uart_periph uart2;
 
 // -- 'UART Periph management' --
@@ -238,8 +236,7 @@ static inline bool_t    UART2ChAvailable(void)                                  
 
 #endif // USE_UART2
 
-
-#ifdef USE_UART3
+#if USE_UART3
 extern struct uart_periph uart3;
 
 // -- 'UART Periph management' --
@@ -265,8 +262,7 @@ static inline bool_t    UART3ChAvailable(void)                                  
 
 #endif // USE_UART3
 
-
-#ifdef USE_UART4
+#if USE_UART4
 extern struct uart_periph uart4;
 
 // -- 'UART Periph management' --
@@ -292,8 +288,7 @@ static inline bool_t    UART4ChAvailable(void)                                  
 
 #endif // USE_UART4
 
-
-#ifdef USE_UART5
+#if USE_UART5
 extern struct uart_periph uart5;
 
 // -- 'UART Periph management' --
@@ -319,8 +314,7 @@ static inline bool_t    UART5ChAvailable(void)                                  
 
 #endif // USE_UART5
 
-
-#ifdef USE_UART6
+#if USE_UART6
 extern struct uart_periph uart6;
 
 // -- 'UART Periph management' --

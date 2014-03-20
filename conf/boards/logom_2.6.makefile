@@ -11,16 +11,12 @@ BOARD_VERSION=2.6
 
 BOARD_CFG=\"boards/$(BOARD)_$(BOARD_VERSION).h\"
 
-ifndef FLASH_MODE
-FLASH_MODE = IAP
-endif
+FLASH_MODE ?= IAP
 
 
 LPC21ISP_BAUD = 38400
 LPC21ISP_XTAL = 12000
 
-
-ADC_GENERIC_NB_SAMPLES = 16
 
 # All targets on the board run on the same processor achitecture
 $(TARGET).ARCHDIR = $(ARCH)

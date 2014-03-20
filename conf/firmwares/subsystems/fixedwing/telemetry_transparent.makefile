@@ -2,13 +2,12 @@
 
 telemetry_CFLAGS = -DUSE_$(MODEM_PORT)
 telemetry_CFLAGS += -D$(MODEM_PORT)_BAUD=$(MODEM_BAUD)
+telemetry_CFLAGS += -DPERIODIC_TELEMETRY
 
 #Common files for both Downlink and Datalink
   #devices & transports
 telemetry_srcs = subsystems/datalink/device_uart.c
 telemetry_srcs += subsystems/datalink/transport_pprz.c subsystems/datalink/transport_xbee.c
-
-
 
 #--- DOWNLINK ---
 telemetry_CFLAGS += -DDOWNLINK -DDOWNLINK_DEVICE=$(MODEM_PORT) -DPPRZ_UART=$(MODEM_PORT)
@@ -20,8 +19,6 @@ telemetry_CFLAGS += -DTRANSPORT_TX_2=XBEE -DXBEE_BAUD=B9600
   #Downlink transport layer (fixed now but maybe modifiable in future)
 telemetry_CFLAGS += -DDOWNLINK_TRANSPORT=TRANSPORT_TX_2
 # telemetry_CFLAGS += -DDOWNLINK_TRANSPORT=PprzTransport
-
-
 
 #--- UPLINK ---
 telemetry_CFLAGS += -DDATALINK -DDATALINK_DEVICE=UART0
@@ -38,7 +35,4 @@ telemetry_CFLAGS += -DDATALINK_TRANSPORT=XBEE_1
 # Add telemetry to Ap and FBW
 ap.CFLAGS += $(telemetry_CFLAGS)
 ap.srcs += $(telemetry_srcs)
-
-fbw.CFLAGS += $(telemetry_CFLAGS)
-fbw.srcs += $(telemetry_srcs)
 

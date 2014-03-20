@@ -74,7 +74,7 @@ static inline void set_body_state_from_euler(void);
     while (_a < -PI_INTEG_EULER)  _a += TWO_PI_INTEG_EULER; \
   }
 
-#if DOWNLINK
+#if PERIODIC_TELEMETRY
 #include "subsystems/datalink/telemetry.h"
 
 static void send_filter(void) {
@@ -125,7 +125,7 @@ void ahrs_init(void) {
 
   ahrs_impl.mag_offset = AHRS_MAG_OFFSET;
 
-#if DOWNLINK
+#if PERIODIC_TELEMETRY
   register_periodic_telemetry(DefaultPeriodic, "FILTER", send_filter);
   register_periodic_telemetry(DefaultPeriodic, "AHRS_EULER_INT", send_euler);
   register_periodic_telemetry(DefaultPeriodic, "AHRS_GYRO_BIAS_INT", send_bias);
@@ -275,10 +275,6 @@ void ahrs_update_accel(void) {
 void ahrs_update_mag(void) {
 
   get_psi_measurement_from_mag(&ahrs_impl.measurement.psi, ahrs_impl.ltp_to_imu_euler.phi, ahrs_impl.ltp_to_imu_euler.theta, imu.mag);
-
-}
-
-void ahrs_update_gps(void) {
 
 }
 

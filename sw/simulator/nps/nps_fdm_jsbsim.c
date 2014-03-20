@@ -94,6 +94,9 @@ static FGFDMExec* FDMExec;
 
 static struct LtpDef_d ltpdef;
 
+// Offset between ecef in geodetic and geocentric coordinates
+static struct EcefCoor_d offset;
+
 /// The largest distance between vehicle CG and contact point
 double vehicle_radius_max;
 
@@ -109,6 +112,8 @@ void nps_fdm_init(double dt) {
   min_dt = (1/min_dt);
 
   fdm.nan_count = 0;
+
+  VECT3_ASSIGN(offset, 0., 0., 0.);
 
   init_jsbsim(dt);
 
@@ -391,6 +396,7 @@ static void init_jsbsim(double dt) {
     IC->SetLatitudeDegIC(DegOfRad(gc_lat));
     IC->SetLongitudeDegIC(NAV_LON0 / 1e7);
 
+
     IC->SetAltitudeASLFtIC(FeetOfMeters(GROUND_ALT + 2.0));
     IC->SetTerrainElevationFtIC(FeetOfMeters(GROUND_ALT));
     IC->SetPsiDegIC(QFU);
@@ -402,6 +408,16 @@ static void init_jsbsim(double dt) {
       cerr << "Initialization from flight plan unsuccessful" << endl;
       exit(-1);
     }
+
+    // compute offset between geocentric and geodetic ecef
+    struct LlaCoor_d lla0 = { RadOfDeg(NAV_LON0 / 1e7), gd_lat, (double)(NAV_ALT0+NAV_MSL0)/1000. };
+    ecef_of_lla_d(&offset, &lla0);
+    struct EcefCoor_d ecef0 = {
+      MetersOfFeet(FDMExec->GetPropagate()->GetLocation().Entry(1)),
+      MetersOfFeet(FDMExec->GetPropagate()->GetLocation().Entry(2)),
+      MetersOfFeet(FDMExec->GetPropagate()->GetLocation().Entry(3))
+    };
+    VECT3_DIFF(offset, offset, ecef0);
   }
 
   // calculate vehicle max radius in m
@@ -434,10 +450,15 @@ static void init_ltp(void) {
   fdm.ltp_g.z = 9.81;
 
 #ifdef AHRS_H_X
-#pragma message "Using magnetic field as defined in airframe file."
+#pragma message "Using magnetic field as defined in airframe file (AHRS section)."
   fdm.ltp_h.x = AHRS_H_X;
   fdm.ltp_h.y = AHRS_H_Y;
   fdm.ltp_h.z = AHRS_H_Z;
+#elif defined INS_H_X
+#pragma message "Using magnetic field as defined in airframe file (INS section)."
+  fdm.ltp_h.x = INS_H_X;
+  fdm.ltp_h.y = INS_H_Y;
+  fdm.ltp_h.z = INS_H_Z;
 #else
   fdm.ltp_h.x = 0.4912;
   fdm.ltp_h.y = 0.1225;
@@ -460,6 +481,7 @@ static void jsbsimloc_to_loc(EcefCoor_d* fdm_location, const FGLocation* jsb_loc
   fdm_location->y = MetersOfFeet(jsb_location->Entry(2));
   fdm_location->z = MetersOfFeet(jsb_location->Entry(3));
 
+  VECT3_ADD(*fdm_location, offset);
 }
 
 /**

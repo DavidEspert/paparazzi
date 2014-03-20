@@ -11,9 +11,7 @@ BOARD_VERSION=1.0
 
 BOARD_CFG=\"boards/$(BOARD)_$(BOARD_VERSION).h\"
 
-ifndef FLASH_MODE
-FLASH_MODE = IAP
-endif
+FLASH_MODE ?= IAP
 
 
 LPC21ISP_BAUD = 38400
@@ -38,9 +36,6 @@ MODEM_BAUD ?= B57600
 
 GPS_PORT ?= UART0
 GPS_BAUD ?= B38400
-
-
-ADC_GENERIC_NB_SAMPLES = 16
 
 # All targets on the NavGo board run on the same processor achitecture
 $(TARGET).ARCHDIR = $(ARCH)

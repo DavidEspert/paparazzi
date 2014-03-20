@@ -44,18 +44,28 @@ int network_write(struct FmsNetwork* me, char* buf, int len) {
   ssize_t byte_written = sendto(me->socket_out, buf, len, MSG_DONTWAIT,
                                 (struct sockaddr*)&me->addr_out, sizeof(me->addr_out));
   if ( byte_written != len) {
-    TRACE(TRACE_ERROR, "error sending to network %d (%d)\n", byte_written, errno);
+    TRACE(TRACE_ERROR, "error sending to network %d (%d)\n", (int)byte_written, errno);
   }
   return len;
 }
 
+///< returns: -1 = error, 0 = no data, >0 = nrofbytesread
+
 int network_read(struct FmsNetwork* me, unsigned char* buf, int len) {
 
+  socklen_t slen = sizeof(struct sockaddr_in);
   // MSG_DONTWAIT => nonblocking flag
   ssize_t byte_read = recvfrom(me->socket_in, buf, len, MSG_DONTWAIT,
-                                (struct sockaddr*)&me->addr_in, (socklen_t *) sizeof(me->addr_in));
+                                (struct sockaddr*)&me->addr_in, &slen);
 
-  // @TODO: maybe fix if byte_read == -1 => check errno == EWOULDBLOCK and do something accordingly
+  if (byte_read == -1) {
+    if (errno == EWOULDBLOCK) { // If not data is available, simply return zero bytes read, no error
+      return 0;
+    }
+    else {
+      TRACE(TRACE_ERROR, "error reading from network error %d \n",errno);
+    }
+  }
 
   return byte_read;
 }

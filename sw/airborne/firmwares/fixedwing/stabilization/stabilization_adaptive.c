@@ -143,7 +143,7 @@ inline static void h_ctl_pitch_loop( void );
 #define H_CTL_PITCH_KFFD 0.
 #endif
 
-#if DOWNLINK
+#if PERIODIC_TELEMETRY
 #include "subsystems/datalink/telemetry.h"
 
 static void send_calibration(void) {
@@ -208,7 +208,7 @@ void h_ctl_init( void ) {
   v_ctl_pitch_dash_trim = 0.;
 #endif
 
-#if DOWNLINK
+#if PERIODIC_TELEMETRY
   register_periodic_telemetry(DefaultPeriodic, "CALIBRATION", send_calibration);
   register_periodic_telemetry(DefaultPeriodic, "TUNE_ROLL", send_tune_roll);
   register_periodic_telemetry(DefaultPeriodic, "H_CTL_A", send_ctl_a);
@@ -309,11 +309,6 @@ inline static void h_ctl_roll_loop( void ) {
   // Compute errors
   float err = h_ctl_ref_roll_angle - stateGetNedToBodyEulers_f()->phi;
   struct FloatRates* body_rate = stateGetBodyRates_f();
-#ifdef SITL
-  static float last_err = 0;
-  body_rate->p = (err - last_err)/(1/60.); // FIXME should be done in ahrs sim
-  last_err = err;
-#endif
   float d_err = h_ctl_ref_roll_rate - body_rate->p;
 
   if (pprz_mode == PPRZ_MODE_MANUAL || launch == 0) {

@@ -19,6 +19,7 @@
       <message name="I2C_ERRORS"             period="4.1"/>
       <message name="UART_ERRORS"            period="3.1"/>
       <message name="SUPERBITRF"             period="3"/>
+      <message name="ENERGY"                 period="2.5"/>
     </mode>
 
     <mode name="ppm">
@@ -131,13 +132,6 @@
       <!--<message name="INS2"              period=".05"/>
       <message name="INS3"              period=".20"/>-->
       <message name="INS_REF"           period="5.1"/>
-    </mode>
-
-    <mode name="mag_current_calibration">
-      <message name="ROTORCRAFT_STATUS" period="1.2"/>
-      <message name="DL_VALUE"          period="0.5"/>
-      <message name="ALIVE"             period="2.1"/>
-      <message name="IMU_MAG_CURRENT_CALIBRATION"   period="0.05"/>
     </mode>
 
   </process>

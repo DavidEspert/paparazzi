@@ -16,7 +16,6 @@
 #define USE_LED_1 1
 #endif
 #define LED_1_GPIO GPIOC
-#define LED_1_GPIO_CLK RCC_AHB1ENR_IOPCEN
 #define LED_1_GPIO_PIN GPIO0
 #define LED_1_GPIO_ON gpio_clear
 #define LED_1_GPIO_OFF gpio_set
@@ -27,7 +26,6 @@
 #define USE_LED_2 1
 #endif
 #define LED_2_GPIO GPIOC
-#define LED_2_GPIO_CLK RCC_AHB1ENR_IOPCEN
 #define LED_2_GPIO_PIN GPIO13
 #define LED_2_GPIO_ON gpio_clear
 #define LED_2_GPIO_OFF gpio_set
@@ -38,7 +36,6 @@
 #define USE_LED_3 1
 #endif
 #define LED_3_GPIO GPIOC
-#define LED_3_GPIO_CLK RCC_AHB1ENR_IOPCEN
 #define LED_3_GPIO_PIN GPIO1
 #define LED_3_GPIO_ON gpio_clear
 #define LED_3_GPIO_OFF gpio_set
@@ -49,7 +46,6 @@
 #define USE_LED_4 1
 #endif
 #define LED_4_GPIO GPIOC
-#define LED_4_GPIO_CLK RCC_AHB1ENR_IOPCEN
 #define LED_4_GPIO_PIN GPIO3
 #define LED_4_GPIO_ON gpio_clear
 #define LED_4_GPIO_OFF gpio_set
@@ -60,7 +56,6 @@
 #define USE_LED_5 0
 #endif
 #define LED_5_GPIO GPIOB
-#define LED_5_GPIO_CLK RCC_AHB1ENR_IOPBEN
 #define LED_5_GPIO_PIN GPIO1
 #define LED_5_GPIO_ON gpio_set
 #define LED_5_GPIO_OFF gpio_clear
@@ -71,7 +66,6 @@
 #define USE_LED_6 0
 #endif
 #define LED_6_GPIO GPIOC
-#define LED_6_GPIO_CLK RCC_AHB1ENR_IOPCEN
 #define LED_6_GPIO_PIN GPIO5
 #define LED_6_GPIO_ON gpio_set
 #define LED_6_GPIO_OFF gpio_clear
@@ -82,7 +76,6 @@
 #define USE_LED_7 0
 #endif
 #define LED_7_GPIO GPIOC
-#define LED_7_GPIO_CLK RCC_AHB1ENR_IOPCEN
 #define LED_7_GPIO_PIN GPIO4
 #define LED_7_GPIO_ON gpio_set
 #define LED_7_GPIO_OFF gpio_clear
@@ -93,7 +86,6 @@
 #define USE_LED_8 0
 #endif
 #define LED_8_GPIO GPIOB
-#define LED_8_GPIO_CLK RCC_AHB1ENR_IOPBEN
 #define LED_8_GPIO_PIN GPIO15
 #define LED_8_GPIO_ON gpio_set
 #define LED_8_GPIO_OFF gpio_clear
@@ -104,7 +96,6 @@
 #define USE_LED_9 1
 #endif
 #define LED_9_GPIO GPIOB
-#define LED_9_GPIO_CLK RCC_AHB1ENR_IOPBEN
 #define LED_9_GPIO_PIN GPIO12
 #define LED_9_GPIO_ON gpio_set
 #define LED_9_GPIO_OFF gpio_clear
@@ -166,81 +157,49 @@
 /* Onboard ADCs */
 #define USE_AD_TIM4 1
 
-#define BOARD_ADC_CHANNEL_1 9
-#define BOARD_ADC_CHANNEL_2 15
-#define BOARD_ADC_CHANNEL_3 14
-#define BOARD_ADC_CHANNEL_4 4
-
-#ifndef USE_AD1
-#define USE_AD1 1
-#endif
 /* provide defines that can be used to access the ADC_x in the code or airframe file
  * these directly map to the index number of the 4 adc channels defined above
  * 4th (index 3) is used for bat monitoring by default
  */
 // AUX 1
-#define ADC_1 ADC1_C1
-#ifdef USE_ADC_1
-#ifndef ADC_1_GPIO_CLOCK_PORT
-#define ADC_1_GPIO_CLOCK_PORT RCC_AHB1ENR_IOPBEN
-#define ADC_1_INIT() gpio_mode_setup(GPIOB, GPIO_MODE_ANALOG, GPIO_PUPD_NONE, GPIO1)
-#endif
-#define USE_AD1_1 1
-#else
-#define ADC_1_GPIO_CLOCK_PORT 0
-#define ADC_1_INIT() {}
+#if USE_ADC_1
+#define AD1_1_CHANNEL 9
+#define ADC_1 AD1_1
+#define ADC_1_GPIO_PORT GPIOB
+#define ADC_1_GPIO_PIN GPIO1
 #endif
 
 // AUX 2
-#define ADC_2 ADC1_C2
-#ifdef USE_ADC_2
-#ifndef ADC_2_GPIO_CLOCK_PORT
-#define ADC_2_GPIO_CLOCK_PORT RCC_AHB1ENR_IOPCEN
-#define ADC_2_INIT() gpio_mode_setup(GPIOC, GPIO_MODE_ANALOG, GPIO_PUPD_NONE, GPIO5)
-#endif
-#define USE_AD1_2 1
-#else
-#define ADC_2_GPIO_CLOCK_PORT 0
-#define ADC_2_INIT() {}
+#if USE_ADC_2
+#define AD1_2_CHANNEL 15
+#define ADC_2 AD1_2
+#define ADC_2_GPIO_PORT GPIOC
+#define ADC_2_GPIO_PIN GPIO5
 #endif
 
 // AUX 3
-#define ADC_3 ADC1_C3
-#ifdef USE_ADC_3
-#ifndef ADC_3_GPIO_CLOCK_PORT
-#define ADC_3_GPIO_CLOCK_PORT RCC_AHB1ENR_IOPCEN
-#define ADC_3_INIT() gpio_mode_setup(GPIOC, GPIO_MODE_ANALOG, GPIO_PUPD_NONE, GPIO4)
-#endif
-#define USE_AD1_3 1
-#else
-#define ADC_3_GPIO_CLOCK_PORT 0
-#define ADC_3_INIT() {}
+#if USE_ADC_3
+#define AD1_3_CHANNEL 14
+#define ADC_3 AD1_3
+#define ADC_3_GPIO_PORT GPIOC
+#define ADC_3_GPIO_PIN GPIO4
 #endif
 
-// BAT
-#define ADC_4 ADC1_C4
-#ifndef ADC_4_GPIO_CLOCK_PORT
-#define ADC_4_GPIO_CLOCK_PORT RCC_AHB1ENR_IOPAEN
-#define ADC_4_INIT() gpio_mode_setup(GPIOA, GPIO_MODE_ANALOG, GPIO_PUPD_NONE, GPIO4)
+// Internal ADC for battery enabled by default
+#ifndef USE_ADC_4
+#define USE_ADC_4 1
 #endif
-#define USE_AD1_4 1
+#if USE_ADC_4
+#define AD1_4_CHANNEL 4
+#define ADC_4 AD1_4
+#define ADC_4_GPIO_PORT GPIOA
+#define ADC_4_GPIO_PIN GPIO4
+#endif
 
 /* allow to define ADC_CHANNEL_VSUPPLY in the airframe file*/
 #ifndef ADC_CHANNEL_VSUPPLY
 #define ADC_CHANNEL_VSUPPLY ADC_4
 #endif
-
-#define ADC_GPIO_CLOCK_PORT (ADC_1_GPIO_CLOCK_PORT | ADC_2_GPIO_CLOCK_PORT | ADC_3_GPIO_CLOCK_PORT | ADC_4_GPIO_CLOCK_PORT)
-
-/* GPIO mapping for ADC1 pins, overwrites the default in arch/stm32/mcu_periph/adc_arch.c */
-#ifdef USE_AD1
-#define ADC1_GPIO_INIT(gpio) { \
-  ADC_1_INIT(); \
-  ADC_2_INIT(); \
-  ADC_3_INIT(); \
-  ADC_4_INIT(); \
-}
-#endif // USE_AD1
 
 
 /* I2C mapping */
@@ -274,7 +233,7 @@
 #if USE_PWM0
 #define PWM_SERVO_0 0
 #define PWM_SERVO_0_TIMER TIM3
-#define PWM_SERVO_0_RCC_IOP RCC_AHB1ENR_IOPBEN
+#define PWM_SERVO_0_RCC RCC_GPIOB
 #define PWM_SERVO_0_GPIO GPIOB
 #define PWM_SERVO_0_PIN GPIO0
 #define PWM_SERVO_0_AF GPIO_AF2
@@ -287,7 +246,7 @@
 #if USE_PWM1
 #define PWM_SERVO_1 1
 #define PWM_SERVO_1_TIMER TIM2
-#define PWM_SERVO_1_RCC_IOP RCC_AHB1ENR_IOPAEN
+#define PWM_SERVO_1_RCC RCC_GPIOA
 #define PWM_SERVO_1_GPIO GPIOA
 #define PWM_SERVO_1_PIN GPIO2
 #define PWM_SERVO_1_AF GPIO_AF1
@@ -300,7 +259,7 @@
 #if USE_PWM2
 #define PWM_SERVO_2 2
 #define PWM_SERVO_2_TIMER TIM3
-#define PWM_SERVO_2_RCC_IOP RCC_AHB1ENR_IOPBEN
+#define PWM_SERVO_2_RCC RCC_GPIOB
 #define PWM_SERVO_2_GPIO GPIOB
 #define PWM_SERVO_2_PIN GPIO5
 #define PWM_SERVO_2_AF GPIO_AF2
@@ -313,7 +272,7 @@
 #if USE_PWM3
 #define PWM_SERVO_3 3
 #define PWM_SERVO_3_TIMER TIM3
-#define PWM_SERVO_3_RCC_IOP RCC_AHB1ENR_IOPBEN
+#define PWM_SERVO_3_RCC RCC_GPIOB
 #define PWM_SERVO_3_GPIO GPIOB
 #define PWM_SERVO_3_PIN GPIO4
 #define PWM_SERVO_3_AF GPIO_AF2
@@ -326,7 +285,7 @@
 #if USE_PWM4
 #define PWM_SERVO_4 4
 #define PWM_SERVO_4_TIMER TIM2
-#define PWM_SERVO_4_RCC_IOP RCC_AHB1ENR_IOPBEN
+#define PWM_SERVO_4_RCC RCC_GPIOB
 #define PWM_SERVO_4_GPIO GPIOB
 #define PWM_SERVO_4_PIN GPIO3
 #define PWM_SERVO_4_AF GPIO_AF1
@@ -339,7 +298,7 @@
 #if USE_PWM5
 #define PWM_SERVO_5 5
 #define PWM_SERVO_5_TIMER TIM2
-#define PWM_SERVO_5_RCC_IOP RCC_AHB1ENR_IOPAEN
+#define PWM_SERVO_5_RCC RCC_GPIOA
 #define PWM_SERVO_5_GPIO GPIOA
 #define PWM_SERVO_5_PIN GPIO15
 #define PWM_SERVO_5_AF GPIO_AF1
@@ -353,7 +312,7 @@
 #if USE_PWM6
 #define PWM_SERVO_6 6
 #define PWM_SERVO_6_TIMER TIM3
-#define PWM_SERVO_6_RCC_IOP RCC_AHB1ENR_IOPBEN
+#define PWM_SERVO_6_RCC RCC_GPIOB
 #define PWM_SERVO_6_GPIO GPIOB
 #define PWM_SERVO_6_PIN GPIO1
 #define PWM_SERVO_6_AF GPIO_AF2
@@ -390,13 +349,26 @@
 #define SPEKTRUM_BIND_PIN GPIO8
 #define SPEKTRUM_BIND_PIN_PORT GPIOA
 
-#define SPEKTRUM_UART2_RCC_REG &RCC_APB1ENR
-#define SPEKTRUM_UART2_RCC_DEV RCC_APB1ENR_USART2EN
+#define SPEKTRUM_UART2_RCC RCC_USART2
 #define SPEKTRUM_UART2_BANK GPIOA
 #define SPEKTRUM_UART2_PIN GPIO3
 #define SPEKTRUM_UART2_AF GPIO_AF7
 #define SPEKTRUM_UART2_IRQ NVIC_USART2_IRQ
 #define SPEKTRUM_UART2_ISR usart2_isr
 #define SPEKTRUM_UART2_DEV USART2
+
+
+/*
+ * IRQ Priorities
+ */
+#define RTOS_PRIO 2
+#define NVIC_TIM_IRQ_PRIO (RTOS_PRIO+1)
+#define NVIC_I2C_IRQ_PRIO (RTOS_PRIO+2)
+#define NVIC_SPI_IRQ_PRIO (RTOS_PRIO+3)
+#define NVIC_UART_IRQ_PRIO (RTOS_PRIO+4)
+#define NVIC_USART_IRQ_PRIO (RTOS_PRIO+4)
+#define NVIC_ADC_IRQ_PRIO (RTOS_PRIO+5)
+#define NVIC_TIM6_DAC_IRQ_PRIO (RTOS_PRIO+6)
+
 
 #endif /* CONFIG_APOGEE_1_00_H */

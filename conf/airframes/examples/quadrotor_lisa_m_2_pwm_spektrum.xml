@@ -27,7 +27,7 @@
     <subsystem name="motor_mixing"/>
     <subsystem name="actuators"     type="pwm">
       <define name="SERVO_HZ" value="400"/>
-      <define name="USE_SERVOS_7AND8"/>
+      <!--define name="USE_SERVOS_7AND8"/-->
     </subsystem>
 
     <subsystem name="telemetry"     type="transparent"/>
@@ -216,6 +216,7 @@
     <define name="CRITIC_BAT_LEVEL" value="9.6" unit="V"/>
     <define name="LOW_BAT_LEVEL" value="10.1" unit="V"/>
     <define name="MAX_BAT_LEVEL" value="12.4" unit="V"/>
+    <define name="MILLIAMP_AT_FULL_THROTTLE" value="30000"/>
   </section>
 
 </airframe>

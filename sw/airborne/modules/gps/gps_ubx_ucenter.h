@@ -31,7 +31,7 @@
 #include "std.h"
 
 /** U-Center Variables */
-#define GPS_UBX_UCENTER_CONFIG_STEPS	  17
+#define GPS_UBX_UCENTER_CONFIG_STEPS	  19
 
 struct gps_ubx_ucenter_struct
 {
@@ -39,14 +39,17 @@ struct gps_ubx_ucenter_struct
   uint8_t reply;
   uint8_t cnt;
 
-  uint16_t baud_init;
-  uint16_t baud_run;
+  uint32_t baud_init; // Initial baudrate of the ublox module
+  uint32_t baud_run;  // Current baudrate of the ublox module
 
   uint8_t sw_ver_h;
   uint8_t sw_ver_l;
 
   uint16_t hw_ver_h;
   uint16_t hw_ver_l;
+
+  /// Port identifier number
+  uint8_t port_id;
 
   char replies[GPS_UBX_UCENTER_CONFIG_STEPS];
 };

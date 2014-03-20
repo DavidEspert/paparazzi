@@ -1,26 +1,29 @@
 /*
-* Copyright (C) 2012 Gerard Toonstra
-*
-* This file is part of paparazzi.
-*
-* paparazzi is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License as published by
-* the Free Software Foundation; either version 2, or (at your option)
-* any later version.
-*
-* paparazzi is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with paparazzi; see the file COPYING. If not, write to
-* the Free Software Foundation, 59 Temple Place - Suite 330,
-* Boston, MA 02111-1307, USA.
-*
-*/
+ * Copyright (C) 2012 Gerard Toonstra
+ *
+ * This file is part of paparazzi.
+ *
+ * paparazzi is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2, or (at your option)
+ * any later version.
+ *
+ * paparazzi is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with paparazzi; see the file COPYING. If not, write to
+ * the Free Software Foundation, 59 Temple Place - Suite 330,
+ * Boston, MA 02111-1307, USA.
+ *
+ */
 
-/* W5100 ethernet chip I/O */
+/**
+ * @file subsystems/datalink/w5100.h
+ * W5100 ethernet chip I/O
+ */
 
 #ifndef W5100_TELEM_H
 #define W5100_TELEM_H
@@ -118,10 +121,26 @@ bool_t w5100_ch_available( void );
     W5100TransportPut4ByteByAddr(_dev, (const uint8_t*)_byte+4);    \
     W5100TransportPut4ByteByAddr(_dev, (const uint8_t*)_byte);      \
   }
+#define W5100TransportPutUint64ByAddr(_dev, _byte) { \
+    W5100TransportPut4ByteByAddr(_dev, (const uint8_t*)_byte+4);	\
+    W5100TransportPut4ByteByAddr(_dev, (const uint8_t*)_byte);	\
+  }
+#define W5100TransportPutInt64ByAddr(_dev, _byte) { \
+    W5100TransportPut4ByteByAddr(_dev, (const uint8_t*)_byte+4);	\
+    W5100TransportPut4ByteByAddr(_dev, (const uint8_t*)_byte);	\
+  }
 #else
 #define W5100TransportPutDoubleByAddr(_dev, _byte) {                \
     W5100TransportPut4ByteByAddr(_dev, (const uint8_t*)_byte);      \
     W5100TransportPut4ByteByAddr(_dev, (const uint8_t*)_byte+4);    \
+  }
+#define W5100TransportPutUint64ByAddr(_dev, _byte) { \
+    W5100TransportPut4ByteByAddr(_dev, (const uint8_t*)_byte);	\
+    W5100TransportPut4ByteByAddr(_dev, (const uint8_t*)_byte+4);	\
+  }
+#define W5100TransportPutInt64ByAddr(_dev, _byte) { \
+    W5100TransportPut4ByteByAddr(_dev, (const uint8_t*)_byte);	\
+    W5100TransportPut4ByteByAddr(_dev, (const uint8_t*)_byte+4);	\
   }
 #endif
 
@@ -135,34 +154,71 @@ bool_t w5100_ch_available( void );
 #define W5100TransportPutFloatByAddr(_dev, _x) W5100TransportPut4ByteByAddr(_dev, (const uint8_t*)_x)
 #define W5100TransportPutNamedUint8(_dev, _name, _byte) W5100TransportPutUint8(_dev, _byte)
 
-#define W5100TransportPutArray(_dev, _put, _n, _x) { \
-uint8_t _i; \
-W5100TransportPutUint8(_dev, _n); \
-for(_i = 0; _i < _n; _i++) { \
-_put(_dev, &_x[_i]); \
-} \
-}
+#define W5100TransportPutArray(_dev, _put, _n, _x) {    \
+    uint8_t _i;                                         \
+    W5100TransportPutUint8(_dev, _n);                   \
+    for(_i = 0; _i < _n; _i++) {                        \
+      _put(_dev, &_x[_i]);                              \
+    }                                                   \
+  }
+
+#define W5100TransportPutInt8Array(_dev, _n, _x) W5100TransportPutArray(_dev, W5100TransportPutInt8ByAddr, _n, _x)
+#define W5100TransportPutUint8Array(_dev, _n, _x) W5100TransportPutArray(_dev, W5100TransportPutUint8ByAddr, _n, _x)
+
+#define W5100TransportPutCharArray(_dev, _n, _x) W5100TransportPutArray(_dev, W5100TransportPutCharByAddr, _n, _x)
 
 #define W5100TransportPutInt16Array(_dev, _n, _x) W5100TransportPutArray(_dev, W5100TransportPutInt16ByAddr, _n, _x)
-
 #define W5100TransportPutUint16Array(_dev, _n, _x) W5100TransportPutArray(_dev, W5100TransportPutUint16ByAddr, _n, _x)
-#define W5100TransportPutUint8Array(_dev, _n, _x) W5100TransportPutArray(_dev, W5100TransportPutUint8ByAddr, _n, _x)
+
+#define W5100TransportPutInt32Array(_dev, _n, _x) W5100TransportPutArray(_dev, W5100TransportPutInt32ByAddr, _n, _x)
+#define W5100TransportPutUint32Array(_dev, _n, _x) W5100TransportPutArray(_dev, W5100TransportPutUint32ByAddr, _n, _x)
+
 #define W5100TransportPutFloatArray(_dev, _n, _x) W5100TransportPutArray(_dev, W5100TransportPutFloatByAddr, _n, _x)
+
+#define W5100TransportPutInt64Array(_dev, _n, _x) W5100TransportPutArray(_dev, W5100TransportPutInt64ByAddr, _n, _x)
+#define W5100TransportPutUint64Array(_dev, _n, _x) W5100TransportPutArray(_dev, W5100TransportPutUint64ByAddr, _n, _x)
+
 #define W5100TransportPutDoubleArray(_dev, _n, _x) W5100TransportPutArray(_dev, W5100TransportPutDoubleByAddr, _n, _x)
 
 
-#define W5100TransportHeader(_dev, payload_len) { \
-W5100TransportPut1Byte(_dev, STX); \
-uint8_t msg_len = W5100TransportSizeOf(_dev, payload_len); \
-W5100TransportPut1Byte(_dev, msg_len); \
-ck_a = msg_len; ck_b = msg_len; \
-}
+#define W5100TransportPutFixedArray(_dev, _put, _n, _x) {   \
+    uint8_t _i;                                             \
+    for(_i = 0; _i < _n; _i++) {                            \
+      _put(_dev, &_x[_i]);                                  \
+    }                                                       \
+  }
 
-#define W5100TransportTrailer(_dev) { \
-W5100TransportPut1Byte(_dev, ck_a); \
-W5100TransportPut1Byte(_dev, ck_b); \
-W5100TransportSendMessage(_dev); \
-}
+#define W5100TransportPutInt8FixedArray(_dev, _n, _x) W5100TransportPutFixedArray(_dev, W5100TransportPutInt8ByAddr, _n, _x)
+#define W5100TransportPutUint8FixedArray(_dev, _n, _x) W5100TransportPutFixedArray(_dev, W5100TransportPutUint8ByAddr, _n, _x)
+
+#define W5100TransportPutCharFixedArray(_dev, _n, _x) W5100TransportPutFixedArray(_dev, W5100TransportPutCharByAddr, _n, _x)
+
+#define W5100TransportPutInt16FixedArray(_dev, _n, _x) W5100TransportPutFixedArray(_dev, W5100TransportPutInt16ByAddr, _n, _x)
+#define W5100TransportPutUint16FixedArray(_dev, _n, _x) W5100TransportPutFixedArray(_dev, W5100TransportPutUint16ByAddr, _n, _x)
+
+#define W5100TransportPutInt32FixedArray(_dev, _n, _x) W5100TransportPutFixedArray(_dev, W5100TransportPutInt32ByAddr, _n, _x)
+#define W5100TransportPutUint32FixedArray(_dev, _n, _x) W5100TransportPutFixedArray(_dev, W5100TransportPutUint32ByAddr, _n, _x)
+
+#define W5100TransportPutFloatFixedArray(_dev, _n, _x) W5100TransportPutFixedArray(_dev, W5100TransportPutFloatByAddr, _n, _x)
+
+#define W5100TransportPutInt64FixedArray(_dev, _n, _x) W5100TransportPutFixedArray(_dev, W5100TransportPutInt64ByAddr, _n, _x)
+#define W5100TransportPutUint64FixedArray(_dev, _n, _x) W5100TransportPutFixedArray(_dev, W5100TransportPutUint64ByAddr, _n, _x)
+
+#define W5100TransportPutDoubleFixedArray(_dev, _n, _x) W5100TransportPutFixedArray(_dev, W5100TransportPutDoubleByAddr, _n, _x)
+
+
+#define W5100TransportHeader(_dev, payload_len) {               \
+    W5100TransportPut1Byte(_dev, STX);                          \
+    uint8_t msg_len = W5100TransportSizeOf(_dev, payload_len);  \
+    W5100TransportPut1Byte(_dev, msg_len);                      \
+    ck_a = msg_len; ck_b = msg_len;                             \
+  }
+
+#define W5100TransportTrailer(_dev) {           \
+    W5100TransportPut1Byte(_dev, ck_a);         \
+    W5100TransportPut1Byte(_dev, ck_b);         \
+    W5100TransportSendMessage(_dev);            \
+  }
 
 
 /** Receiving pprz messages */

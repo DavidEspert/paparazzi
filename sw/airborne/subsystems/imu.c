@@ -26,7 +26,7 @@
 
 #include "subsystems/imu.h"
 
-#if DOWNLINK
+#if PERIODIC_TELEMETRY
 #include "subsystems/datalink/telemetry.h"
 
 #if USE_IMU_FLOAT
@@ -93,15 +93,6 @@ static void send_mag(void) {
   DOWNLINK_SEND_IMU_MAG(DefaultChannel, DefaultDevice,
       &mag_float.x, &mag_float.y, &mag_float.z);
 }
-
-// TODO this could be a special module ?
-#include "subsystems/electrical.h"
-static void send_mag_calib(void) {
-  DOWNLINK_SEND_IMU_MAG_CURRENT_CALIBRATION(DefaultChannel, DefaultDevice,
-      &imu.mag_unscaled.x, &imu.mag_unscaled.y, &imu.mag_unscaled.z,
-      &electrical.current);
-}
-
 #endif // !USE_IMU_FLOAT
 
 #endif
@@ -137,7 +128,7 @@ INFO("Magnetometer neutrals are set to zero, you should calibrate!")
   INT32_QUAT_NORMALIZE(imu.body_to_imu_quat);
   INT32_RMAT_OF_EULERS(imu.body_to_imu_rmat, body_to_imu_eulers);
 
-#if DOWNLINK
+#if PERIODIC_TELEMETRY
   register_periodic_telemetry(DefaultPeriodic, "IMU_ACCEL", send_accel);
   register_periodic_telemetry(DefaultPeriodic, "IMU_GYRO", send_gyro);
 #if USE_IMU_FLOAT
@@ -151,7 +142,6 @@ INFO("Magnetometer neutrals are set to zero, you should calibrate!")
   register_periodic_telemetry(DefaultPeriodic, "IMU_MAG_RAW", send_mag_raw);
   register_periodic_telemetry(DefaultPeriodic, "IMU_MAG_SCALED", send_mag_scaled);
   register_periodic_telemetry(DefaultPeriodic, "IMU_MAG", send_mag);
-  register_periodic_telemetry(DefaultPeriodic, "IMU_MAG_CURRENT_CALIBRATION", send_mag_calib);
 #endif // !USE_IMU_FLOAT
 #endif // DOWNLINK
 
@@ -165,7 +155,7 @@ void imu_float_init(void) {
     for conversions between body and imu frame
   */
   EULERS_ASSIGN(imuf.body_to_imu_eulers,
-		IMU_BODY_TO_IMU_PHI, IMU_BODY_TO_IMU_THETA, IMU_BODY_TO_IMU_PSI);
+    IMU_BODY_TO_IMU_PHI, IMU_BODY_TO_IMU_THETA, IMU_BODY_TO_IMU_PSI);
   FLOAT_QUAT_OF_EULERS(imuf.body_to_imu_quat, imuf.body_to_imu_eulers);
   FLOAT_QUAT_NORMALIZE(imuf.body_to_imu_quat);
   FLOAT_RMAT_OF_EULERS(imuf.body_to_imu_rmat, imuf.body_to_imu_eulers);

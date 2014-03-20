@@ -40,6 +40,7 @@
 #include "std.h"
 #include "navdata.h"
 #include "subsystems/ins.h"
+#include "subsystems/abi.h"
 
 #define NAVDATA_PACKET_SIZE 60
 #define NAVDATA_START_BYTE 0x3a
@@ -49,12 +50,22 @@ static void navdata_cropbuffer(int cropsize);
 
 navdata_port nav_port;
 static int nav_fd = 0;
-static int16_t previousUltrasoundHeight;
 measures_t navdata;
 
-#include "subsystems/sonar.h"
-uint16_t sonar_meas = 0;
+/** Sonar offset.
+ *  Offset value in ADC
+ *  equals to the ADC value so that height is zero
+ */
+#ifndef SONAR_OFFSET
+#define SONAR_OFFSET 880
+#endif
 
+/** Sonar scale.
+ *  Sensor sensitivity in m/adc (float)
+ */
+#ifndef SONAR_SCALE
+#define SONAR_SCALE 0.00047
+#endif
 
 // FIXME(ben): there must be a better home for these
 ssize_t full_write(int fd, const uint8_t *buf, size_t count)
@@ -67,7 +78,7 @@ ssize_t full_write(int fd, const uint8_t *buf, size_t count)
     if (n < 0)
     {
       if (errno == EAGAIN || errno == EWOULDBLOCK)
-	continue;
+        continue;
       return n;
     }
     written += n;
@@ -86,7 +97,7 @@ ssize_t full_read(int fd, uint8_t *buf, size_t count)
     if (n < 0)
     {
       if (errno == EAGAIN || errno == EWOULDBLOCK)
-	continue;
+        continue;
       return n;
     }
     readed += n;
@@ -100,7 +111,7 @@ static void navdata_write(const uint8_t *buf, size_t count)
     perror("navdata_write: Write failed");
 }
 
-#if DOWNLINK
+#if PERIODIC_TELEMETRY
 #include "subsystems/datalink/telemetry.h"
 
 static void send_navdata(void) {
@@ -169,15 +180,14 @@ bool_t navdata_init()
   uint8_t cmd=0x02;
   navdata_write(&cmd, 1);
 
-  // read some potential dirt (retry alot of times)
+  // read some potential dirt
+  // wait 10 milliseconds
   char tmp[100];
-  for(int i = 0; i < 100; i++) {
+  for(int i = 0; i < 12; i++) {
     uint16_t dirt = read(nav_fd, tmp, sizeof tmp);
     (void) dirt;
 
-    cmd=0x02;
-    navdata_write(&cmd, 1);
-    usleep(200);
+    usleep(1000);
   }
 
   baro_calibrated = FALSE;
@@ -191,14 +201,15 @@ bool_t navdata_init()
   navdata_imu_available = FALSE;
   navdata_baro_available = FALSE;
 
-  previousUltrasoundHeight = 0;
   nav_port.checksum_errors = 0;
+  nav_port.lost_imu_frames = 0;
   nav_port.bytesRead = 0;
   nav_port.totalBytesRead = 0;
   nav_port.packetsRead = 0;
   nav_port.isInitialized = TRUE;
+  nav_port.last_packet_number = 0;
 
-#if DOWNLINK
+#if PERIODIC_TELEMETRY
   register_periodic_telemetry(DefaultPeriodic, "ARDRONE_NAVDATA", send_navdata);
 #endif
 
@@ -210,6 +221,12 @@ static inline bool_t acquire_baro_calibration(void)
   // start baro calibration acquisition
   uint8_t cmd=0x17; // send cmd 23
   navdata_write(&cmd, 1);
+
+  // wait 20ms to retrieve data
+  for (int i=0;i<22;i++)
+  {
+    usleep(1000);
+  }
 
   uint8_t calibBuffer[22];
 
@@ -265,9 +282,13 @@ static void baro_update_logic(void)
 {
   static int32_t lastpressval = 0;
   static uint16_t lasttempval = 0;
+  static int32_t lastpressval_nospike = 0;
+  static uint16_t lasttempval_nospike = 0;
   static uint8_t temp_or_press_was_updated_last = 0; // 0 = press, so we now wait for temp, 1 = temp so we now wait for press
 
-  static int sync_errors;
+  static int sync_errors = 0;
+  static int spikes = 0;
+  static int spike_detected = 0;
 
   if (temp_or_press_was_updated_last == 0)  // Last update was press so we are now waiting for temp
   {
@@ -283,7 +304,7 @@ static void baro_update_logic(void)
         // wait for temp again
         temp_or_press_was_updated_last = FALSE;
         sync_errors++;
-        navdata_baro_available = TRUE;
+        printf("Baro-Logic-Error (expected updated temp, got press)\n");
       }
     }
   }
@@ -301,14 +322,98 @@ static void baro_update_logic(void)
         // wait for press again
         temp_or_press_was_updated_last = TRUE;
         sync_errors++;
+        printf("Baro-Logic-Error (expected updated press, got temp)\n");
+
+      }
+      else {
+        // We now got valid pressure and temperature
+        navdata_baro_available = TRUE;
       }
     }
-
-    navdata_baro_available = TRUE;
   }
 
-  lastpressval = navdata.pressure;
+  // Detected a pressure switch
+  if(lastpressval != 0 && lasttempval != 0 && ABS(lastpressval - navdata.pressure) > ABS(lasttempval - navdata.pressure)) {
+    navdata_baro_available = FALSE;
+  }
+
+  // Detected a temprature switch
+  if(lastpressval != 0 && lasttempval != 0 && ABS(lasttempval - navdata.temperature_pressure) > ABS(lastpressval - navdata.temperature_pressure)) {
+    navdata_baro_available = FALSE;
+  }
+
   lasttempval = navdata.temperature_pressure;
+  lastpressval = navdata.pressure;
+
+  /*
+   * It turns out that a lot of navdata boards have a problem (probably interrupt related)
+   * in which reading I2C data and writing uart output data is interrupted very long (50% of 200Hz).
+   * Afterwards, the 200Hz loop tries to catch up lost time but reads the baro too fast swapping the
+   * pressure and temperature values by exceeding the minimal conversion time of the bosh baro. The
+   * normal Parrot firmware seems to be perfectly capable to fly with this, either with excessive use of
+   * the sonar or with software filtering or spike detection. Paparazzi with its tightly coupled baro-altitude
+   * had problems. Since this problems looks not uncommon a detector was made. A lot of evidence is grabbed
+   * with a logic analyzer on the navboard I2C and serial output. The UART CRC is still perfect, the baro
+   * temp-press-temp-press logic is still perfect, so not easy to detect. Temp and pressure are swapped,
+   * and since both can have almost the same value, the size of the spike is not predictable. However at
+   * every spike of at least 3 broken boards the press and temp are byte-wise exactly the same due to
+   * reading them too quickly (trying to catch up for delay that happened earlier due to still non understood
+   * reasons. As pressure is more likely to quickly change, a small (yet unlikely) spike on temperature together with
+   * press==temp yields very good results as a detector, although theoretically not perfect.
+
+#samp press temp.
+50925 39284 34501
+50926 39287 34501
+50927 39287 34501
+50928 39283 34501     // *press good -> baro
+50929 39283 34501
+50930 39285 34501     // *press good -> baro
+50931 39285 34500
+50932 34500 34500     // press read too soon from chip (<4.5ms) -> ADC register still previous temp value
+50933 34500 36618     // press not updated, still wrong. Temp is weird: looks like the average of both
+50934 39284 36618     // new press read, but temp still outdated
+50935 39284 34501
+50936 39284 34501     // *press good -> baro
+50937 39284 34500
+50938 39281 34500
+50939 39281 34500
+50940 39280 34500
+50941 39280 34502
+50942 39280 34502
+50943 39280 34501
+
+   */
+
+  // if press and temp are same and temp has jump: neglect the next frame
+  if (navdata.temperature_pressure == navdata.pressure) // && (abs((int32_t)navdata.temperature_pressure - (int32_t)lasttempval) > 40))
+  {
+    // dont use next 3 packets
+    spike_detected = 3;
+
+    spikes++;
+    printf("Spike! # %d\n",spikes);
+  }
+
+  if (spike_detected > 0)
+  {
+    // disable kalman filter use
+    navdata_baro_available = FALSE;
+
+    // override both to last good
+    navdata.pressure = lastpressval_nospike;
+    navdata.temperature_pressure = lasttempval_nospike;
+
+    // Countdown
+    spike_detected--;
+  }
+  else // both are good
+  {
+    lastpressval_nospike = navdata.pressure;
+    lasttempval_nospike = navdata.temperature_pressure;
+  }
+
+// printf("%d %d %d\r\n", navdata.temperature_pressure, navdata.pressure, spike_detected);
+//  printf(",%d,%d",spike_detected,spikes);
 }
 
 void navdata_update()
@@ -343,6 +448,15 @@ void navdata_update()
         nav_port.checksum_errors++;
       }
 
+      nav_port.last_packet_number++;
+      if (nav_port.last_packet_number != navdata.nu_trame)
+      {
+        printf("Lost Navdata frame: %d should have been %d\n",navdata.nu_trame, nav_port.last_packet_number);
+        nav_port.lost_imu_frames++;
+      }
+      nav_port.last_packet_number = navdata.nu_trame;
+      //printf("%d\r",navdata.nu_trame);
+
       // When we already dropped a packet or checksum is correct
       if(last_checksum_wrong || navdata.chksum == checksum) {
         // Invert byte order so that TELEMETRY works better
@@ -356,17 +470,21 @@ void navdata_update()
         p[0] = p[1];
         p[1] = tmp;
 
+//        printf("%d,%d,%d",navdata.nu_trame, navdata.pressure, navdata.temperature_pressure);
+
         baro_update_logic();
 
-#ifdef USE_SONAR
-        if (navdata.ultrasound < 10000)
-        {
-            sonar_meas = navdata.ultrasound;
-            ins_update_sonar();
+//        printf(",%d,%d,%d\n", navdata.pressure, navdata.temperature_pressure, (int)navdata_baro_available);
 
+
+#ifdef USE_SONAR
+        // Check if there is a new sonar measurement and update the sonar
+        if (navdata.ultrasound >> 15)
+        {
+          float sonar_meas = (float)((navdata.ultrasound & 0x7FFF) - SONAR_OFFSET) * SONAR_SCALE;
+          AbiSendMsgAGL(AGL_SONAR_ARDRONE2_ID, &sonar_meas);
         }
 #endif
-
 
         navdata_imu_available = TRUE;
         last_checksum_wrong = FALSE;
@@ -390,17 +508,7 @@ void navdata_update()
       }
     }
   }
-}
 
-int16_t navdata_height(void) {
-  if (navdata.ultrasound > 10000) {
-    return previousUltrasoundHeight;
-  }
-
-  int16_t ultrasoundHeight = 0;
-  ultrasoundHeight = (navdata.ultrasound - 880) / 26.553;
-  previousUltrasoundHeight = ultrasoundHeight;
-  return ultrasoundHeight;
 }
 
 static void navdata_cropbuffer(int cropsize)

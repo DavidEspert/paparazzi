@@ -34,7 +34,7 @@ struct GpsState gps;
 
 struct GpsTimeSync gps_time_sync;
 
-#if DOWNLINK
+#if PERIODIC_TELEMETRY
 #include "subsystems/datalink/telemetry.h"
 
 static void send_gps(void) {
@@ -98,7 +98,14 @@ static void send_gps_sol(void) {
 
 void gps_init(void) {
   gps.fix = GPS_FIX_NONE;
+  gps.week = 0;
+  gps.tow = 0;
   gps.cacc = 0;
+
+  gps.last_3dfix_ticks = 0;
+  gps.last_3dfix_time = 0;
+  gps.last_msg_ticks = 0;
+  gps.last_msg_time = 0;
 #ifdef GPS_LED
   LED_OFF(GPS_LED);
 #endif
@@ -106,12 +113,18 @@ void gps_init(void) {
   gps_impl_init();
 #endif
 
-#if DOWNLINK
+#if PERIODIC_TELEMETRY
   register_periodic_telemetry(DefaultPeriodic, "GPS", send_gps);
   register_periodic_telemetry(DefaultPeriodic, "GPS_INT", send_gps_int);
   register_periodic_telemetry(DefaultPeriodic, "GPS_LLA", send_gps_lla);
   register_periodic_telemetry(DefaultPeriodic, "GPS_SOL", send_gps_sol);
 #endif
+}
+
+void gps_periodic_check(void) {
+  if (sys_time.nb_sec - gps.last_msg_time > GPS_TIMEOUT) {
+    gps.fix = GPS_FIX_NONE;
+  }
 }
 
 uint32_t gps_tow_from_sys_ticks(uint32_t sys_ticks)
