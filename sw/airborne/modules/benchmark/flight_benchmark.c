@@ -12,7 +12,7 @@
 #include "subsystems/datalink/downlink.h"
 #include "mcu_periph/uart.h"
 #include "generated/airframe.h"
-#include "subsystems/nav.h"
+#include "firmwares/fixedwing/nav.h"
 // #include "math/pprz_algebra_int.h"
 // #include "math/pprz_algebra_float.h"
 
@@ -65,7 +65,7 @@ void flight_benchmark_periodic( void ) {
   #endif
 
   #ifdef BENCHMARK_ALTITUDE
-    Err_altitude = fabs(stateGetPositionEnu_f()->z - v_ctl_altitude_setpoint);
+    Err_altitude = fabs(stateGetPositionUtm_f()->alt - v_ctl_altitude_setpoint);
     if (Err_altitude>ToleranceAltitude){
       Err_altitude = Err_altitude-ToleranceAltitude;
       SquareSumErr_altitude += (Err_altitude * Err_altitude);

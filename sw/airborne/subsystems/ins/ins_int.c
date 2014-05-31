@@ -76,12 +76,19 @@ static void sonar_cb(uint8_t sender_id, const float *distance);
 #ifndef INS_SONAR_OFFSET
 #define INS_SONAR_OFFSET 0.
 #endif
+#ifndef INS_SONAR_MIN_RANGE
+#define INS_SONAR_MIN_RANGE 0.001
+#endif
 #define VFF_R_SONAR_0 0.1
 #define VFF_R_SONAR_OF_M 0.2
 
 #ifndef INS_SONAR_UPDATE_ON_AGL
 #define INS_SONAR_UPDATE_ON_AGL FALSE
 PRINT_CONFIG_MSG("INS_SONAR_UPDATE_ON_AGL defaulting to FALSE")
+#endif
+
+#ifndef INS_VFF_R_GPS
+#define INS_VFF_R_GPS 2.0
 #endif
 
 #endif // USE_SONAR
@@ -97,8 +104,13 @@ PRINT_CONFIG_MSG("USE_INS_NAV_INIT defaulting to TRUE")
 
 /** default barometer to use in INS */
 #ifndef INS_BARO_ID
+#if USE_BARO_BOARD
 #define INS_BARO_ID BARO_BOARD_SENDER_ID
+#else
+#define INS_BARO_ID ABI_BROADCAST
 #endif
+#endif
+PRINT_CONFIG_VAR(INS_BARO_ID)
 abi_event baro_ev;
 static void baro_cb(uint8_t sender_id, const float *pressure);
 
@@ -191,7 +203,12 @@ void ins_reset_local_origin(void) {
 
 void ins_reset_altitude_ref(void) {
 #if USE_GPS
-  ins_impl.ltp_def.lla.alt = gps.lla_pos.alt;
+  struct LlaCoor_i lla = {
+    state.ned_origin_i.lla.lon,
+    state.ned_origin_i.lla.lat,
+    gps.lla_pos.alt
+  };
+  ltp_def_from_lla_i(&ins_impl.ltp_def, &lla),
   ins_impl.ltp_def.hmsl = gps.hmsl;
   stateSetLocalOrigin_i(&ins_impl.ltp_def);
 #endif
@@ -235,21 +252,24 @@ static void baro_cb(uint8_t __attribute__((unused)) sender_id, const float *pres
     ins_impl.qfe = *pressure;
     ins_impl.baro_initialized = TRUE;
   }
-  if (ins_impl.vf_reset && ins_impl.baro_initialized) {
-    ins_impl.vf_reset = FALSE;
-    ins_impl.qfe = *pressure;
-    vff_realign(0.);
-    ins_update_from_vff();
-  }
-  else {
-    ins_impl.baro_z = -pprz_isa_height_of_pressure(*pressure, ins_impl.qfe);
+
+  if (ins_impl.baro_initialized) {
+    if (ins_impl.vf_reset) {
+      ins_impl.vf_reset = FALSE;
+      ins_impl.qfe = *pressure;
+      vff_realign(0.);
+      ins_update_from_vff();
+    }
+    else {
+      ins_impl.baro_z = -pprz_isa_height_of_pressure(*pressure, ins_impl.qfe);
 #if USE_VFF_EXTENDED
-    vff_update_baro(ins_impl.baro_z);
+      vff_update_baro(ins_impl.baro_z);
 #else
-    vff_update(ins_impl.baro_z);
+      vff_update(ins_impl.baro_z);
 #endif
+    }
+    ins_ned_to_state();
   }
-  ins_ned_to_state();
 }
 
 #if USE_GPS
@@ -268,6 +288,10 @@ void ins_update_gps(void) {
     /// @todo maybe use gps.ned_vel directly??
     struct NedCoor_i gps_speed_cm_s_ned;
     ned_of_ecef_vect_i(&gps_speed_cm_s_ned, &ins_impl.ltp_def, &gps.ecef_vel);
+
+#if INS_USE_GPS_ALT
+    vff_update_z_conf((float)gps_pos_cm_ned.z / 100.0, INS_VFF_R_GPS);
+#endif
 
 #if USE_HFF
     /* horizontal gps transformed to NED in meters as float */
@@ -303,51 +327,21 @@ void ins_update_gps(void) {
 #endif /* USE_GPS */
 
 
-//#define INS_SONAR_VARIANCE_THRESHOLD 0.01
-
-#ifdef INS_SONAR_VARIANCE_THRESHOLD
-
-#include "messages.h"
-#include "mcu_periph/uart.h"
-#include "subsystems/datalink/downlink.h"
-
-#include "math/pprz_stat.h"
-#define VAR_ERR_MAX 10
-float var_err[VAR_ERR_MAX];
-uint8_t var_idx = 0;
-#endif
-
-
 #if USE_SONAR
 static void sonar_cb(uint8_t __attribute__((unused)) sender_id, const float *distance) {
   static float last_offset = 0.;
 
-#ifdef INS_SONAR_VARIANCE_THRESHOLD
-  /* compute variance of error between sonar and baro alt */
-  float err = *distance + ins_impl.baro_z; // sonar positive up, baro positive down !!!!
-  var_err[var_idx] = err;
-  var_idx = (var_idx + 1) % VAR_ERR_MAX;
-  float var = variance_float(var_err, VAR_ERR_MAX);
-  DOWNLINK_SEND_INS_SONAR(DefaultChannel,DefaultDevice, distance, &var);
-#endif
-
   /* update filter assuming a flat ground */
-  if (*distance < INS_SONAR_MAX_RANGE
-#ifdef INS_SONAR_MIN_RANGE
-      && *distance > INS_SONAR_MIN_RANGE
-#endif
+  if (*distance < INS_SONAR_MAX_RANGE && *distance > INS_SONAR_MIN_RANGE
 #ifdef INS_SONAR_THROTTLE_THRESHOLD
       && stabilization_cmd[COMMAND_THRUST] < INS_SONAR_THROTTLE_THRESHOLD
 #endif
 #ifdef INS_SONAR_BARO_THRESHOLD
       && ins_impl.baro_z > -INS_SONAR_BARO_THRESHOLD /* z down */
 #endif
-#ifdef INS_SONAR_VARIANCE_THRESHOLD
-      && var < INS_SONAR_VARIANCE_THRESHOLD
-#endif
       && ins_impl.update_on_agl
       && ins_impl.baro_initialized) {
-    vff_update_alt_conf(-(*distance), VFF_R_SONAR_0 + VFF_R_SONAR_OF_M * fabsf(*distance));
+    vff_update_z_conf(-(*distance), VFF_R_SONAR_0 + VFF_R_SONAR_OF_M * fabsf(*distance));
     last_offset = vff.offset;
   }
   else {

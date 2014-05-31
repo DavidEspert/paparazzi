@@ -35,8 +35,6 @@
 #include "subsystems/navigation/common_flight_plan.h"
 
 #define NAV_FREQ 16
-// FIXME use periodic FREQ
-#define NAV_PRESCALER (512/NAV_FREQ)
 
 extern struct EnuCoor_i navigation_target;
 extern struct EnuCoor_i navigation_carrot;
@@ -48,8 +46,6 @@ extern void nav_init(void);
 extern void nav_run(void);
 
 extern uint8_t last_wp __attribute__ ((unused));
-
-extern int32_t ground_alt;
 
 extern uint8_t horizontal_mode;
 extern uint8_t nav_segment_start, nav_segment_end;
@@ -74,8 +70,13 @@ extern float flight_altitude;
 #define VERTICAL_MODE_CLIMB       1
 #define VERTICAL_MODE_ALT         2
 
+extern float dist2_to_home;      ///< squared distance to home waypoint
+extern bool_t too_far_from_home;
+extern float failsafe_mode_dist2; ///< maximum squared distance to home wp before going to failsafe mode
 
-void compute_dist2_to_home(void);
+extern void compute_dist2_to_home(void);
+extern void nav_home(void);
+
 unit_t nav_reset_reference( void ) __attribute__ ((unused));
 unit_t nav_reset_alt( void ) __attribute__ ((unused));
 void nav_periodic_task(void);
@@ -84,7 +85,15 @@ void nav_move_waypoint(uint8_t wp_id, struct EnuCoor_i * new_pos);
 bool_t nav_detect_ground(void);
 bool_t nav_is_in_flight(void);
 
-void nav_home(void);
+extern bool_t nav_set_heading_rad(float rad);
+extern bool_t nav_set_heading_deg(float deg);
+extern bool_t nav_set_heading_towards(float x, float y);
+extern bool_t nav_set_heading_towards_waypoint(uint8_t wp);
+
+/** default approaching_time for a wp */
+#ifndef CARROT
+#define CARROT 0
+#endif
 
 #define NavKillThrottle() ({ if (autopilot_mode == AP_MODE_NAV) { autopilot_set_motors_on(FALSE); } FALSE; })
 #define NavResurrect() ({ if (autopilot_mode == AP_MODE_NAV) { autopilot_set_motors_on(TRUE); } FALSE; })
@@ -142,9 +151,14 @@ extern void nav_route(uint8_t wp_start, uint8_t wp_end);
   NavVerticalAltitudeMode(POS_FLOAT_OF_BFP(alt),0); \
 }
 
-bool_t nav_approaching_from(uint8_t wp_idx, uint8_t from_idx);
-#define NavApproaching(wp, time) nav_approaching_from(wp, 0)
-#define NavApproachingFrom(wp, from, time) nav_approaching_from(wp, from)
+/** Proximity tests on approaching a wp */
+bool_t nav_approaching_from(uint8_t wp_idx, uint8_t from_idx, int16_t approaching_time);
+#define NavApproaching(wp, time) nav_approaching_from(wp, 0, time)
+#define NavApproachingFrom(wp, from, time) nav_approaching_from(wp, from, time)
+
+/** Check the time spent in a radius of 'ARRIVED_AT_WAYPOINT' around a wp  */
+bool_t nav_check_wp_time(uint8_t wp_idx, uint16_t stay_time);
+#define NavCheckWaypointTime(wp, time) nav_check_wp_time(wp, time)
 
 /** Set the climb control to auto-throttle with the specified pitch
     pre-command */
@@ -189,19 +203,17 @@ bool_t nav_approaching_from(uint8_t wp_idx, uint8_t from_idx);
 
 #define nav_SetNavRadius(x) {}
 
-#define navigation_SetNavHeading(x) { \
-  nav_heading = ANGLE_BFP_OF_REAL(x); \
-}
 
 #define navigation_SetFlightAltitude(x) { \
   flight_altitude = x; \
-  nav_flight_altitude = POS_BFP_OF_REAL(flight_altitude) - ground_alt; \
+  nav_flight_altitude = POS_BFP_OF_REAL(flight_altitude - state.ned_origin_f.hmsl); \
 }
 
 
 #define GetPosX() (stateGetPositionEnu_f()->x)
 #define GetPosY() (stateGetPositionEnu_f()->y)
-#define GetPosAlt() (stateGetPositionEnu_f()->z+ground_alt)
+#define GetPosAlt() (stateGetPositionEnu_f()->z+state.ned_origin_f.hmsl)
+#define GetAltRef() (state.ned_origin_f.hmsl)
 
 
 extern void navigation_update_wp_from_speed(uint8_t wp, struct Int16Vect3 speed_sp, int16_t heading_rate_sp );

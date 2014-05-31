@@ -30,8 +30,12 @@
 
 #include "state.h"
 #include "subsystems/datalink/telemetry.h"
-#include "subsystems/nav.h"
+#include "firmwares/fixedwing/nav.h"
 #include "generated/settings.h"
+
+#ifdef POWER_SWITCH_GPIO
+#include "mcu_periph/gpio.h"
+#endif
 
 uint8_t pprz_mode;
 bool_t kill_throttle;
@@ -146,6 +150,10 @@ void autopilot_init(void) {
   gps_lost = FALSE;
 
   power_switch = FALSE;
+#ifdef POWER_SWITCH_GPIO
+  gpio_setup_output(POWER_SWITCH_GPIO);
+  gpio_clear(POWER_SWITCH_GPIO);
+#endif
 
   /* register some periodic message */
   register_periodic_telemetry(DefaultPeriodic, "ALIVE", send_alive);

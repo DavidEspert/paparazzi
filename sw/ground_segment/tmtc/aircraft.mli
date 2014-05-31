@@ -80,12 +80,14 @@ type aircraft = {
     mutable pitch : float;
     mutable heading : float; (* rad *)
     mutable gspeed : float; (* m/s *)
+    mutable airspeed : float; (* m/s *)
     mutable course : float; (* rad *)
     mutable alt : float;
     mutable agl : float; (* m *)
     mutable climb : float;
     mutable nav_ref : nav_ref option;
     mutable d_hmsl : float; (* difference between geoid and ellipsoid *)
+    mutable ground_alt : float; (* ground alt ref if no SRTM data *)
     mutable desired_pos : Latlong.geographic;
     mutable desired_altitude : float;
     mutable desired_course : float;

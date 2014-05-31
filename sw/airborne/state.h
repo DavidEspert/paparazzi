@@ -442,7 +442,7 @@ static inline void stateSetLocalOrigin_i(struct LtpDef_i* ltp_def) {
   /* convert to float */
   ECEF_FLOAT_OF_BFP(state.ned_origin_f.ecef, state.ned_origin_i.ecef);
   LLA_FLOAT_OF_BFP(state.ned_origin_f.lla, state.ned_origin_i.lla);
-  RMAT_FLOAT_OF_BFP(state.ned_origin_f.ltp_of_ecef, state.ned_origin_i.ltp_of_ecef);
+  HIGH_RES_RMAT_FLOAT_OF_BFP(state.ned_origin_f.ltp_of_ecef, state.ned_origin_i.ltp_of_ecef);
   state.ned_origin_f.hmsl = M_OF_MM(state.ned_origin_i.hmsl);
 
   /* clear bits for all local frame representations */
@@ -487,7 +487,7 @@ extern void stateCalcPositionLla_f(void);
 
 /// Test if local coordinates are valid.
 static inline bool_t stateIsLocalCoordinateValid(void) {
-  return ((state.ned_initialized_i || state.utm_initialized_f) && (state.pos_status & (POS_LOCAL_COORD)));
+  return ((state.ned_initialized_i || state.ned_initialized_f || state.utm_initialized_f) && (state.pos_status & (POS_LOCAL_COORD)));
 }
 
 /// Test if global coordinates are valid.

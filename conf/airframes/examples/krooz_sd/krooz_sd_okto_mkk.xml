@@ -73,14 +73,14 @@
 
   <command_laws>
     <call fun="motor_mixing_run(autopilot_motors_on,FALSE,values)"/>
-    <set servo="FF"   value="motor_mixing.commands[SERVO_FF]"/>
-    <set servo="FR"   value="motor_mixing.commands[SERVO_FR]"/>
-    <set servo="RR"   value="motor_mixing.commands[SERVO_RR]"/>
-    <set servo="DR"   value="motor_mixing.commands[SERVO_DR]"/>
-    <set servo="DD"   value="motor_mixing.commands[SERVO_DD]"/>
-    <set servo="DL"   value="motor_mixing.commands[SERVO_DL]"/>
-    <set servo="LL"   value="motor_mixing.commands[SERVO_LL]"/>
-    <set servo="FL"   value="motor_mixing.commands[SERVO_FL]"/>
+    <set servo="FF"   value="motor_mixing.commands[0]"/>
+    <set servo="FR"   value="motor_mixing.commands[1]"/>
+    <set servo="RR"   value="motor_mixing.commands[2]"/>
+    <set servo="DR"   value="motor_mixing.commands[3]"/>
+    <set servo="DD"   value="motor_mixing.commands[4]"/>
+    <set servo="DL"   value="motor_mixing.commands[5]"/>
+    <set servo="LL"   value="motor_mixing.commands[6]"/>
+    <set servo="FL"   value="motor_mixing.commands[7]"/>
   </command_laws>
 
   <section name="IMU" prefix="IMU_">
@@ -158,17 +158,17 @@
     <define name="DEADBAND_R"     value="250"/>
 
     <!-- reference -->
-    <define name="REF_OMEGA_P"  value="450" unit="deg/s"/>
+    <define name="REF_OMEGA_P"  value="225" unit="deg/s"/>
     <define name="REF_ZETA_P"   value="0.85"/>
     <define name="REF_MAX_P"    value="180." unit="deg/s"/>
     <define name="REF_MAX_PDOT" value="RadOfDeg(400.)"/>
 
-    <define name="REF_OMEGA_Q"  value="450" unit="deg/s"/>
+    <define name="REF_OMEGA_Q"  value="225" unit="deg/s"/>
     <define name="REF_ZETA_Q"   value="0.85"/>
     <define name="REF_MAX_Q"    value="180." unit="deg/s"/>
     <define name="REF_MAX_QDOT" value="RadOfDeg(400.)"/>
 
-    <define name="REF_OMEGA_R"  value="400" unit="deg/s"/>
+    <define name="REF_OMEGA_R"  value="200" unit="deg/s"/>
     <define name="REF_ZETA_R"   value="0.85"/>
     <define name="REF_MAX_R"    value="70." unit="deg/s"/>
     <define name="REF_MAX_RDOT" value="RadOfDeg(360.)"/>

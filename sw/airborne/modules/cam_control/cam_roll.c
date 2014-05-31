@@ -27,7 +27,7 @@
 
 #include <math.h>
 #include "cam.h"
-#include "subsystems/nav.h"
+#include "firmwares/fixedwing/nav.h"
 #include "autopilot.h"
 #include "generated/flight_plan.h"
 #include "state.h"
@@ -48,15 +48,14 @@ float target_x, target_y, target_alt;
 #define MODE_MANUAL     0
 #define MODE_STABILIZED 1
 
+#ifndef CAM_ROLL_START_MODE
+#define CAM_ROLL_START_MODE MODE_MANUAL
+#endif
+
 uint8_t cam_roll_mode;
-bool_t cam_roll_switch;
 
 void cam_init( void ) {
-  cam_roll_switch = 0;
-#if defined VIDEO_SWITCH_PIN && !(defined SITL)
-  IO0DIR |= _BV(VIDEO_SWITCH_PIN);
-  IO0CLR = _BV(VIDEO_SWITCH_PIN);
-#endif
+  cam_roll_mode = CAM_ROLL_START_MODE;
 }
 
 void cam_periodic( void ) {

@@ -21,10 +21,10 @@ More information on the Quadshot can be found at transition-robotics.com -->
 
   <command_laws>
     <call fun="motor_mixing_run(autopilot_motors_on,FALSE,values)"/>
-    <set servo="A1" value="motor_mixing.commands[SERVO_A1]"/>
-    <set servo="A2"  value="motor_mixing.commands[SERVO_A2]"/>
-    <set servo="B1" value="motor_mixing.commands[SERVO_B1]"/>
-    <set servo="B2"  value="motor_mixing.commands[SERVO_B2]"/>
+    <set servo="A1" value="motor_mixing.commands[0]"/>
+    <set servo="A2"  value="motor_mixing.commands[1]"/>
+    <set servo="B1" value="motor_mixing.commands[2]"/>
+    <set servo="B2"  value="motor_mixing.commands[3]"/>
 
  <!-- Mode dependent actuator laws for the elevons. The elevons act different in rc attitude flight mode-->
  <!-- First the correct feedback is stored in variables -->
@@ -149,17 +149,17 @@ More information on the Quadshot can be found at transition-robotics.com -->
     <define name="SP_PSI_DELTA_LIMIT" value="90" unit="deg"/>
 
     <!-- reference -->
-    <define name="REF_OMEGA_P"  value="3000" unit="deg/s"/>
+    <define name="REF_OMEGA_P"  value="1500" unit="deg/s"/>
     <define name="REF_ZETA_P"   value="0.85"/>
     <define name="REF_MAX_P"    value="300." unit="deg/s"/>
     <define name="REF_MAX_PDOT" value="RadOfDeg(7000.)"/>
 
-    <define name="REF_OMEGA_Q"  value="3000" unit="deg/s"/>
+    <define name="REF_OMEGA_Q"  value="1500" unit="deg/s"/>
     <define name="REF_ZETA_Q"   value="0.85"/>
     <define name="REF_MAX_Q"    value="300." unit="deg/s"/>
     <define name="REF_MAX_QDOT" value="RadOfDeg(7000.)"/>
 
-    <define name="REF_OMEGA_R"  value="3000" unit="deg/s"/>
+    <define name="REF_OMEGA_R"  value="1500" unit="deg/s"/>
     <define name="REF_ZETA_R"   value="0.9"/>
     <define name="REF_MAX_R"    value="90." unit="deg/s"/>
     <define name="REF_MAX_RDOT" value="RadOfDeg(900.)"/>
@@ -229,7 +229,7 @@ More information on the Quadshot can be found at transition-robotics.com -->
  <section name="SIMULATOR" prefix="NPS_">
    <define name="ACTUATOR_NAMES"  value="{&quot;front_motor&quot;, &quot;back_motor&quot;, &quot;right_motor&quot;, &quot;left_motor&quot;}"/>
    <define name="JSBSIM_INIT" value="&quot;reset00&quot;"/>
-   <define name="SENSORS_PARAMS" value="&quot;nps_sensors_params_booz2_a1.h&quot;"/>
+   <define name="SENSORS_PARAMS" value="&quot;nps_sensors_params_default.h&quot;"/>
  </section>
 
  <modules main_freq="512">
