@@ -41,8 +41,6 @@
 #include <stdio.h>
 #include <libxml/xmlreader.h>
 
-// assuming local path from sw/ground_segment/tmtc
-char defaultPprzFolder[] = "../../..";
 
 char defaultAppPass[] = "1234"; //4 char password to control ac's over app "pass ground stg stg stg..
 char* AppPass;
@@ -76,6 +74,9 @@ int verbose = 0;
 
 //TCP flag
 int uTCP = 0;
+
+int ProcessID;
+int RequestID;
 
 //Block structure
 typedef struct {
@@ -457,13 +458,25 @@ gboolean new_connection(GSocketService *service, GSocketConnection *connection, 
   return TRUE;
 }
 
+void request_ac_config(int ac_id_req) {
+
+  RequestID++;
+  IvySendMsg("app_server %d_%d CONFIG_REQ %d" ,ProcessID, RequestID ,ac_id_req );
+  //AC config requested..
+
+  if (verbose) {
+  printf("AC(id= %d) config requested.\n",ac_id_req);
+  fflush(stdout);
+  }
+}
+
 //Ivy msg function
 void Ivy_All_Msgs(IvyClientPtr app, void *user_data, int argc, char *argv[]){
-
 
   //For compatibility.. This will be joined in upcoming releases..
   if (uTCP) sprintf(ivybuffer, "%s\n", argv[0]);
   else sprintf(ivybuffer, "%s", argv[0]);
+
   //Ivy msg received broadcast to clients..
   broadcast_to_clients();
 
@@ -595,7 +608,7 @@ void parse_ac_af(int DevNameIndex, char *filename) {
 }
 
 //Parse dl values
-void parse_dl_settings(int DevNameIndex, char *filename) {
+void parse_ac_settings(int DevNameIndex, char *filename) {
 
   xmlTextReaderPtr reader;
   int ret;
@@ -652,106 +665,136 @@ void parse_dl_settings(int DevNameIndex, char *filename) {
   }
 }
 
-//Parse ac data from conf.xml
-void parse_ac_data (char *PprzFolder) {
-  xmlTextReaderPtr reader;
-  int ret;
+void on_app_server_NEW_AC(IvyClientPtr app, void *user_data, int argc, char *argv[]) {
+ //Request config
+  request_ac_config(atoi(argv[0]));
+}
 
-  //Create full file path
-  char xmlFileName[BUFLEN];
-  strcpy(xmlFileName, PprzFolder);
-  strcat(xmlFileName, "/conf/conf.xml");
+void on_app_server_GET_CONFIG (IvyClientPtr app, void *user_data, int argc, char *argv[]) {
 
-  reader = xmlReaderForFile(xmlFileName, NULL, XML_PARSE_NOWARNING | XML_PARSE_NOERROR); /* Dont validate with the DTD */
+  int i=0;
 
-  xmlChar *AcName, *AcInd, *FpPath, *AcColor, *name, *AfPath;
-  if (reader != NULL) {
-    ret = xmlTextReaderRead(reader);
-    int AcId;
+  int RmId[2];
+  /*
+   * RmId[0] >> ProcessID of incoming MsgProcessId
+   * RmId[1] >> RequestID of incoming MsgProcessId
+   */
 
-    while (ret == 1) {
-      name = xmlTextReaderName(reader);
-      if (name == NULL) {
-        name = xmlStrdup(BAD_CAST "--");
-      }
-      //read waypoint names
-
-      if (xmlStrEqual(name, (const xmlChar *)"aircraft")) {
-
-        xmlTextReaderMoveToAttribute(reader,(const xmlChar *)"ac_id");
-        AcInd = xmlTextReaderValue(reader);
-
-        xmlTextReaderMoveToAttribute(reader,(const xmlChar *)"name");
-        AcName = xmlTextReaderValue(reader);
-
-        xmlTextReaderMoveToAttribute(reader,(const xmlChar *)"airframe");
-        AfPath = xmlTextReaderValue(reader);
-
-        xmlTextReaderMoveToAttribute(reader,(const xmlChar *)"flight_plan");
-        FpPath = xmlTextReaderValue(reader);
-
-        xmlTextReaderMoveToAttribute(reader,(const xmlChar *)"gui_color");
-        AcColor = xmlTextReaderValue(reader);
-
-        //Get Device Id
-        AcId = atoi(((char *) AcInd));
-
-        //Save Device Name
-        strcpy(DevNames[AcId].name, ((char *) AcName));
-
-        //Save color
-        strcpy(DevNames[AcId].color, (char *) AcColor);
-
-        //Save Flight Plan Path
-        strcpy(DevNames[AcId].flight_plan_path, "/conf/");
-        strcat(DevNames[AcId].flight_plan_path , (char *) FpPath);
-
-        //Save airframe  Path
-        strcpy(DevNames[AcId].airframe_path, "/conf/");
-        strcat(DevNames[AcId].airframe_path , (char *) AfPath);
-
-        //Save Settings Path
-        sprintf(DevNames[AcId].settings_path, "/var/aircrafts/%s/settings.xml", (char *) AcName);
-
-        //parse flight plan file for waypoint and block names
-        char FlightPlanPath[BUFLEN];
-        strcpy(FlightPlanPath, PprzFolder);
-        strcat(FlightPlanPath, DevNames[AcId].flight_plan_path);
-        parse_ac_fp(AcId, FlightPlanPath);
-
-        //parse airframe file
-        char AirframePath[BUFLEN];
-        strcpy(AirframePath, PprzFolder);
-        strcat(AirframePath, DevNames[AcId].airframe_path);
-        parse_ac_af(AcId, AirframePath);
-
-        //parse dl_settings for launch & kill throttle
-        char SettingsPath[BUFLEN];
-        strcpy(SettingsPath, PprzFolder);
-        strcat(SettingsPath, DevNames[AcId].settings_path);
-        parse_dl_settings(AcId, SettingsPath);
-      }
-
-      ret = xmlTextReaderRead(reader);
-    }
-
-    xmlFreeTextReader(reader);
-    if (ret != 0) {
-      if (verbose) {
-        printf("App Server: failed to parse %s\n", xmlFileName);
-        fflush(stdout);
-      }
-    }
+  //Split arg0 to get process id and request id
+  char * mtok;
+  mtok = strtok (argv[0],"_");
+  while (mtok != NULL || i>2)
+  {
+    RmId[i]= atoi(mtok);
+    i++;
+    mtok = strtok (NULL, "_");
   }
-  else{
+
+  //Check whether process id and request id matches or not
+  if ( RmId[0]== ProcessID && RmId[1] <= RequestID) {
+    int inc_device_id=atoi(argv[1]);
+
+    //Save Device Name
+    strcpy(DevNames[inc_device_id].name, argv[7] );
+
+    //Save color
+    strcpy(DevNames[inc_device_id].color, argv[6]);
+
+    //Save Flight Plan Path
+    //check if file is local
+    if ((strncmp( argv[2], "file://", strlen("file://"))) == 0) {
+      sprintf(DevNames[inc_device_id].flight_plan_path, "%s", argv[2]+7);
+      }
+    else {
+      printf("App Server: App server only works with local files! (Flight Plan Path:%s)\n", argv[2]);
+      return;
+    }
+
+    //Save Airframe Path
+    //check if file is local
+    if ((strncmp( argv[3], "file://", strlen("file://"))) == 0) {
+      sprintf(DevNames[inc_device_id].airframe_path, "%s", argv[3]+7);
+      }
+    else {
+      printf("App Server: App server works only with local files! (Airframe Path:%s)\n", argv[3]);
+      return;
+    }
+
+    //Save Settings Path
+    //check if file is local
+    if ((strncmp( argv[5], "file://", strlen("file://"))) == 0) {
+      sprintf(DevNames[inc_device_id].settings_path, "%s", argv[5]+7);
+      }
+    else {
+      printf("App Server: App server works only with local files! (Settings Path:%s)\n", argv[5]);
+      return;
+    }
+
+    // Init some variables (-1 means no settings in xml file)
+    DevNames[inc_device_id].dl_launch_ind = -1;
+    DevNames[inc_device_id].kill_thr_ind = -1;
+    DevNames[inc_device_id].flight_altitude_ind = -1;
+
+    //Parse airframe files..
+    parse_ac_af(inc_device_id, DevNames[inc_device_id].airframe_path);
+
+    //Parse flight plan
+    parse_ac_fp(inc_device_id, DevNames[inc_device_id].flight_plan_path);
+
+    //Parse settings
+    parse_ac_settings(inc_device_id, DevNames[inc_device_id].settings_path);
+
     if (verbose) {
-      printf("App Server: Unable to open %s\n", xmlFileName);
+      printf("%s configuration saved. : (Id: %d Color:%s)\n", DevNames[inc_device_id].name,inc_device_id, DevNames[inc_device_id].color);
+      fflush(stdout);
+      printf("\tFlight_P Path:\t %s \n", DevNames[inc_device_id].flight_plan_path);
+      fflush(stdout);
+      printf("\tAirframe Path:\t %s \n", DevNames[inc_device_id].airframe_path);
+      fflush(stdout);
+      printf("\tSettings Path:\t %s \n", DevNames[inc_device_id].settings_path);
       fflush(stdout);
     }
+    //everything is awesome! AC data is ready to be served.
+
   }
 
-  return;
-} // end of XMLParseDoc function
+}
+
+void on_app_server_AIRCRAFTS (IvyClientPtr app, void *user_data, int argc, char *argv[]) {
+
+  int i=0;
+  int RmId[2];
+
+  /*
+   * RmId[0] >> ProcessID of incoming MsgProcessId
+   * RmId[1] >> RequestID of incoming MsgProcessId
+   */
+
+  //Split arg0 to get process id and request id
+  char * mtok;
+  mtok = strtok (argv[0],"_");
+  while (mtok != NULL || i>2)
+  {
+    RmId[i]= atoi(mtok);
+    i++;
+    mtok = strtok (NULL, "_");
+  }
+
+  //Check whether process id and request id matches or not
+  if ( RmId[0]== ProcessID && RmId[1] <= RequestID) {
+    i=0;
+    char * mtok2;
+    mtok2 = strtok (argv[1],",");
+
+    while (mtok2 != NULL || i> MAXDEVICENUMB) {
+      request_ac_config(atoi(mtok2));
+      mtok2 = strtok (NULL, ",");
+      i++;
+    }
+
+  }
+
+}
 
 // Print help message
 void print_help() {
@@ -766,19 +809,24 @@ void print_help() {
   printf("   -h --help show this help\n");
 }
 
+gboolean request_ac_list(gpointer data) {
+  RequestID++;
+  IvySendMsg("app_server %d_%d AIRCRAFTS_REQ" ,ProcessID, RequestID);
+  return FALSE;
+}
+
 int main(int argc, char **argv) {
   int i;
 
+  //Get process id
+  ProcessID= getpid();
   // default password
+
   AppPass = defaultAppPass;
 
   // try environment variable first, set to default if failed
   IvyBus = getenv("IVYBUS");
   if (IvyBus == NULL) IvyBus = defaultIvyBus;
-
-  // Look for paparazzi folder (PAPARAZZI_HOME or assume local path by default)
-  char* PprzFolder = getenv("PAPARAZZI_HOME");
-  if (PprzFolder == NULL) PprzFolder = defaultPprzFolder;
 
   // Parse options
   for (i = 1; i < argc; ++i) {
@@ -813,7 +861,6 @@ int main(int argc, char **argv) {
 
   if (verbose) {
     printf("### Paparazzi App Server ###\n");
-    printf("Using Paparazzi Folder      : %s\n", PprzFolder);
     printf("Server listen port (TCP)    : %d\n", tcp_port);
     if (uTCP) {
     printf("Server using TCP communication..\n");
@@ -825,8 +872,6 @@ int main(int argc, char **argv) {
     fflush(stdout);
   }
 
-  //Parse conf.xml
-  parse_ac_data(PprzFolder);
 
   //Create tcp listener
 #if !GLIB_CHECK_VERSION (2, 35, 1)
@@ -849,10 +894,12 @@ int main(int argc, char **argv) {
   g_signal_connect(service, "incoming", G_CALLBACK(new_connection), NULL);
 
   //Here comes the ivy bindings
-  IvyInit ("PPRZ_App_Server", "Papparazzi App Server Ready", NULL, NULL, NULL, NULL);
+  IvyInit ("PPRZ_App_Server", "Papparazzi App Server Ready!", NULL, NULL, NULL, NULL);
 
-  IvyBindMsg(Ivy_All_Msgs, NULL, "(^ground .*)");
-  IvyBindMsg(Ivy_All_Msgs, NULL, "(^\\S* AIRSPEED (\\S*) (\\S*) (\\S*) (\\S*))");
+  IvyBindMsg(Ivy_All_Msgs, NULL, "(^ground (\\S*) (\\S*) .*)");
+  IvyBindMsg(on_app_server_NEW_AC, NULL, "ground NEW_AIRCRAFT (\\S*)");
+  IvyBindMsg(on_app_server_GET_CONFIG, NULL, "(\\S*) ground CONFIG (\\S*) (\\S*) (\\S*) (\\S*) (\\S*) (\\S*) (\\S*)");
+  IvyBindMsg(on_app_server_AIRCRAFTS, NULL, "(\\S*) ground AIRCRAFTS (\\S*)");
   IvyStart(IvyBus);
 
   GMainLoop *loop = g_main_loop_new(NULL, FALSE);
@@ -861,6 +908,9 @@ int main(int argc, char **argv) {
     printf("Starting App Server\n");
     fflush(stdout);
   }
+  IvySendMsg("app_server");
+
+  g_timeout_add(100, request_ac_list, NULL);
 
   g_main_loop_run(loop);
 
