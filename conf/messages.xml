@@ -588,6 +588,11 @@
     <field name="rssi_fade_margin" type="uint8" unit="dB"/>
     <field name="duty" type="uint8" unit="%"/>
   </message>
+  
+  <message name="AOA_PPM" id="71">
+    <field name="AOA" type="float" unit="deg"/>
+    <field name="RAW" type="float" />
+  </message>
 
   <message name="SUPERBITRF" id="72">
       <field name="status" type="uint8" values="UNINIT|INIT_BINDING|INIT_TRANSFER|BINDING|SYNCING_A|SYNCING_B|TRANSFER"/>

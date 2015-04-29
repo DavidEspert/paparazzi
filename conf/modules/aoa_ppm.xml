@@ -1,0 +1,24 @@
+<!DOCTYPE module SYSTEM "module.dtd">
+
+<module name="aoa_ppm" dir="sensors">
+	<doc>
+		<description> Angle of Attack sensor on PPM </description>
+		<configure name="PWM_CHANNEL_AOA" value="PWM_INPUTX" description="Select PWM input channel for AOA sensor" />
+		<define name="AOA_PERIOD" value="4098"  description="period in microsec" />
+	</doc>
+
+	<depends>pwm_meas</depends>
+	<header>
+		<file name="aoa_ppm.h" />
+	</header>
+
+	<init fun="aoa_ppm_init()" />
+	<periodic fun="aoa_ppm_update()" freq="10" />
+
+	<makefile target="ap">
+		<file name="aoa_ppm.c" />
+		<define name="PWM_CHANNEL_AOA" value="$(PWM_CHANNEL_AOA)" cond="ifdef PWM_CHANNEL_AOA" />
+		<define name="PWM_INPUT_TICKS_PER_USEC" value="1" />
+		<define name="USE_$(PWM_CHANNEL_AOA)" value="PWM_PULSE_TYPE_ACTIVE_LOW" />
+	</makefile>
+</module>
