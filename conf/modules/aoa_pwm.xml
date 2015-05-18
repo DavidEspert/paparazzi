@@ -1,0 +1,25 @@
+<!DOCTYPE module SYSTEM "module.dtd">
+
+<module name="aoa_pwm" dir="sensors">
+  <doc>
+    <description> Angle of Attack sensor on PWM </description>
+    <configure name="AOA_PWM_CHANNEL" value="PWM_INPUTX" description="Select PWM input channel for AOA sensor" />
+    <configure name="AOA_PWM_PERIOD" value="PWM_PERIODX" description="Period in microsec" />
+  </doc>
+
+  <depends>pwm_meas</depends>
+  <header>
+    <file name="aoa_pwm.h" />
+  </header>
+
+  <init fun="aoa_pwm_init()" />
+  <periodic fun="aoa_pwm_update()" freq="10" />
+
+  <makefile target="ap">
+    <file name="aoa_pwm.c" />
+    <define name="AOA_PWM_PERIOD" value="$(AOA_PWM_PERIOD)" cond="ifdef AOA_PWM_PERIOD" />
+    <define name="AOA_PWM_CHANNEL" value="$(AOA_PWM_CHANNEL)" cond="ifdef AOA_PWM_CHANNEL" />
+    <define name="PWM_INPUT_TICKS_PER_USEC" value="1" />
+    <define name="USE_$(AOA_PWM_CHANNEL)" value="PWM_PULSE_TYPE_ACTIVE_LOW" />
+  </makefile>
+</module>
