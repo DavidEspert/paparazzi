@@ -186,6 +186,34 @@ static inline void init_invariant_state(void)
   ins_gps_fix_once = FALSE;
 }
 
+#if PERIODIC_TELEMETRY
+#include "subsystems/datalink/telemetry.h"
+static void send_inv_filter(struct transport_tx *trans, struct link_device *dev)
+{
+  struct FloatEulers eulers;
+  FLOAT_EULERS_OF_QUAT(eulers, ins_float_inv.state.quat);
+  pprz_msg_send_INV_FILTER(trans, dev,
+      AC_ID,
+      &ins_float_inv.state.quat.qi,
+      &eulers.phi,
+      &eulers.theta,
+      &eulers.psi,
+      &ins_float_inv.state.speed.x,
+      &ins_float_inv.state.speed.y,
+      &ins_float_inv.state.speed.z,
+      &ins_float_inv.state.pos.x,
+      &ins_float_inv.state.pos.y,
+      &ins_float_inv.state.pos.z,
+      &ins_float_inv.state.bias.p,
+      &ins_float_inv.state.bias.q,
+      &ins_float_inv.state.bias.r,
+      &ins_float_inv.state.as,
+      &ins_float_inv.state.hb,
+      &ins_float_inv.meas.baro_alt,
+      &ins_float_inv.meas.pos_gps.z);
+}
+#endif
+
 void ins_float_invariant_init(void)
 {
 
@@ -236,6 +264,10 @@ void ins_float_invariant_init(void)
 
   ins_float_inv.is_aligned = FALSE;
   ins_float_inv.reset = FALSE;
+
+#if PERIODIC_TELEMETRY
+  register_periodic_telemetry(DefaultPeriodic, "INVARIANT_FILTER", send_inv_filter);
+#endif
 }
 
 
