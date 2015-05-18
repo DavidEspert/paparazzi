@@ -59,17 +59,20 @@
 #ifndef USE_MS_PRESSURE
 #define USE_MS_PRESSURE TRUE
 #endif
+#endif
 
 // Test if diff pressure sensor is configured and/or should send ABI message
 #ifdef MS_DIFF_PRESSURE_SLAVE_IDX
 #ifndef USE_MS_DIFF_PRESSURE
 #define USE_MS_DIFF_PRESSURE TRUE
 #endif
+#endif
 
 // Test if temperature sensor is configured and/or should send ABI message
 #ifdef MS_TEMPERATURE_SLAVE_IDX
 #ifndef USE_MS_TEMPERATURE
 #define USE_MS_TEMPERATURE TRUE
+#endif
 #endif
 
 // Test if EEPROM slave index is configured
