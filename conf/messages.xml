@@ -589,9 +589,9 @@
     <field name="duty" type="uint8" unit="%"/>
   </message>
   
-  <message name="AOA_PPM" id="71">
+  <message name="AOA_PWM" id="71">
     <field name="AOA" type="float" unit="deg"/>
-    <field name="RAW" type="float" />
+    <field name="RAW" type="int16" />
   </message>
 
   <message name="SUPERBITRF" id="72">
