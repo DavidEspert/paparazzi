@@ -145,13 +145,13 @@ Meteo stick (Airspeed & pressure)
     <define name="MAG_X_SIGN" value="1"/>
     <define name="MAG_Y_SIGN" value="1"/>
     <define name="MAG_Z_SIGN" value="-1"/>
-    <define name="MAG_X_NEUTRAL" value="-55"/>
-    <define name="MAG_Y_NEUTRAL" value="66"/>
-    <define name="MAG_Z_NEUTRAL" value="378"/>
-    <define name="MAG_X_SENS" value="4.07894635522" integer="16"/>
-    <define name="MAG_Y_SENS" value="4.2161366635" integer="16"/>
-    <define name="MAG_Z_SENS" value="4.72757388242" integer="16"/>
-  
+    <define name="MAG_X_NEUTRAL" value="-109"/>
+    <define name="MAG_Y_NEUTRAL" value="79"/>
+    <define name="MAG_Z_NEUTRAL" value="344"/>
+    <define name="MAG_X_SENS" value="3.98283444965" integer="16"/>
+    <define name="MAG_Y_SENS" value="4.11018799989" integer="16"/>
+    <define name="MAG_Z_SENS" value="4.50114394108" integer="16"/>
+
     <define name="BODY_TO_IMU_PHI" value="0" />
     <define name="BODY_TO_IMU_THETA" value="0" />
     <define name="BODY_TO_IMU_PSI" value="0" />
