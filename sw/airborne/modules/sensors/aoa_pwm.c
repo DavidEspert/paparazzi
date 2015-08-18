@@ -48,6 +48,10 @@ bool_t log_started;
 #define AOA_OFFSET 0
 #endif
 
+#ifndef AOA_SIGN
+#define AOA_SIGN 1 
+#endif
+
 struct Aoa_Pwm aoa_pwm;
 
 void aoa_pwm_init(void) {
@@ -73,7 +77,7 @@ void aoa_pwm_update(void) {
     aoa_pwm.raw = AOA_PWM_PERIOD - 3;
   }
 
-  aoa_pwm.angle = (((float)duty_raw / AOA_PWM_PERIOD) * 360.f) - 180.f;
+  aoa_pwm.angle = AOA_SIGN * ((((float)duty_raw / AOA_PWM_PERIOD) * 360.f) - 180.f);
   DOWNLINK_SEND_AOA_PWM(DefaultChannel, DefaultDevice, &aoa_pwm.angle, &aoa_pwm.raw);
 
 #if AOA_LOG_MS

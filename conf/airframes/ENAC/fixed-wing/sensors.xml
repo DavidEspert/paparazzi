@@ -38,6 +38,7 @@ Meteo stick (Airspeed & pressure)
       <configure name="AOA_PWM_PERIOD" value="4098"/>
       <define name="AOA_OFFSET" value="2668"/>
       <define name="AOA_LOG_MS" value="TRUE"/>
+      <define name="AOA_SIGN" value="-1"/> <!-- Only 1 or -1-->
     </load>
     
     <load name="flight_recorder.xml"/>
