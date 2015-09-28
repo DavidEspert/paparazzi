@@ -65,7 +65,8 @@ type aircraft = private {
     mutable last_unix_time : float;
     mutable airspeed : float;
     mutable version : string;
-    mutable last_gps_acc : gps_acc_level
+    mutable last_gps_acc : gps_acc_level;
+    mutable last_bat_warn_time : float
   }
 
 val aircrafts : (string, aircraft) Hashtbl.t
@@ -87,3 +88,4 @@ val jump_to_block : string -> int -> unit
 val dl_setting : string -> int -> float -> unit
 (** [dl_setting ac_id var_index value] Sends a DL_SETTING message *)
 
+val filter_ac_ids: string -> unit
