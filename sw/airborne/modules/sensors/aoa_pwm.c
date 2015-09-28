@@ -64,6 +64,8 @@ void aoa_pwm_init(void) {
 
 // Documentation of sensor US DIGITAL MA3-P12-125-B
 // @see http://www.usdigital.com/products/encoders/absolute/rotary/shaft/ma3
+// For the calibration don't forget : 0 degree is not 0 in raw values but 4096/2=2048
+// Because the measure is not 0 to 180 degree but -180 to 180 degree
 void aoa_pwm_update(void) {
   int16_t duty_raw = pwm_input_duty_tics[AOA_PWM_CHANNEL] - AOA_OFFSET;
   
