@@ -371,7 +371,7 @@
                                      PIN_MODE_OUTPUT(GPIOC_PIN2)          | \
                                      PIN_MODE_OUTPUT(GPIOC_LED4)          | \
                                      PIN_MODE_INPUT(GPIOC_AUX3)           | \
-                                     PIN_MODE_ANALOG(GPIOC_AUX2)           | \
+                                     PIN_MODE_INPUT(GPIOC_AUX2)           | \
                                      PIN_MODE_ALTERNATE(GPIOC_USART6_TX)  | \
                                      PIN_MODE_ALTERNATE(GPIOC_USART6_RX)  | \
                                      PIN_MODE_ALTERNATE(GPIOC_SDIO_D0)    | \
@@ -929,7 +929,7 @@
 #define SPI_SELECT_SLAVE3_PIN 4
 // SLAVE4 on AUX4
 #define SPI_SELECT_SLAVE4_PORT GPIOB
-#define SPI_SELECT_SLAVE4_PIN 5
+#define SPI_SELECT_SLAVE4_PIN 15
 
 /**
  * Baro
