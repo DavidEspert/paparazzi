@@ -32,6 +32,7 @@
  */
 #include "subsystems/actuators/actuators_pwm_arch.h"
 #include "subsystems/actuators/actuators_pwm.h"
+#include "mcu_periph/gpio.h"
 
 
 /**
@@ -84,6 +85,49 @@ static PWMConfig pwmcfg9 = PWM_CONF9_DEF;
 
 void actuators_pwm_arch_init(void)
 {
+  /*----------------
+   * Configure GPIO
+   *----------------*/
+#ifdef PWM_SERVO_0
+  gpio_setup_pin_af(PWM_SERVO_0_GPIO, PWM_SERVO_0_PIN, PWM_SERVO_0_AF);
+#endif
+#ifdef PWM_SERVO_1
+  gpio_setup_pin_af(PWM_SERVO_1_GPIO, PWM_SERVO_1_PIN, PWM_SERVO_1_AF);
+#endif
+#ifdef PWM_SERVO_2
+  gpio_setup_pin_af(PWM_SERVO_2_GPIO, PWM_SERVO_2_PIN, PWM_SERVO_2_AF);
+#endif
+#ifdef PWM_SERVO_3
+  gpio_setup_pin_af(PWM_SERVO_3_GPIO, PWM_SERVO_3_PIN, PWM_SERVO_3_AF);
+#endif
+#ifdef PWM_SERVO_4
+  gpio_setup_pin_af(PWM_SERVO_4_GPIO, PWM_SERVO_4_PIN, PWM_SERVO_4_AF);
+#endif
+#ifdef PWM_SERVO_5
+  gpio_setup_pin_af(PWM_SERVO_5_GPIO, PWM_SERVO_5_PIN, PWM_SERVO_5_AF);
+#endif
+#ifdef PWM_SERVO_6
+  gpio_setup_pin_af(PWM_SERVO_6_GPIO, PWM_SERVO_6_PIN, PWM_SERVO_6_AF);
+#endif
+#ifdef PWM_SERVO_7
+  gpio_setup_pin_af(PWM_SERVO_7_GPIO, PWM_SERVO_7_PIN, PWM_SERVO_7_AF);
+#endif
+#ifdef PWM_SERVO_8
+  gpio_setup_pin_af(PWM_SERVO_8_GPIO, PWM_SERVO_8_PIN, PWM_SERVO_8_AF);
+#endif
+#ifdef PWM_SERVO_9
+  gpio_setup_pin_af(PWM_SERVO_9_GPIO, PWM_SERVO_9_PIN, PWM_SERVO_9_AF);
+#endif
+#ifdef PWM_SERVO_10
+  gpio_setup_pin_af(PWM_SERVO_10_GPIO, PWM_SERVO_10_PIN, PWM_SERVO_10_AF);
+#endif
+#ifdef PWM_SERVO_11
+  gpio_setup_pin_af(PWM_SERVO_11_GPIO, PWM_SERVO_11_PIN, PWM_SERVO_11_AF);
+#endif
+
+  /*---------------
+   * Configure PWM
+   *---------------*/
 #if PWM_CONF_TIM1
   pwmStart(&PWMD1, &pwmcfg1);
 #endif

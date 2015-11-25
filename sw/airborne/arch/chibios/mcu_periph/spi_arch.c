@@ -501,7 +501,6 @@ bool_t spi_resume(struct spi_periph *p, uint8_t slave)
 /**
  * spi_init_slaves() function
  *
- * Empty, for paparazzi compatibility only
  */
 void spi_init_slaves(void)
 {

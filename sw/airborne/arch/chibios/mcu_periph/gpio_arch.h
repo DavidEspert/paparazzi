@@ -35,20 +35,42 @@
 
 /**
  * Setup one or more pins of the given GPIO port as outputs.
- * Shouldn't be used as gpio config is done in HAL
+ * @param[in] port
+ * @param[in] gpios
  */
-static inline void gpio_setup_output(ioportid_t port __attribute__((unused)),
-		uint16_t gpios __attribute__((unused))) {}
+extern void gpio_setup_output(ioportid_t port, uint16_t gpios);
 
 /**
  * Setup one or more pins of the given GPIO port as inputs.
- * Shouldn't be used as gpio config is done in HAL
+ * @param[in] port
+ * @param[in] gpios
  */
-static inline void gpio_setup_intput(ioportid_t port __attribute__((unused)),
-		uint16_t gpios __attribute__((unused))) {}
+extern void gpio_setup_intput(ioportid_t port, uint16_t gpios);
+
+/**
+ * Setup one or more pins of the given GPIO port as inputs with pull up resistor enabled.
+ * @param[in] port
+ * @param[in] gpios
+ */
+extern void gpio_setup_input_pullup(ioportid_t port, uint16_t gpios);
+
+/**
+ * Setup one or more pins of the given GPIO port as inputs with pull down resistors enabled.
+ * @param[in] port
+ * @param[in] gpios
+ */
+extern void gpio_setup_input_pulldown(ioportid_t port, uint16_t gpios);
+
+/**
+ * Setup a gpio for input or output with alternate function.
+ * This is an STM32 specific helper funtion and should only be used in stm32 code.
+ */
+extern void gpio_setup_pin_af(ioportid_t port, uint16_t pin, uint8_t af);
 
 /**
  * Setup a gpio for analog use.
+ * @param[in] port
+ * @param[in] pin
  */
 extern void gpio_setup_pin_analog(ioportid_t port, uint16_t pin);
 

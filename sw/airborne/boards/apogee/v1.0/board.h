@@ -155,7 +155,7 @@
  */
 #define VAL_GPIOA_MODER             (PIN_MODE_ALTERNATE(GPIOA_UART4_TX) |     \
                                      PIN_MODE_ALTERNATE(GPIOA_UART4_RX) |     \
-                                     PIN_MODE_ALTERNATE(GPIOA_PWM2_CH3) |     \
+                                     PIN_MODE_INPUT(GPIOA_PWM2_CH3) |         \
                                      PIN_MODE_ALTERNATE(GPIOA_UART2_RX) |     \
                                      PIN_MODE_ANALOG(GPIOA_ADC1_IN4) |        \
                                      PIN_MODE_ALTERNATE(GPIOA_SPI1_SCK) |     \
@@ -168,7 +168,7 @@
                                      PIN_MODE_ALTERNATE(GPIOA_OTG_FS_DP) |    \
                                      PIN_MODE_ALTERNATE(GPIOA_SWDIO) |        \
                                      PIN_MODE_ALTERNATE(GPIOA_SWCLK) |        \
-                                     PIN_MODE_ALTERNATE(GPIOA_PWM2_CH1))
+                                     PIN_MODE_INPUT(GPIOA_PWM2_CH1))
 
 #define VAL_GPIOA_OTYPER            (PIN_OTYPE_PUSHPULL(GPIOA_UART4_TX) |     \
                                      PIN_OTYPE_PUSHPULL(GPIOA_UART4_RX) |     \
@@ -240,7 +240,7 @@
 
 #define VAL_GPIOA_AFRL              (PIN_AFIO_AF(GPIOA_UART4_TX, 8) |   \
                                      PIN_AFIO_AF(GPIOA_UART4_RX, 8) |   \
-                                     PIN_AFIO_AF(GPIOA_PWM2_CH3, 1) |   \
+                                     PIN_AFIO_AF(GPIOA_PWM2_CH3, 0) |   \
                                      PIN_AFIO_AF(GPIOA_UART2_RX, 7) |   \
                                      PIN_AFIO_AF(GPIOA_ADC1_IN4, 0) |   \
                                      PIN_AFIO_AF(GPIOA_SPI1_SCK, 5) |   \
@@ -254,18 +254,18 @@
                                      PIN_AFIO_AF(GPIOA_OTG_FS_DP, 10) |   \
                                      PIN_AFIO_AF(GPIOA_SWDIO, 0) |        \
                                      PIN_AFIO_AF(GPIOA_SWCLK, 0) |        \
-                                     PIN_AFIO_AF(GPIOA_PWM2_CH1, 1))
+                                     PIN_AFIO_AF(GPIOA_PWM2_CH1, 0))
 
 /*
  * GPIOB setup:
  *
  */
-#define VAL_GPIOB_MODER             (PIN_MODE_ALTERNATE(GPIOB_PWM3_CH3)    | \
+#define VAL_GPIOB_MODER             (PIN_MODE_INPUT(GPIOB_PWM3_CH3)        | \
                                      PIN_MODE_INPUT(GPIOB_AUX1)            | \
                                      PIN_MODE_INPUT(GPIOB_BOOT1)           | \
-                                     PIN_MODE_ALTERNATE(GPIOB_PWM2_CH2)    | \
-                                     PIN_MODE_ALTERNATE(GPIOB_PWM3_CH1)    | \
-                                     PIN_MODE_ALTERNATE(GPIOB_PWM3_CH2)    | \
+                                     PIN_MODE_INPUT(GPIOB_PWM2_CH2)        | \
+                                     PIN_MODE_INPUT(GPIOB_PWM3_CH1)        | \
+                                     PIN_MODE_INPUT(GPIOB_PWM3_CH2)        | \
                                      PIN_MODE_ALTERNATE(GPIOB_USART1_TX)   | \
                                      PIN_MODE_ALTERNATE(GPIOB_I2C1_SDA)    | \
                                      PIN_MODE_ALTERNATE(GPIOB_I2C1_SCL)    | \
@@ -345,12 +345,12 @@
                                      PIN_ODR_HIGH(GPIOB_SDIO_DETECT)      | \
                                      PIN_ODR_HIGH(GPIOB_AUX4))
 
-#define VAL_GPIOB_AFRL              (PIN_AFIO_AF(GPIOB_PWM3_CH3, 2)       | \
+#define VAL_GPIOB_AFRL              (PIN_AFIO_AF(GPIOB_PWM3_CH3, 0)       | \
                                      PIN_AFIO_AF(GPIOB_AUX1, 0)           | \
                                      PIN_AFIO_AF(GPIOB_BOOT1, 0)          | \
-                                     PIN_AFIO_AF(GPIOB_PWM2_CH2, 1)       | \
-                                     PIN_AFIO_AF(GPIOB_PWM3_CH1, 2)       | \
-                                     PIN_AFIO_AF(GPIOB_PWM3_CH2, 2)       | \
+                                     PIN_AFIO_AF(GPIOB_PWM2_CH2, 0)       | \
+                                     PIN_AFIO_AF(GPIOB_PWM3_CH1, 0)       | \
+                                     PIN_AFIO_AF(GPIOB_PWM3_CH2, 0)       | \
                                      PIN_AFIO_AF(GPIOB_USART1_TX, 7)      | \
                                      PIN_AFIO_AF(GPIOB_I2C1_SDA, 4))
 #define VAL_GPIOB_AFRH              (PIN_AFIO_AF(GPIOB_I2C1_SCL, 4)       | \
@@ -648,7 +648,7 @@
 #define USE_LED_1 1
 #endif
 #define LED_1_GPIO GPIOC
-#define LED_1_GPIO_PIN 0
+#define LED_1_GPIO_PIN GPIO0
 #define LED_1_GPIO_ON gpio_clear
 #define LED_1_GPIO_OFF gpio_set
 
@@ -657,7 +657,7 @@
 #define USE_LED_2 1
 #endif
 #define LED_2_GPIO GPIOC
-#define LED_2_GPIO_PIN 13
+#define LED_2_GPIO_PIN GPIO13
 #define LED_2_GPIO_ON gpio_clear
 #define LED_2_GPIO_OFF gpio_set
 
@@ -666,7 +666,7 @@
 #define USE_LED_3 1
 #endif
 #define LED_3_GPIO GPIOC
-#define LED_3_GPIO_PIN 1
+#define LED_3_GPIO_PIN GPIO1
 #define LED_3_GPIO_ON gpio_clear
 #define LED_3_GPIO_OFF gpio_set
 
@@ -675,7 +675,7 @@
 #define USE_LED_4 1
 #endif
 #define LED_4_GPIO GPIOC
-#define LED_4_GPIO_PIN 3
+#define LED_4_GPIO_PIN GPIO3
 #define LED_4_GPIO_ON gpio_clear
 #define LED_4_GPIO_OFF gpio_set
 
@@ -684,7 +684,7 @@
 #define USE_LED_5 0
 #endif
 #define LED_5_GPIO GPIOB
-#define LED_5_GPIO_PIN 1
+#define LED_5_GPIO_PIN GPIO1
 #define LED_5_GPIO_ON gpio_set
 #define LED_5_GPIO_OFF gpio_clear
 
@@ -693,7 +693,7 @@
 #define USE_LED_6 0
 #endif
 #define LED_6_GPIO GPIOC
-#define LED_6_GPIO_PIN 5
+#define LED_6_GPIO_PIN GPIO5
 #define LED_6_GPIO_ON gpio_set
 #define LED_6_GPIO_OFF gpio_clear
 
@@ -702,7 +702,7 @@
 #define USE_LED_7 0
 #endif
 #define LED_7_GPIO GPIOC
-#define LED_7_GPIO_PIN 4
+#define LED_7_GPIO_PIN GPIO4
 #define LED_7_GPIO_ON gpio_set
 #define LED_7_GPIO_OFF gpio_clear
 
@@ -711,14 +711,14 @@
 #define USE_LED_8 0
 #endif
 #define LED_8_GPIO GPIOB
-#define LED_8_GPIO_PIN 15
+#define LED_8_GPIO_PIN GPIO15
 #define LED_8_GPIO_ON gpio_set
 #define LED_8_GPIO_OFF gpio_clear
 
 
 /* Pint to set Uart2 RX polarity, on PB13, output high inverts, low doesn't */
 #define RC_POLARITY_GPIO_PORT GPIOB
-#define RC_POLARITY_GPIO_PIN 13
+#define RC_POLARITY_GPIO_PIN GPIO13
 
 /*
  * ADCs
@@ -773,6 +773,9 @@
 #endif
 #if USE_PWM0
 #define PWM_SERVO_0 0
+#define PWM_SERVO_0_GPIO GPIOB
+#define PWM_SERVO_0_PIN GPIO0
+#define PWM_SERVO_0_AF GPIO_AF2
 #define PWM_SERVO_0_DRIVER PWMD3
 #define PWM_SERVO_0_CHANNEL 2
 #define PWM_SERVO_0_ACTIVE PWM_OUTPUT_ACTIVE_HIGH
@@ -785,6 +788,9 @@
 #endif
 #if USE_PWM1
 #define PWM_SERVO_1 1
+#define PWM_SERVO_1_GPIO GPIOA
+#define PWM_SERVO_1_PIN GPIO2
+#define PWM_SERVO_1_AF GPIO_AF1
 #define PWM_SERVO_1_DRIVER PWMD2
 #define PWM_SERVO_1_CHANNEL 2
 #define PWM_SERVO_1_ACTIVE PWM_OUTPUT_ACTIVE_HIGH
@@ -797,6 +803,9 @@
 #endif
 #if USE_PWM2
 #define PWM_SERVO_2 2
+#define PWM_SERVO_2_GPIO GPIOB
+#define PWM_SERVO_2_PIN GPIO5
+#define PWM_SERVO_2_AF GPIO_AF2
 #define PWM_SERVO_2_DRIVER PWMD3
 #define PWM_SERVO_2_CHANNEL 1
 #define PWM_SERVO_2_ACTIVE PWM_OUTPUT_ACTIVE_HIGH
@@ -809,6 +818,9 @@
 #endif
 #if USE_PWM3
 #define PWM_SERVO_3 3
+#define PWM_SERVO_3_GPIO GPIOB
+#define PWM_SERVO_3_PIN GPIO4
+#define PWM_SERVO_3_AF GPIO_AF2
 #define PWM_SERVO_3_DRIVER PWMD3
 #define PWM_SERVO_3_CHANNEL 0
 #define PWM_SERVO_3_ACTIVE PWM_OUTPUT_ACTIVE_HIGH
@@ -821,6 +833,9 @@
 #endif
 #if USE_PWM4
 #define PWM_SERVO_4 4
+#define PWM_SERVO_4_GPIO GPIOB
+#define PWM_SERVO_4_PIN GPIO3
+#define PWM_SERVO_4_AF GPIO_AF1
 #define PWM_SERVO_4_DRIVER PWMD2
 #define PWM_SERVO_4_CHANNEL 1
 #define PWM_SERVO_4_ACTIVE PWM_OUTPUT_ACTIVE_HIGH
@@ -833,6 +848,9 @@
 #endif
 #if USE_PWM5
 #define PWM_SERVO_5 5
+#define PWM_SERVO_5_GPIO GPIOA
+#define PWM_SERVO_5_PIN GPIO15
+#define PWM_SERVO_5_AF GPIO_AF1
 #define PWM_SERVO_5_DRIVER PWMD2
 #define PWM_SERVO_5_CHANNEL 0
 #define PWM_SERVO_5_ACTIVE PWM_OUTPUT_ACTIVE_HIGH
@@ -842,6 +860,9 @@
 
 #if USE_PWM6
 #define PWM_SERVO_6 6
+#define PWM_SERVO_6_GPIO GPIOB
+#define PWM_SERVO_6_PIN GPIO1
+#define PWM_SERVO_6_AF GPIO_AF2
 #define PWM_SERVO_6_DRIVER PWMD3
 #define PWM_SERVO_6_CHANNEL 3
 #define PWM_SERVO_6_ACTIVE PWM_OUTPUT_ACTIVE_HIGH
@@ -917,19 +938,19 @@
 
 // SLAVE0 on SPI connector
 #define SPI_SELECT_SLAVE0_PORT GPIOB
-#define SPI_SELECT_SLAVE0_PIN 9
+#define SPI_SELECT_SLAVE0_PIN GPIO9
 // SLAVE1 on AUX1
 #define SPI_SELECT_SLAVE1_PORT GPIOB
-#define SPI_SELECT_SLAVE1_PIN 1
+#define SPI_SELECT_SLAVE1_PIN GPIO1
 // SLAVE2 on AUX2
 #define SPI_SELECT_SLAVE2_PORT GPIOC
-#define SPI_SELECT_SLAVE2_PIN 5
+#define SPI_SELECT_SLAVE2_PIN GPIO5
 // SLAVE3 on AUX3
 #define SPI_SELECT_SLAVE3_PORT GPIOC
-#define SPI_SELECT_SLAVE3_PIN 4
+#define SPI_SELECT_SLAVE3_PIN GPIO4
 // SLAVE4 on AUX4
 #define SPI_SELECT_SLAVE4_PORT GPIOB
-#define SPI_SELECT_SLAVE4_PIN 15
+#define SPI_SELECT_SLAVE4_PIN GPIO15
 
 /**
  * Baro
