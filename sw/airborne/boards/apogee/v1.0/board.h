@@ -908,6 +908,16 @@
 #define PPM_CHANNEL ICU_CHANNEL_1
 #define PPM_TIMER ICUD1
 
+/*
+ * PWM input
+ */
+#define PWM_INPUT1_ICU            ICDU1
+#define PWM_INPUT1_CHANNEL        ICU_CHANNEL_1
+// PPM in (aka PA8) is used: not compatible with PPM RC receiver
+#define PWM_INPUT1_GPIO_PORT      GPIOA
+#define PWM_INPUT1_GPIO_PIN       GPIO8
+#define PWM_INPUT1_GPIO_AF        GPIO_AF1
+
 /**
  * I2C defines
  */
