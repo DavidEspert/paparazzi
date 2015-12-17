@@ -103,7 +103,7 @@ LLIBDIR   = $(patsubst %,-L%,$(DLIBDIR) $(ULIBDIR))
 
 # Macros
 DEFS      = $(DDEFS) $(UDEFS)
-ADEFS 	  = $(DADEFS) $(UADEFS)
+ADEFS 	  = $(DADEFS) $(UADEFS) $(UDEFS)
 
 # Libs
 LIBS      = $(DLIBS) $(ULIBS)
