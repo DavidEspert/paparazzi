@@ -31,12 +31,13 @@
 #define STABILIZATION_ATTITUDE_REF_QUAT_INT_H
 
 #include "stabilization_attitude_ref_int.h"
+#include "attitude_ref_saturate_naive.h"
 
 /* ref model is in float and then used to precompute ref values in int */
 #include "math/pprz_algebra_float.h"
 
 /** Attitude reference model parameters (quat int) */
-struct FloatRefModel {
+struct IntRefModel {
   struct FloatRates omega;
   struct FloatRates zeta;
   /* cached intermediate values in int */
@@ -46,11 +47,12 @@ struct FloatRefModel {
 
 /** Attitude reference models and state/output (quat int) */
 struct AttRefQuatInt {
-  struct Int32Eulers euler;
+  struct Int32Eulers euler;   ///< with #INT32_ANGLE_FRAC
   struct Int32Quat   quat;
-  struct Int32Rates  rate;
-  struct Int32Rates  accel;
-  struct FloatRefModel  model;
+  struct Int32Rates  rate;    ///< with #REF_RATE_FRAC
+  struct Int32Rates  accel;   ///< with #REF_ACCEL_FRAC
+  struct IntRefModel model;
+  struct Int32RefSat saturation;
 };
 
 extern void attitude_ref_quat_int_init(struct AttRefQuatInt *ref);
@@ -66,5 +68,12 @@ extern void attitude_ref_quat_int_set_zeta(struct AttRefQuatInt *ref, struct Flo
 extern void attitude_ref_quat_int_set_zeta_p(struct AttRefQuatInt *ref, float zeta_p);
 extern void attitude_ref_quat_int_set_zeta_q(struct AttRefQuatInt *ref, float zeta_q);
 extern void attitude_ref_quat_int_set_zeta_r(struct AttRefQuatInt *ref, float zeta_r);
+
+extern void attitude_ref_quat_int_set_max_p(struct AttRefQuatInt *ref, float max_p);
+extern void attitude_ref_quat_int_set_max_q(struct AttRefQuatInt *ref, float max_q);
+extern void attitude_ref_quat_int_set_max_r(struct AttRefQuatInt *ref, float max_r);
+extern void attitude_ref_quat_int_set_max_pdot(struct AttRefQuatInt *ref, float max_pdot);
+extern void attitude_ref_quat_int_set_max_qdot(struct AttRefQuatInt *ref, float max_qdot);
+extern void attitude_ref_quat_int_set_max_rdot(struct AttRefQuatInt *ref, float max_rdot);
 
 #endif /* STABILIZATION_ATTITUDE_REF_QUAT_INT_H */

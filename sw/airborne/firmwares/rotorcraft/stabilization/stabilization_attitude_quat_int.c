@@ -100,13 +100,16 @@ static void send_att(struct transport_tx *trans, struct link_device *dev)   //FI
 
 static void send_att_ref(struct transport_tx *trans, struct link_device *dev)
 {
+  // ref eulers in message are with REF_ANGLE_FRAC, convert
+  struct Int32Eulers ref_euler;
+  INT32_EULERS_LSHIFT(ref_euler, att_ref_quat_i.euler, (REF_ANGLE_FRAC - INT32_ANGLE_FRAC));
   pprz_msg_send_STAB_ATTITUDE_REF_INT(trans, dev, AC_ID,
                                       &stab_att_sp_euler.phi,
                                       &stab_att_sp_euler.theta,
                                       &stab_att_sp_euler.psi,
-                                      &att_ref_quat_i.euler.phi,
-                                      &att_ref_quat_i.euler.theta,
-                                      &att_ref_quat_i.euler.psi,
+                                      &ref_euler.phi,
+                                      &ref_euler.theta,
+                                      &ref_euler.psi,
                                       &att_ref_quat_i.rate.p,
                                       &att_ref_quat_i.rate.q,
                                       &att_ref_quat_i.rate.r,
@@ -138,9 +141,9 @@ void stabilization_attitude_init(void)
   int32_quat_identity(&stabilization_att_sum_err_quat);
 
 #if PERIODIC_TELEMETRY
-  register_periodic_telemetry(DefaultPeriodic, "STAB_ATTITUDE", send_att);
-  register_periodic_telemetry(DefaultPeriodic, "STAB_ATTITUDE_REF", send_att_ref);
-  register_periodic_telemetry(DefaultPeriodic, "AHRS_REF_QUAT", send_ahrs_ref_quat);
+  register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_STAB_ATTITUDE_INT, send_att);
+  register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_STAB_ATTITUDE_REF_INT, send_att_ref);
+  register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_AHRS_REF_QUAT, send_ahrs_ref_quat);
 #endif
 }
 

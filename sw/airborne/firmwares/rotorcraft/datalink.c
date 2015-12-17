@@ -50,12 +50,17 @@
 #endif
 
 #include "firmwares/rotorcraft/navigation.h"
+#include "firmwares/rotorcraft/autopilot.h"
 
 #include "math/pprz_geodetic_int.h"
 #include "state.h"
 #include "led.h"
 
 #define IdOfMsg(x) (x[1])
+
+#if USE_NPS
+bool_t datalink_enabled = TRUE;
+#endif
 
 void dl_parse_msg(void)
 {
@@ -181,6 +186,33 @@ void dl_parse_msg(void)
         );
       break;
 #endif
+
+    case DL_GUIDED_SETPOINT_NED:
+      if (DL_GUIDED_SETPOINT_NED_ac_id(dl_buffer) != AC_ID) { break; }
+      uint8_t flags = DL_GUIDED_SETPOINT_NED_flags(dl_buffer);
+      float x = DL_GUIDED_SETPOINT_NED_x(dl_buffer);
+      float y = DL_GUIDED_SETPOINT_NED_y(dl_buffer);
+      float z = DL_GUIDED_SETPOINT_NED_z(dl_buffer);
+      float yaw = DL_GUIDED_SETPOINT_NED_yaw(dl_buffer);
+      switch (flags) {
+        case 0x00:
+        case 0x02:
+          /* local NED position setpoints */
+          autopilot_guided_goto_ned(x, y, z, yaw);
+          break;
+        case 0x01:
+          /* local NED offset position setpoints */
+          autopilot_guided_goto_ned_relative(x, y, z, yaw);
+          break;
+        case 0x03:
+          /* body NED offset position setpoints */
+          autopilot_guided_goto_body_relative(x, y, z, yaw);
+          break;
+        default:
+          /* others not handled yet */
+          break;
+      }
+      break;
     default:
       break;
   }

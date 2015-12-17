@@ -55,7 +55,7 @@ class IvyMessagesInterface(object):
             return
 
         # first split on array delimiters
-        l = re.split('([|\"][^|]*[|\"])', larg[0])
+        l = re.split('([|\"][^|\"]*[|\"])', larg[0])
         # strip spaces and filter out emtpy strings
         l = [str.strip(s) for s in l if str.strip(s) is not '']
         data = []
@@ -95,6 +95,18 @@ class IvyMessagesInterface(object):
         msg = PprzMessage(msg_class, msg_name)
         msg.set_values(values)
         self.callback(ac_id, msg)
+
+    def send_raw_datalink(self, msg):
+        if not isinstance(msg, PprzMessage):
+            print("Can only send PprzMessage")
+            return
+        if "datalink" not in msg.msg_class:
+            print("Message to embed in RAW_DATALINK needs to be of 'datalink' class")
+            return
+        raw = PprzMessage("ground", "RAW_DATALINK")
+        raw['ac_id'] = msg['ac_id']
+        raw['message'] = msg.to_csv()
+        self.send(raw)
 
     def send(self, msg, ac_id=None):
         if isinstance(msg, PprzMessage):

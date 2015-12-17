@@ -101,20 +101,6 @@ let log_xml = fun timeofday data_file ->
 
 let start_time = U.gettimeofday ()
 
-(* Run a command and return its results as a string. *)
-let read_process command =
-  let buffer_size = 2048 in
-  let buffer = Buffer.create buffer_size in
-  let string = String.create buffer_size in
-  let in_channel = Unix.open_process_in command in
-  let chars_read = ref 1 in
-  while !chars_read <> 0 do
-    chars_read := input in_channel string 0 buffer_size;
-    Buffer.add_substring buffer string 0 !chars_read
-  done;
-  ignore (Unix.close_process_in in_channel);
-  Buffer.contents buffer
-
 (* Opens the log files *)
 let logger = fun () ->
   let d = U.localtime start_time in
@@ -127,11 +113,7 @@ let logger = fun () ->
   and data_name = sprintf "%s.data" basename in
   let f = open_out (logs_path // log_name) in
   (* version string with whitespace/newline at the end stripped *)
-  let version_str =
-    try
-      Str.replace_first (Str.regexp "[ \n]+$") "" (read_process (Env.paparazzi_src ^ "/paparazzi_version"))
-    with _ -> "UNKNOWN" in
-  output_string f ("<!-- logged with runtime paparazzi_version " ^ version_str ^ " -->\n");
+  output_string f ("<!-- logged with runtime paparazzi_version " ^  Env.get_paparazzi_version () ^ " -->\n");
   let build_str =
     try
       let f = open_in (Env.paparazzi_home ^ "/var/build_version.txt") in
@@ -688,21 +670,25 @@ let add_intruder = fun vs ->
   Hashtbl.add intruders id intruder
 
 let update_intruder = fun logging _sender vs ->
-  let id = Pprz.string_assoc "id" vs in
-  (*prerr_endline (sprintf "update_intruder %s" id);*)
-  if not (Hashtbl.mem intruders id) then
-    add_intruder vs;
-  let i = Hashtbl.find intruders id in
-  let lat = Pprz.int_assoc "lat" vs
-  and lon = Pprz.int_assoc "lon" vs in
-  let geo = make_geo_deg (float lat /. 1e7) (float lon /. 1e7) in
-  i.Intruder.pos <- geo;
-  i.Intruder.alt <- float (Pprz.int_assoc "alt" vs) /. 1000.;
-  i.Intruder.course <- Pprz.float_assoc "course" vs;
-  i.Intruder.gspeed <- Pprz.float_assoc "speed" vs;
-  i.Intruder.climb <- Pprz.float_assoc "climb" vs;
-  i.Intruder.unix_time <- U.gettimeofday ();
-  log logging "ground" "INTRUDER" vs
+  try
+    let id = Pprz.string_assoc "id" vs in
+    (*prerr_endline (sprintf "update_intruder %s" id);*)
+    if not (Hashtbl.mem intruders id) then
+      add_intruder vs;
+    let i = Hashtbl.find intruders id in
+    let lat = Pprz.int_assoc "lat" vs
+    and lon = Pprz.int_assoc "lon" vs in
+    let geo = make_geo_deg (float lat /. 1e7) (float lon /. 1e7) in
+    i.Intruder.pos <- geo;
+    i.Intruder.alt <- float (Pprz.int_assoc "alt" vs) /. 1000.;
+    i.Intruder.course <- Pprz.float_assoc "course" vs;
+    i.Intruder.gspeed <- Pprz.float_assoc "speed" vs;
+    i.Intruder.climb <- Pprz.float_assoc "climb" vs;
+    i.Intruder.unix_time <- U.gettimeofday ();
+    log logging "ground" "INTRUDER" vs
+  with
+    Failure msg ->
+      prerr_endline ("Error parsing INTRUDER message: "^msg)
 
 (* listen for intruders and log them *)
 let listen_intruders = fun log ->
