@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 Gautier Hattenberger, Alexandre Bustico
+ * Copyright (C) 2013-2015 Gautier Hattenberger, Alexandre Bustico
  *
  * This file is part of paparazzi.
  *
@@ -20,15 +20,15 @@
  */
 
 /*
- * @file subsystems/chibios-libopencm3/chibios_sdlog.c
+ * @file modules/loggers/sdlog_chibios.c
  * @brief sdlog process with battery monitoring
  *
  */
 
 #include <ch.h>
 #include <hal.h>
-#include "subsystems/chibios-libopencm3/sdLog.h"
-#include "subsystems/chibios-libopencm3/chibios_sdlog.h"
+#include "modules/loggers/sdlog_chibios/sdLog.h"
+#include "modules/loggers/sdlog_chibios.h"
 #include "mcu_periph/adc.h"
 
 #define DefaultAdcOfVoltage(voltage) ((uint32_t) (voltage/(DefaultVoltageOfAdc(1))))
@@ -92,11 +92,8 @@ void chibios_sdlog_init(struct chibios_sdlog *sdlog, FileDes *file)
 
 }
 
-bool_t chibios_logInit(void)
+bool_t sdlog_chibios_init(void)
 {
-  nvicSetSystemHandlerPriority(HANDLER_PENDSV,
-             CORTEX_PRIORITY_MASK(15));
-
   // Init sdlog struct
   chibios_sdlog_init(&chibios_sdlog, &pprzLogFile);
 
@@ -122,7 +119,7 @@ error:
 }
 
 
-void chibios_logFinish(bool_t flush)
+void sdlog_chibios_finish(bool_t flush)
 {
   if (pprzLogFile != -1) {
     sdLogCloseAllLogs(flush);
@@ -146,7 +143,7 @@ static msg_t batterySurveyThd(void *arg)
       V_ALERT, 0xfff, &powerOutageIsr);
 
   chEvtWaitOne(EVENT_MASK(1));
-  chibios_logFinish (false);
+  sdlog_chibios_finish (false);
   chThdExit(0);
   systemDeepSleep();
   return 0;

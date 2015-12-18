@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 Gautier Hattenberger, Alexandre Bustico
+ * Copyright (C) 2013-2015 Gautier Hattenberger, Alexandre Bustico
  *
  * This file is part of paparazzi.
  *
@@ -20,16 +20,16 @@
  */
 
 /*
- * @file subsystems/chibios-libopencm3/chibios_sdlog.h
+ * @file modules/loggers/sdlog_chibios.c
  * @brief sdlog process with battery monitoring
  *
  */
 
-#ifndef CHIBIOS_SDLOG_H
-#define CHIBIOS_SDLOG_H
+#ifndef SDLOG_CHIBIOS_H
+#define SDLOG_CHIBIOS_H
 
-#include "ff.h"
-#include "subsystems/chibios-libopencm3/sdLog.h"
+#include <ff.h>
+#include "modules/loggers/sdlog_chibios/sdLog.h"
 #include "mcu_periph/link_device.h"
 
 /*
@@ -46,9 +46,12 @@ extern FileDes pprzLogFile;
 extern FileDes flightRecorderLogFile;
 #endif
 
-extern bool_t chibios_logInit(void);
-extern void chibios_logFinish(bool_t flush);
+extern bool_t sdlog_chibios_init(void);
+extern void sdlog_chibios_finish(bool_t flush);
 
+
+/** chibios_sdlog structure
+ */
 struct chibios_sdlog {
   FileDes *file;
   /** Generic device interface */

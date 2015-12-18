@@ -314,7 +314,7 @@ static msg_t     thdUsbStorage(void *arg)
 
 
   /* connect sdcard sdc interface sdio */
-  if (sdioConnect () == false)
+  if (sdio_connect () == false)
     chThdExit (MSG_TIMEOUT);
 
   /* initialize the USB mass storage driver */
@@ -350,7 +350,7 @@ static msg_t     thdUsbStorage(void *arg)
   usbDisconnectBus(&USBD1);
   chThdSleepMilliseconds(500);
   msdStop(&UMSD1);
-  sdioDisconnect ();
+  sdio_disconnect ();
 
   MCU_RESTART();
   return MSG_OK;

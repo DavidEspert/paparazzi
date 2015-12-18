@@ -115,11 +115,11 @@ SdioError sdLogInit (uint32_t* freeSpaceInKo)
     return  SDLOG_NOCARD;
 
 
-  sdioConnect ();
+  sdio_connect ();
   chThdSleepMilliseconds (10);
-  sdioDisconnect ();
+  sdio_disconnect ();
 
-  if (sdioConnect () == FALSE)
+  if (sdio_connect () == FALSE)
     return  SDLOG_NOCARD;
 
   FRESULT rc = f_mount(0, &fatfs);
@@ -153,7 +153,7 @@ SdioError sdLogFinish (void)
   }
 
   // if we mount, unmount, don't disconnect sdio
-  /* if (sdioDisconnect () == FALSE) */
+  /* if (sdio_disconnect () == FALSE) */
   /*   return  SDLOG_NOCARD; */
 
   return  SDLOG_OK ;
