@@ -13,7 +13,7 @@
 
 
 static void       varLenMsgQueueLock(VarLenMsgQueue* que);
-static void       varLenMsgQueueUnlock(void);
+static void       varLenMsgQueueUnlock(VarLenMsgQueue* que);
 static uint16_t   popSparseChunkMap (VarLenMsgQueue* que, const uint16_t  mplAddr);
 static void       pushSparseChunkMap (VarLenMsgQueue* que, const MsgPtrLen mpl);
 static uint16_t   getSparseChunkMapFirstFreeIndex (const VarLenMsgQueue* que);
@@ -34,7 +34,7 @@ bool_t		varLenMsgQueueIsFull (VarLenMsgQueue* que)
 {
   varLenMsgQueueLock (que);
   bool_t retVal = ringBufferIsFull (&que->circBuf) || chMBGetFreeCountI (&que->mb) <= 0;
-  varLenMsgQueueUnlock ();
+  varLenMsgQueueUnlock (que);
   return retVal;
 }
 
@@ -42,7 +42,7 @@ bool_t 		varLenMsgQueueIsEmpty (VarLenMsgQueue* que)
 {
   varLenMsgQueueLock (que);
   bool_t retVal = ringBufferIsEmpty (&que->circBuf) && chMBGetUsedCountI (&que->mb) <= 0;
-  varLenMsgQueueUnlock ();
+  varLenMsgQueueUnlock (que);
   return retVal;
 }
 
@@ -50,7 +50,7 @@ int32_t varLenMsgQueueUsedSize (VarLenMsgQueue* que)
 {
   varLenMsgQueueLock (que);
   int32_t  retVal =  ringBufferUsedSize (&que->circBuf);
-  varLenMsgQueueUnlock ();
+  varLenMsgQueueUnlock (que);
   return retVal;
 }
 
@@ -58,7 +58,7 @@ int32_t varLenMsgQueueFreeSize (VarLenMsgQueue* que)
 {
   varLenMsgQueueLock (que);
   int32_t  retVal =  ringBufferFreeSize (&que->circBuf);
-  varLenMsgQueueUnlock ();
+  varLenMsgQueueUnlock (que);
   return retVal;
 }
 
@@ -120,7 +120,7 @@ int32_t varLenMsgQueuePush(VarLenMsgQueue* que, const void* msg, const size_t ms
       }
     }
 unlockAndExit:
-    varLenMsgQueueUnlock ();
+    varLenMsgQueueUnlock (que);
     return retVal;
   }
 }
@@ -181,7 +181,7 @@ int32_t varLenMsgQueuePopTimeout (VarLenMsgQueue* que, void* msg,
   }
 
 unlockAndExit:
-  varLenMsgQueueUnlock ();
+  varLenMsgQueueUnlock (que);
   return retVal;
 }
 
@@ -246,7 +246,7 @@ int32_t varLenMsgQueueReserveChunk (VarLenMsgQueue* que, ChunkBuffer *cbuf, cons
   /*       ringBufferGetWritePointer(&que->circBuf)); */
 
 unlockAndExit:
-  varLenMsgQueueUnlock();
+  varLenMsgQueueUnlock(que);
   return retVal;
 }
 
@@ -283,7 +283,7 @@ int32_t varLenMsgQueueSendChunk (VarLenMsgQueue* que, const ChunkBuffer *cbuf,
     que->mbReservedSlot--;
   }
 
-  varLenMsgQueueUnlock();
+  varLenMsgQueueUnlock(que);
   return retVal;
 }
 
@@ -342,7 +342,7 @@ void varLenMsgQueueFreeChunk (VarLenMsgQueue* que, const ChunkBufferRO *cbuf)
     ringBufferReadSeek(&que->circBuf, lenOfChunk);
   }
 
-  varLenMsgQueueUnlock ();
+  varLenMsgQueueUnlock (que);
 }
 
 
@@ -353,9 +353,9 @@ static void varLenMsgQueueLock(VarLenMsgQueue* que)
 }
 
 
-static void varLenMsgQueueUnlock()
+static void varLenMsgQueueUnlock(VarLenMsgQueue* que)
 {
-  chMtxUnlock();
+  chMtxUnlock(&que->mtx);
 }
 
 
@@ -431,7 +431,7 @@ bool_t varLenMsgQueueTestIntegrityIfEmpty(VarLenMsgQueue* que)
   }
 
 unlockAndExit:
-  varLenMsgQueueUnlock();
+  varLenMsgQueueUnlock(que);
   return retVal;
 }
 

@@ -1,7 +1,7 @@
 #pragma once
+#include "std.h"
 #include "mcuconf.h"
 
-#include "ff.h"
 #include <stdarg.h>
 
 #define NUMBERLEN 4

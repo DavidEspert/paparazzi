@@ -24,20 +24,20 @@
  *
  */
 
-#include "ch.h"
-#include "hal.h"
+#include <ch.h>
+#include <hal.h>
 #include "usb_msd.h"
 #include "usbStorage.h"
-#include "chibios_sdlog.h"
-#include "chibios_init.h"
+#include "modules/loggers/sdlog_chibios.h"
+//#include "chibios_init.h"
 #include <stdio.h>
 #include <string.h>
-#include <sdio.h>
+#include "mcu_periph/sdio.h"
 
 static uint8_t  nibbleToHex (uint8_t nibble);
 static void	populateSerialNumberDescriptorData (void);
-static msg_t    thdUsbStorage(void *arg);
-static thread_t*	usbStorageThreadPtr=NULL;
+static void thdUsbStorage(void *arg);
+static thread_t* usbStorageThreadPtr=NULL;
 /* USB mass storage driver */
 static USBMassStorageDriver UMSD1;
 static bool_t isRunning = false;
@@ -285,12 +285,12 @@ void usbStorageStop (void)
 
 
 
-static msg_t     thdUsbStorage(void *arg)
+static void thdUsbStorage(void *arg)
 {
   (void) arg; // unused
   chRegSetThreadName("UsbStorage:polling");
   uint antiBounce=5;
-  EventListener connected;
+  event_listener_t connected;
 
   // Should use EXTI interrupt instead of active polling,
   // but in the chibios_opencm3 implementation, since EXTI is
@@ -353,7 +353,7 @@ static msg_t     thdUsbStorage(void *arg)
   sdio_disconnect ();
 
   MCU_RESTART();
-  return MSG_OK;
+  return;
 }
 
 bool_t usbStorageIsItRunning (void)

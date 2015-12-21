@@ -32,6 +32,7 @@
  *
  */
 
+#include "std.h"
 #include <string.h>
 #include <ch.h>
 #include <hal.h>
@@ -76,7 +77,7 @@ bool_t sdio_connect(void)
 
 
   sdcStart(&SDCD1, NULL);
-  while (sdcConnect(&SDCD1) != CH_CFG_SUCCESS) {
+  while (sdcConnect(&SDCD1) != HAL_SUCCESS) {
     chThdSleepMilliseconds(100);
   }
 

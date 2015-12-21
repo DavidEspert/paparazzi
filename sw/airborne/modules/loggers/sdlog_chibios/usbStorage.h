@@ -20,7 +20,7 @@
  */
 
 /*
- * @file subsystems/chibios-libopencm3/usbStorage.h
+ * @file modules/loggers/sdlog_chibios/usbStorage.h
  *
  */
 #pragma once

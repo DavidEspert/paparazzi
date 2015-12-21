@@ -29,20 +29,23 @@
  * @{
  */
 
-#include <stdarg.h>
+//#include <stdarg.h>
 
-#include "ch.h"
+#include "std.h"
+#include <ch.h>
 #include "printf.h"
 
 #define MAX_FILLER 11
 #define FLOAT_PRECISION 100000
 
+#if CHPRINTF_USE_FLOAT
 static int intPow(int a, int b)
 {
   uint32_t c=a;
   for (uint32_t n=b; n>1; n--) c*=a;
   return c;
 }
+#endif
 
 
 static bool_t writeBufferWithinSize (char **buffer, const char c, size_t *size)

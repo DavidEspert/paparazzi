@@ -20,14 +20,27 @@
  */
 
 /*
- * @file subsystems/chibios-libopencm3/usb_msd.h
+ * @file modules/loggers/sdlog_chibios/usb_msd.h
  *
  */
 
 #pragma once
 
-#include "ch.h"
-#include "hal.h"
+#include "std.h"
+#include <ch.h>
+#include <hal.h>
+
+#ifndef PACK_STRUCT_BEGIN
+#define PACK_STRUCT_BEGIN
+#endif
+
+#ifndef PACK_STRUCT_END
+#define PACK_STRUCT_END
+#endif
+
+#ifndef PACK_STRUCT_STRUCT
+#define PACK_STRUCT_STRUCT __attribute__((packed))
+#endif
 
 /**
  * @brief Command Block Wrapper structure
@@ -140,9 +153,9 @@ typedef struct {
  */
 typedef struct {
     const USBMassStorageConfig* config;
-  BinarySemaphore bsem;
-  Thread* thread;
-  EventSource evt_connected, evt_ejected;
+  binary_semaphore_t bsem;
+  thread_t* thread;
+  event_source_t evt_connected, evt_ejected;
   BlockDeviceInfo block_dev_info;
   msd_state_t state;
   msd_cbw_t cbw;

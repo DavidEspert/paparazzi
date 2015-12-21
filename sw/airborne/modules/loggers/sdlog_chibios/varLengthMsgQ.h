@@ -273,8 +273,8 @@ struct VarLenMsgQueue {
   const uint16_t mbAndSparseChunkSize;
   const bool_t useZeroCopyApi;
   uint16_t mbReservedSlot;
-  Mutex mtx ;
-  Mailbox mb;
+  mutex_t mtx ;
+  mailbox_t mb;
   CircularBuffer circBuf;
   uint32_t sparseChunkNumber;
   MsgPtrLen * const sparseChunkMap;

@@ -36,12 +36,12 @@ static const uint16_t V_ALERT = DefaultAdcOfVoltage(5.0f);
 static const char PPRZ_LOG_NAME[] = "pprzlog_";
 static const char PPRZ_LOG_DIR[] = "PPRZ";
 
-static msg_t batterySurveyThd(void *arg);
+static __attribute__((noreturn)) void batterySurveyThd(void *arg);
 static void  launchBatterySurveyThread (void);
-static void  powerOutageIsr (void);
+//static void  powerOutageIsr (void);
 static void systemDeepSleep (void);
-EventSource powerOutageSource;
-EventListener powerOutageListener;
+event_source_t powerOutageSource;
+event_listener_t powerOutageListener;
 
 
 FileDes pprzLogFile = -1;
@@ -108,7 +108,7 @@ bool_t sdlog_chibios_init(void)
     goto error;
 #endif
 
-  chEvtInit (&powerOutageSource);
+  chEvtObjectInit (&powerOutageSource);
 
   launchBatterySurveyThread ();
 
@@ -132,21 +132,22 @@ void sdlog_chibios_finish(bool_t flush)
 }
 
 
-static msg_t batterySurveyThd(void *arg)
+static void batterySurveyThd(void *arg)
 {
   (void)arg;
   chRegSetThreadName ("battery survey");
   chEvtRegister(&powerOutageSource, &powerOutageListener, 1);
   chThdSleepMilliseconds (2000);
 
-  register_adc_watchdog((uint32_t) ADC1, 4,
-      V_ALERT, 0xfff, &powerOutageIsr);
+  // FIXME directly trigger chibios event
+  //register_adc_watchdog((uint32_t) ADC1, 4,
+  //    V_ALERT, 0xfff, &powerOutageIsr);
 
   chEvtWaitOne(EVENT_MASK(1));
   sdlog_chibios_finish (false);
   chThdExit(0);
   systemDeepSleep();
-  return 0;
+  while (1) ; // CHECK if correct
 }
 
 
@@ -161,11 +162,13 @@ static msg_t batterySurveyThd(void *arg)
 
   ° all theses problems will vanish when we will use a chibios hal
  */
-static void  powerOutageIsr (void)
+/*static void  powerOutageIsr (void)
 {
   // trigger PendSVVector isr
   SCB_ICSR = ICSR_PENDSVSET;
-}
+}*/
+
+/*FIXME
 
 CH_CFG_IRQ_HANDLER(PendSVVector) {
   CH_CFG_IRQ_PROLOGUE();
@@ -174,6 +177,7 @@ CH_CFG_IRQ_HANDLER(PendSVVector) {
   chSysUnlockFromISR();
   CH_CFG_IRQ_EPILOGUE();
 }
+*/
 
 static void systemDeepSleep (void)
 {

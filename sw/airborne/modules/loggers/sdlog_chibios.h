@@ -28,7 +28,7 @@
 #ifndef SDLOG_CHIBIOS_H
 #define SDLOG_CHIBIOS_H
 
-#include <ff.h>
+#include "std.h"
 #include "modules/loggers/sdlog_chibios/sdLog.h"
 #include "mcu_periph/link_device.h"
 
@@ -42,7 +42,7 @@
 extern FileDes pprzLogFile;
 
 #if FLIGHTRECORDER_SDLOG
-// if activated, will log all process states
+// if activated, will log specific telemetry process
 extern FileDes flightRecorderLogFile;
 #endif
 

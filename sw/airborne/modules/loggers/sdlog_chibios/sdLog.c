@@ -1,11 +1,11 @@
 #include <string.h>
 #include <stdlib.h>
 #include "sdLog.h"
-#include "ch.h"
-#include "hal.h"
-#include "ff.h"
+#include <ch.h>
+#include <hal.h>
+#include <ff.h>
 #include "printf.h"
-#include "sdio.h"
+#include "mcu_periph/sdio.h"
 #include "rtcAccess.h"
 #include <ctype.h>
 
@@ -90,7 +90,7 @@ static FATFS fatfs; /* File system object */
 #ifdef SDLOG_NEED_QUEUE
 static size_t logMessageLen (const LogMessage *lm);
 static size_t logRawLen (const size_t len);
-static msg_t thdSdLog(void *arg) ;
+static __attribute__((noreturn)) void thdSdLog(void *arg) ;
 static SdioError sdLoglaunchThread (void);
 static SdioError sdLogStopThread (void);
 static thread_t *sdLogThd = NULL;
@@ -122,7 +122,7 @@ SdioError sdLogInit (uint32_t* freeSpaceInKo)
   if (sdio_connect () == FALSE)
     return  SDLOG_NOCARD;
 
-  FRESULT rc = f_mount(0, &fatfs);
+  FRESULT rc = f_mount(&fatfs, 0, 1); // FIXME
   if (rc != FR_OK) {
     return SDLOG_FATFS_ERROR;
   }
@@ -147,7 +147,7 @@ SdioError sdLogInit (uint32_t* freeSpaceInKo)
 
 SdioError sdLogFinish (void)
 {
-  FRESULT rc = f_mount(0, NULL);
+  FRESULT rc = f_mount(NULL, 0, 1);
   if (rc != FR_OK) {
     return SDLOG_FATFS_ERROR;
   }
@@ -498,7 +498,7 @@ uint32_t uiGetIndexOfLogFile (const char* prefix, const char* fileName)
 
 
 #ifdef SDLOG_NEED_QUEUE
-static msg_t thdSdLog(void *arg)
+static void thdSdLog(void *arg)
 {
   (void) arg;
   struct PerfBuffer {
@@ -561,9 +561,11 @@ static msg_t thdSdLog(void *arg)
               FRESULT rc = f_write(fo, perfBuffer, SDLOG_WRITE_BUFFER_SIZE, &bw);
               f_sync (fo);
               if (rc) {
-                return SDLOG_FATFS_ERROR;
+                return;
+                //return SDLOG_FATFS_ERROR;
               } else if (bw != SDLOG_WRITE_BUFFER_SIZE) {
-                return SDLOG_FSFULL;
+                return;
+                //return SDLOG_FSFULL;
               }
 
               memcpy (perfBuffer, &(lm->mess[stayLen]), messLen-stayLen);
@@ -578,7 +580,8 @@ static msg_t thdSdLog(void *arg)
     }
   }
 
-  return SDLOG_OK;
+  return;
+  //return SDLOG_OK;
 }
 
 static size_t logMessageLen (const LogMessage *lm)

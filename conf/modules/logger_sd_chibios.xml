@@ -13,7 +13,7 @@
   <header>
     <file name="sdlog_chibios.h" />
   </header>
-  <init fun="sdlog_chibios_init.h"/>
+  <init fun="sdlog_chibios_init()"/>
   <makefile target="ap">
     <file name="sdlog_chibios.c"/>
     <file name="sdlog_chibios/ringBuffer.c"/>
@@ -23,6 +23,10 @@
     <file name="sdlog_chibios/printf.c"/>
     <file name="sdlog_chibios/usb_msd.c"/>
     <file name="sdlog_chibios/usbStorage.c"/>
-    <file_arch name="sdio.c" dir="mcu_periph"/>
+    <file_arch name="sdio_arch.c" dir="mcu_periph"/>
+    <configure name="USE_FATFS" value="TRUE"/>
+    <define name="HAL_USE_RTC" value="TRUE"/>
+    <define name="HAL_USE_SDC" value="TRUE"/>
+    <define name="HAL_USE_USB" value="TRUE"/>
   </makefile>
 </module>
