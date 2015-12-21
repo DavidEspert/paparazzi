@@ -26,6 +26,7 @@
  * handling of stm32 PWM input using a timer with capture.
  */
 #include "mcu_periph/pwm_input_arch.h"
+#include "mcu_periph/gpio.h"
 #include "hal.h"
 
 #define ONE_MHZ_CLK 1000000
@@ -37,8 +38,8 @@ static void input1_period_cb(ICUDriver *icup) {
 }
 
 static void input1_width_cb(ICUDriver *icup) {
-  pwm_input_width_tics[PWM_INPUT1] = icuGetWidthX(icup);
-  pwm_input_width_valid[PWM_INPUT1] = TRUE;
+  pwm_input_duty_tics[PWM_INPUT1] = icuGetWidthX(icup);
+  pwm_input_duty_valid[PWM_INPUT1] = TRUE;
 }
 
 static ICUConfig pwm_input1_cfg = {
@@ -49,13 +50,13 @@ static ICUConfig pwm_input1_cfg = {
 #else
 #error "Unknown PWM_INPUT1_PULSE_TYPE"
 #endif
-  PWM_INPUT_TICKS_OF_USEC * ONE_MHZ_CLK,
+  PWM_INPUT_TICKS_PER_USEC * ONE_MHZ_CLK,
   input1_width_cb,
   input1_period_cb,
   NULL,
   PWM_INPUT1_CHANNEL,
   0
-}
+};
 #endif
 
 #ifdef USE_PWM_INPUT2
@@ -65,8 +66,8 @@ static void input2_period_cb(ICUDriver *icup) {
 }
 
 static void input2_width_cb(ICUDriver *icup) {
-  pwm_input_width_tics[PWM_INPUT2] = icuGetWidthX(icup);
-  pwm_input_width_valid[PWM_INPUT2] = TRUE;
+  pwm_input_duty_tics[PWM_INPUT2] = icuGetWidthX(icup);
+  pwm_input_duty_valid[PWM_INPUT2] = TRUE;
 }
 
 static ICUConfig pwm_input2_cfg = {
@@ -77,13 +78,13 @@ static ICUConfig pwm_input2_cfg = {
 #else
 #error "Unknown PWM_INPUT2_PULSE_TYPE"
 #endif
-  PWM_INPUT_TICKS_OF_USEC * ONE_MHZ_CLK,
+  PWM_INPUT_TICKS_PER_USEC * ONE_MHZ_CLK,
   input2_width_cb,
   input2_period_cb,
   NULL,
   PWM_INPUT2_CHANNEL,
   0
-}
+};
 #endif
 
 void pwm_input_init(void)

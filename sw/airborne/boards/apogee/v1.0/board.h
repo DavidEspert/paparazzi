@@ -911,12 +911,23 @@
 /*
  * PWM input
  */
-#define PWM_INPUT1_ICU            ICDU1
+// PWM_INPUT 1 on PA8 (also PPM IN)
+#define PWM_INPUT1_ICU            ICUD1
 #define PWM_INPUT1_CHANNEL        ICU_CHANNEL_1
 // PPM in (aka PA8) is used: not compatible with PPM RC receiver
 #define PWM_INPUT1_GPIO_PORT      GPIOA
 #define PWM_INPUT1_GPIO_PIN       GPIO8
 #define PWM_INPUT1_GPIO_AF        GPIO_AF1
+
+// PWM_INPUT 2 on PA3 (also SERVO 1)
+#if (USE_PWM1 && USE_PWM_INPUT2)
+#error "PW1 and PWM_INPUT2 are not compatible"
+#endif
+#define PWM_INPUT2_ICU            ICUD2
+#define PWM_INPUT2_CHANNEL        ICU_CHANNEL_1
+#define PWM_INPUT2_GPIO_PORT      GPIOA
+#define PWM_INPUT2_GPIO_PIN       GPIO2
+#define PWM_INPUT2_GPIO_AF        GPIO_AF3
 
 /**
  * I2C defines
