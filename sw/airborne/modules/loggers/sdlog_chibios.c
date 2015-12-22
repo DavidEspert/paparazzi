@@ -34,6 +34,7 @@
 #include "modules/loggers/sdlog_chibios.h"
 #include "mcu_periph/adc.h"
 #include "led.h"
+#include "subsystems/gps.h"
 
 // Delay before starting SD log
 #ifndef SDLOG_START_DELAY
@@ -174,8 +175,8 @@ static void thd_startlog(void *arg)
     // we sync gps time to rtc every 5 seconds
     if (chVTGetSystemTime() - timestamp > 5000) {
       timestamp = chVTGetSystemTime();
-      if (getGpsTimeOfWeek() != 0) {
-        setRtcFromGps (getGpsWeek(), getGpsTimeOfWeek());
+      if (gps.tow != 0) {
+        setRtcFromGps (gps.week, gps.tow);
       }
     }
 

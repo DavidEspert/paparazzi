@@ -184,7 +184,7 @@ void msdConfigureHookI(USBMassStorageDriver *msdp)
  * @retval TRUE         Message handled internally.
  * @retval FALSE        Message not handled.
  */
-bool_t msdRequestsHook(USBDriver *usbp) {
+bool msdRequestsHook(USBDriver *usbp) {
 
   /* check that the request is of type Class / Interface */
   if (((usbp->setup[0] & USB_RTYPE_TYPE_MASK) == USB_RTYPE_TYPE_CLASS) &&

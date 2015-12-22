@@ -26,9 +26,9 @@
 
 #pragma once
 
-#include "std.h"
 #include <ch.h>
 #include <hal.h>
+#include "std.h"
 
 #ifndef PACK_STRUCT_BEGIN
 #define PACK_STRUCT_BEGIN
@@ -213,7 +213,7 @@ void msdConfigureHookI(USBMassStorageDriver *msdp);
  * @retval TRUE         Message handled internally.
  * @retval FALSE        Message not handled.
  */
-bool_t msdRequestsHook(USBDriver *usbp);
+bool msdRequestsHook(USBDriver *usbp);
 
 #ifdef __cplusplus
 }

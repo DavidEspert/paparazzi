@@ -561,10 +561,10 @@ static void thdSdLog(void *arg)
               FRESULT rc = f_write(fo, perfBuffer, SDLOG_WRITE_BUFFER_SIZE, &bw);
               f_sync (fo);
               if (rc) {
-                return;
+                chThdExit(SDLOG_FATFS_ERROR); // FIXME check this
                 //return SDLOG_FATFS_ERROR;
               } else if (bw != SDLOG_WRITE_BUFFER_SIZE) {
-                return;
+                chThdExit(SDLOG_FSFULL); // FIXME check this
                 //return SDLOG_FSFULL;
               }
 
@@ -580,7 +580,8 @@ static void thdSdLog(void *arg)
     }
   }
 
-  return;
+  chThdExit(SDLOG_OK);
+  while (1) ;
   //return SDLOG_OK;
 }
 

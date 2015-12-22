@@ -40,10 +40,6 @@
 #include <stdarg.h>
 
 
-static char sdioBuffer[200];
-static uint32_t sdioBufferIndex = 0;
-static void sdioDebug (const char *fmt, ...) ;
-
 static enum {STOP, CONNECT} cnxState = STOP;
 
 
