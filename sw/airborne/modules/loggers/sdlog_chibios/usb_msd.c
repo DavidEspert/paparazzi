@@ -724,7 +724,7 @@ bool_t msd_read_command_block(USBMassStorageDriver *msdp) {
  * @brief Mass storage thread that processes commands
  */
 static THD_WORKING_AREA(mass_storage_thread_wa, 1536);
-static msg_t mass_storage_thread(void *arg) {
+static void mass_storage_thread(void *arg) {
 
   USBMassStorageDriver *msdp = (USBMassStorageDriver *)arg;
 
@@ -751,7 +751,7 @@ static msg_t mass_storage_thread(void *arg) {
         usbDisconnectBus(msdp->config->usbp);
         usbStop(msdp->config->usbp);
         chThdExit(0);
-        return 0;
+        // return 0;
     }
 
     /* wait until the ISR wakes thread */
@@ -759,7 +759,7 @@ static msg_t mass_storage_thread(void *arg) {
       msd_wait_for_isr(msdp);
   }
 
-  return 0;
+  // return 0;
 }
 
 /**
@@ -767,18 +767,18 @@ static msg_t mass_storage_thread(void *arg) {
  */
 void msdInit(USBMassStorageDriver *msdp) {
 
-  chDbgCheck(msdp != NULL, "msdInit");
+  chDbgAssert(msdp != NULL, "msdInit");
 
   msdp->config = NULL;
   msdp->thread = NULL;
   msdp->state = MSD_IDLE;
 
   /* initialize the driver events */
-  chEvtInit(&msdp->evt_connected);
-  chEvtInit(&msdp->evt_ejected);
+  chEvtObjectInit(&msdp->evt_connected);
+  chEvtObjectInit(&msdp->evt_ejected);
 
   /* initialise the binary semaphore as taken */
-  chBSemInit(&msdp->bsem, TRUE);
+  chBSemObjectInit(&msdp->bsem, TRUE);
 
   /* initialise the sense data structure */
   size_t i;
@@ -803,9 +803,9 @@ void msdInit(USBMassStorageDriver *msdp) {
  */
 void msdStart(USBMassStorageDriver *msdp, const USBMassStorageConfig *config) {
 
-  chDbgCheck(msdp != NULL, "msdStart");
-  chDbgCheck(config != NULL, "msdStart");
-  chDbgCheck(msdp->thread == NULL, "msdStart");
+  chDbgAssert(msdp != NULL, "msdStart");
+  chDbgAssert(config != NULL, "msdStart");
+  chDbgAssert(msdp->thread == NULL, "msdStart");
 
   /* save the configuration */
   msdp->config = config;
@@ -844,7 +844,7 @@ void msdStart(USBMassStorageDriver *msdp, const USBMassStorageConfig *config) {
  */
 void msdStop(USBMassStorageDriver *msdp) {
 
-  chDbgCheck(msdp->thread != NULL, "msdStop");
+  chDbgAssert(msdp->thread != NULL, "msdStop");
 
   /* notify the thread that it's over */
   chThdTerminate(msdp->thread);

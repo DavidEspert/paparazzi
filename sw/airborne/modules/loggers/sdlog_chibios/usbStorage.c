@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014 Gautier Hattenberger, Alexandre Bustico
+ * Copyright (C) 2014-2015 Gautier Hattenberger, Alexandre Bustico
  *
  * This file is part of paparazzi.
  *
@@ -20,7 +20,7 @@
  */
 
 /*
- * @file subsystems/chibios-libopencm3/usbStorage.c
+ * @file modules/loggers/sdlog_chibios/usbStorage.c
  *
  */
 
@@ -259,11 +259,11 @@ static USBMassStorageConfig msdConfig =
 
 
 static THD_WORKING_AREA(waThdUsbStorage, 1024);
-void usbStorageStartPolling (void)
+void usbStorageStartPolling (thread_t *ap_thd)
 {
   populateSerialNumberDescriptorData ();
   usbStorageThreadPtr = chThdCreateStatic (waThdUsbStorage, sizeof(waThdUsbStorage),
-      NORMALPRIO, thdUsbStorage, NULL);
+      NORMALPRIO, thdUsbStorage, (void *)ap_thd);
 
 }
 
@@ -287,7 +287,9 @@ void usbStorageStop (void)
 
 static void thdUsbStorage(void *arg)
 {
-  (void) arg; // unused
+  // Autopilot threat from arg
+  thread_t *ap_thd = (thread_t *)arg;
+
   chRegSetThreadName("UsbStorage:polling");
   uint antiBounce=5;
   event_listener_t connected;
@@ -310,7 +312,7 @@ static void thdUsbStorage(void *arg)
   chRegSetThreadName("UsbStorage:connected");
 
   /* Stop the logs*/
-  chibios_logFinish (true);
+  sdlog_chibios_finish (true);
 
 
   /* connect sdcard sdc interface sdio */
@@ -334,10 +336,10 @@ static void thdUsbStorage(void *arg)
   chEvtWaitOne(EVENT_MASK(1));
 
   /* stop autopilot */
-  if (pprzThdPtr != NULL) {
-    chThdTerminate (pprzThdPtr);
-    chThdWait (pprzThdPtr);
-    pprzThdPtr = NULL;
+  if (ap_thd != NULL) {
+    chThdTerminate (ap_thd);
+    chThdWait (ap_thd);
+    ap_thd = NULL;
   }
 
   /* wait until usb-storage is unmount and usb cable is unplugged*/

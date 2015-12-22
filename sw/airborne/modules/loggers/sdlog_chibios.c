@@ -27,22 +27,41 @@
 
 #include <ch.h>
 #include <hal.h>
+#include "main_chibios.h"
 #include "modules/loggers/sdlog_chibios/sdLog.h"
+#include "modules/loggers/sdlog_chibios/usbStorage.h"
+#include "modules/loggers/sdlog_chibios/rtcAccess.h"
 #include "modules/loggers/sdlog_chibios.h"
 #include "mcu_periph/adc.h"
+#include "led.h"
+
+// Delay before starting SD log
+#ifndef SDLOG_START_DELAY
+#define SDLOG_START_DELAY 30
+#endif
 
 #define DefaultAdcOfVoltage(voltage) ((uint32_t) (voltage/(DefaultVoltageOfAdc(1))))
 static const uint16_t V_ALERT = DefaultAdcOfVoltage(5.0f);
 static const char PPRZ_LOG_NAME[] = "pprzlog_";
 static const char PPRZ_LOG_DIR[] = "PPRZ";
 
-static __attribute__((noreturn)) void batterySurveyThd(void *arg);
-static void  launchBatterySurveyThread (void);
+/*
+ * Start log thread
+ */
+static THD_WORKING_AREA(wa_thd_startlog, 2048);
+static __attribute__((noreturn)) void thd_startlog(void *arg);
+
+/*
+ * Bat survey thread
+ */
+static THD_WORKING_AREA(wa_thd_bat_survey, 4096);
+static __attribute__((noreturn)) void thd_bat_survey(void *arg);
 //static void  powerOutageIsr (void);
 static void systemDeepSleep (void);
 event_source_t powerOutageSource;
 event_listener_t powerOutageListener;
 
+bool_t sdOk = FALSE;
 
 FileDes pprzLogFile = -1;
 
@@ -54,14 +73,6 @@ static const char FR_LOG_DIR[] = "FLIGHT_RECORDER";
 FileDes flightRecorderLogFile = -1;
 #endif
 
-static THD_WORKING_AREA(waThdBatterySurvey, 4096);
-static void launchBatterySurveyThread (void)
-{
-
-  chThdCreateStatic (waThdBatterySurvey, sizeof(waThdBatterySurvey),
-      NORMALPRIO+2, batterySurveyThd, NULL);
-
-}
 
 // Functions for the generic device API
 static int sdlog_check_free_space(struct chibios_sdlog* p __attribute__((unused)), uint8_t len __attribute__((unused)))
@@ -92,30 +103,14 @@ void chibios_sdlog_init(struct chibios_sdlog *sdlog, FileDes *file)
 
 }
 
-bool_t sdlog_chibios_init(void)
+void sdlog_chibios_init(void)
 {
-  // Init sdlog struct
-  chibios_sdlog_init(&chibios_sdlog, &pprzLogFile);
+  // Start polling on USB
+  usbStorageStartPolling (pprzThdPtr);
 
-  if (sdLogInit (NULL) != SDLOG_OK)
-    goto error;
-
-  if (sdLogOpenLog (&pprzLogFile, PPRZ_LOG_DIR, PPRZ_LOG_NAME, TRUE) != SDLOG_OK)
-    goto error;
-
-#if FLIGHTRECORDER_SDLOG
-  if (sdLogOpenLog (&flightRecorderLogFile, FR_LOG_DIR, FLIGHTRECORDER_LOG_NAME, FALSE) != SDLOG_OK)
-    goto error;
-#endif
-
-  chEvtObjectInit (&powerOutageSource);
-
-  launchBatterySurveyThread ();
-
-  return TRUE;
-
-error:
-  return FALSE;
+  // Start log thread
+  chThdCreateStatic (wa_thd_startlog, sizeof(wa_thd_startlog),
+      NORMALPRIO+2, thd_startlog, NULL);
 }
 
 
@@ -131,8 +126,64 @@ void sdlog_chibios_finish(bool_t flush)
   }
 }
 
+static void thd_startlog(void *arg)
+{
+  (void) arg;
+  chRegSetThreadName("start log");
 
-static void batterySurveyThd(void *arg)
+  // Wait before starting the log if needed
+  chThdSleepSeconds (SDLOG_START_DELAY);
+  // Check if we are already in USB Storage mode
+  if (usbStorageIsItRunning ())
+    chThdSleepSeconds (20000); // stuck here for hours FIXME stop the thread ?
+
+  // Init sdlog struct
+  chibios_sdlog_init(&chibios_sdlog, &pprzLogFile);
+
+  // Check for init errors
+  sdOk = TRUE;
+
+  if (sdLogInit (NULL) != SDLOG_OK)
+    sdOk = FALSE;
+
+  if (sdLogOpenLog (&pprzLogFile, PPRZ_LOG_DIR, PPRZ_LOG_NAME, TRUE) != SDLOG_OK)
+    sdOk = FALSE;
+
+#if FLIGHTRECORDER_SDLOG
+  if (sdLogOpenLog (&flightRecorderLogFile, FR_LOG_DIR, FLIGHTRECORDER_LOG_NAME, FALSE) != SDLOG_OK)
+    sdOk = FALSE;
+#endif
+
+  // Create Battery Survey Thread with event
+  chEvtObjectInit (&powerOutageSource);
+  chThdCreateStatic (wa_thd_bat_survey, sizeof(wa_thd_bat_survey),
+      NORMALPRIO+2, thd_bat_survey, NULL);
+
+  while (TRUE) {
+#ifdef LED_SDLOG
+    LED_TOGGLE(LED_SDLOG);
+#endif
+    // Blink faster if init has errors
+    chThdSleepMilliseconds (sdOk == TRUE ? 1000 : 200);
+    static uint32_t timestamp = 0;
+
+    thread_t *tp = chRegFirstThread();
+    do {
+      tp = chRegNextThread(tp);
+    } while (tp != NULL);
+    // we sync gps time to rtc every 5 seconds
+    if (chVTGetSystemTime() - timestamp > 5000) {
+      timestamp = chVTGetSystemTime();
+      if (getGpsTimeOfWeek() != 0) {
+        setRtcFromGps (getGpsWeek(), getGpsTimeOfWeek());
+      }
+    }
+
+  }
+}
+
+
+static void thd_bat_survey(void *arg)
 {
   (void)arg;
   chRegSetThreadName ("battery survey");

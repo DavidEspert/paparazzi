@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014 Gautier Hattenberger, Alexandre Bustico
+ * Copyright (C) 2014-2015 Gautier Hattenberger, Alexandre Bustico
  *
  * This file is part of paparazzi.
  *
@@ -25,7 +25,9 @@
  */
 #pragma once
 
-void   usbStorageStartPolling (void);
+#include <ch.h>
+
+void   usbStorageStartPolling (thread_t *ap_thd);
 void   usbStorageStop  (void);
 void   usbStorageWaitForDeconnexion (void);
 bool_t usbStorageIsItRunning (void);
