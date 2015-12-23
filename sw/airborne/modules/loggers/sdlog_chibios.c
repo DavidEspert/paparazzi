@@ -30,11 +30,15 @@
 #include "main_chibios.h"
 #include "modules/loggers/sdlog_chibios/sdLog.h"
 #include "modules/loggers/sdlog_chibios/usbStorage.h"
-#include "modules/loggers/sdlog_chibios/rtcAccess.h"
 #include "modules/loggers/sdlog_chibios.h"
 #include "mcu_periph/adc.h"
 #include "led.h"
+
+#if HAL_USE_RTC
+#include <rtc.h>
+#include <time.h>
 #include "subsystems/gps.h"
+#endif
 
 // Delay before starting SD log
 #ifndef SDLOG_START_DELAY
@@ -168,17 +172,30 @@ static void thd_startlog(void *arg)
     chThdSleepMilliseconds (sdOk == TRUE ? 1000 : 200);
     static uint32_t timestamp = 0;
 
+    // FIXME what is this doing ? -> ask Alex
     thread_t *tp = chRegFirstThread();
     do {
       tp = chRegNextThread(tp);
     } while (tp != NULL);
+
+#if HAL_USE_RTC
+    // FIXME this could be done somewhere else, like in sys_time
     // we sync gps time to rtc every 5 seconds
     if (chVTGetSystemTime() - timestamp > 5000) {
       timestamp = chVTGetSystemTime();
       if (gps.tow != 0) {
-        setRtcFromGps (gps.week, gps.tow);
+        // Unix timestamp of the GPS epoch 1980-01-06 00:00:00 UTC
+        const uint32_t unixToGpsEpoch = 315964800;
+        struct tm time_tm;
+        time_t univTime = ((gps.week * 7 * 24 * 3600) + (gps.tow/1000)) + unixToGpsEpoch;
+        gmtime_r(&univTime, &time_tm);
+        // Chibios date struct
+        RTCDateTime date;
+        rtcConvertDateTimeToStructTm(&date, &time_tm, NULL);
+        rtcSetTime (&RTCD1, &date);
       }
     }
+#endif
 
   }
 }
