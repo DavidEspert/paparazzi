@@ -179,7 +179,7 @@ static inline void autopilot_ClearSettings(float clear)
 }
 
 #if DOWNLINK
-#include "subsystems/datalink/transport.h"
+#include "pprzlink/pprzlink_transport.h"
 extern void send_autopilot_version(struct transport_tx *trans, struct link_device *dev);
 #endif
 
@@ -210,6 +210,13 @@ extern bool_t autopilot_guided_goto_ned_relative(float dx, float dy, float dz, f
  */
 extern bool_t autopilot_guided_goto_body_relative(float dx, float dy, float dz, float dyaw);
 
-
+/** Set velocity and heading setpoints in GUIDED mode.
+ * @param vx North velocity (local NED frame) in meters/sec.
+ * @param vy East velocity (local NED frame) in meters/sec.
+ * @param vz Down velocity (local NED frame) in meters/sec.
+ * @param heading Setpoint in radians.
+ * @return TRUE if setpoint was set (currently in AP_MODE_GUIDED)
+ */
+extern bool_t autopilot_guided_move_ned(float vx, float vy, float vz, float heading);
 
 #endif /* AUTOPILOT_H */

@@ -39,7 +39,7 @@
 
 #include "subsystems/abi.h"
 
-#include "messages.h"
+#include "pprzlink/messages.h"
 #include "subsystems/datalink/downlink.h"
 
 // for datalink_time hack
@@ -110,6 +110,16 @@ void nps_autopilot_run_step(double time)
     AbiSendMsgBARO_ABS(BARO_SIM_SENDER_ID, pressure);
     main_event();
   }
+
+  if (nps_sensors_temperature_available()) {
+    AbiSendMsgTEMPERATURE(BARO_SIM_SENDER_ID, (float)sensors.temp.value);
+  }
+
+#if USE_AIRSPEED
+  if (nps_sensors_airspeed_available()) {
+    stateSetAirspeed_f((float)sensors.airspeed.value);
+  }
+#endif
 
 #if USE_SONAR
   if (nps_sensors_sonar_available()) {

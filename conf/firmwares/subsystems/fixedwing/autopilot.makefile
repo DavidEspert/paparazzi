@@ -199,7 +199,7 @@ sim.CFLAGS 		+= -DSITL
 sim.srcs 		+= $(SRC_ARCH)/sim_ap.c
 
 sim.CFLAGS 		+= -DDOWNLINK -DPERIODIC_TELEMETRY -DDOWNLINK_TRANSPORT=ivy_tp -DDOWNLINK_DEVICE=ivy_tp
-sim.srcs 		+= subsystems/datalink/downlink.c $(SRC_FIRMWARE)/datalink.c subsystems/datalink/ivy_transport.c subsystems/datalink/telemetry.c $(SRC_FIRMWARE)/ap_downlink.c $(SRC_FIRMWARE)/fbw_downlink.c
+sim.srcs 		+= subsystems/datalink/downlink.c subsystems/datalink/datalink.c $(SRC_FIRMWARE)/fixedwing_datalink.c pprzlink/src/ivy_transport.c subsystems/datalink/telemetry.c $(SRC_FIRMWARE)/ap_downlink.c $(SRC_FIRMWARE)/fbw_downlink.c
 
 sim.srcs 		+= $(SRC_ARCH)/sim_gps.c $(SRC_ARCH)/sim_adc_generic.c
 
@@ -234,3 +234,16 @@ fbw.srcs 		+= $(fbw_srcs) $(ns_srcs)
 
 ap.CFLAGS 		+= $(ap_CFLAGS) $(ns_CFLAGS)
 ap.srcs 		+= $(ap_srcs) $(ns_srcs)
+
+######################################################################
+##
+## include firmware independent nps makefile and add fixedwing specifics
+##
+include $(CFG_SHARED)/nps.makefile
+nps.srcs += nps/nps_autopilot_fixedwing.c
+nps.srcs += subsystems/datalink/datalink.c $(SRC_FIRMWARE)/fixedwing_datalink.c
+nps.srcs += $(SRC_FIRMWARE)/ap_downlink.c $(SRC_FIRMWARE)/fbw_downlink.c
+
+# add normal ap and fbw sources
+nps.CFLAGS  += $(fbw_CFLAGS) $(ap_CFLAGS)
+nps.srcs    += $(fbw_srcs) $(ap_srcs)

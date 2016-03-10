@@ -229,9 +229,11 @@ void guidance_h_mode_changed(uint8_t new_mode)
       stabilization_none_enter();
       break;
 
+#if USE_STABILIZATION_RATE
     case GUIDANCE_H_MODE_RATE:
       stabilization_rate_enter();
       break;
+#endif
 
     case GUIDANCE_H_MODE_CARE_FREE:
       stabilization_attitude_reset_care_free_heading();
@@ -299,6 +301,7 @@ void guidance_h_read_rc(bool_t  in_flight)
       stabilization_none_read_rc();
       break;
 
+#if USE_STABILIZATION_RATE
     case GUIDANCE_H_MODE_RATE:
 #if SWITCH_STICKS_FOR_RATE_CONTROL
       stabilization_rate_read_rc_switched_sticks();
@@ -306,6 +309,8 @@ void guidance_h_read_rc(bool_t  in_flight)
       stabilization_rate_read_rc();
 #endif
       break;
+#endif
+
     case GUIDANCE_H_MODE_CARE_FREE:
       stabilization_attitude_read_rc(in_flight, TRUE, FALSE);
       break;
@@ -319,6 +324,9 @@ void guidance_h_read_rc(bool_t  in_flight)
       stabilization_attitude_read_rc_setpoint_eulers(&guidance_h.rc_sp, in_flight, FALSE, FALSE);
 #if GUIDANCE_H_USE_SPEED_REF
       read_rc_setpoint_speed_i(&guidance_h.sp.speed, in_flight);
+      /* enable x,y velocity setpoints */
+      SetBit(guidance_h.sp.mask, 4);
+      SetBit(guidance_h.sp.mask, 5);
 #endif
       break;
 
@@ -352,9 +360,11 @@ void guidance_h_run(bool_t  in_flight)
       stabilization_none_run(in_flight);
       break;
 
+#if USE_STABILIZATION_RATE
     case GUIDANCE_H_MODE_RATE:
       stabilization_rate_run(in_flight);
       break;
+#endif
 
     case GUIDANCE_H_MODE_FORWARD:
       if (transition_percentage < (100 << INT32_PERCENTAGE_FRAC)) {
@@ -441,12 +451,11 @@ static void guidance_h_update_reference(void)
 {
   /* compute reference even if usage temporarily disabled via guidance_h_use_ref */
 #if GUIDANCE_H_USE_REF
-#if GUIDANCE_H_USE_SPEED_REF
-  if (guidance_h.mode == GUIDANCE_H_MODE_HOVER) {
+  if (bit_is_set(guidance_h.sp.mask, 4) && bit_is_set(guidance_h.sp.mask, 5)) {
     gh_update_ref_from_speed_sp(guidance_h.sp.speed);
-  } else
-#endif
+  } else {
     gh_update_ref_from_pos_sp(guidance_h.sp.pos);
+  }
 #endif
 
   /* either use the reference or simply copy the pos setpoint */
@@ -550,6 +559,12 @@ static void guidance_h_traj_run(bool_t in_flight)
 
 static void guidance_h_hover_enter(void)
 {
+  /* disable horizontal velocity setpoints,
+   * might still be activated in guidance_h_read_rc if GUIDANCE_H_USE_SPEED_REF
+   */
+  ClearBit(guidance_h.sp.mask, 4);
+  ClearBit(guidance_h.sp.mask, 5);
+
   /* set horizontal setpoint to current position */
   VECT2_COPY(guidance_h.sp.pos, *stateGetPositionNed_i());
 
@@ -561,6 +576,9 @@ static void guidance_h_hover_enter(void)
 
 static void guidance_h_nav_enter(void)
 {
+  ClearBit(guidance_h.sp.mask, 4);
+  ClearBit(guidance_h.sp.mask, 5);
+
   /* horizontal position setpoint from navigation/flightplan */
   INT32_VECT2_NED_OF_ENU(guidance_h.sp.pos, navigation_carrot);
 
@@ -621,6 +639,8 @@ void guidance_h_set_igain(uint32_t igain)
 bool_t guidance_h_set_guided_pos(float x, float y)
 {
   if (guidance_h.mode == GUIDANCE_H_MODE_GUIDED) {
+    ClearBit(guidance_h.sp.mask, 4);
+    ClearBit(guidance_h.sp.mask, 5);
     guidance_h.sp.pos.x = POS_BFP_OF_REAL(x);
     guidance_h.sp.pos.y = POS_BFP_OF_REAL(y);
     return TRUE;
@@ -631,8 +651,21 @@ bool_t guidance_h_set_guided_pos(float x, float y)
 bool_t guidance_h_set_guided_heading(float heading)
 {
   if (guidance_h.mode == GUIDANCE_H_MODE_GUIDED) {
+    ClearBit(guidance_h.sp.mask, 7);
     guidance_h.sp.heading = ANGLE_BFP_OF_REAL(heading);
     INT32_ANGLE_NORMALIZE(guidance_h.sp.heading);
+    return TRUE;
+  }
+  return FALSE;
+}
+
+bool_t guidance_h_set_guided_vel(float vx, float vy)
+{
+  if (guidance_h.mode == GUIDANCE_H_MODE_GUIDED) {
+    SetBit(guidance_h.sp.mask, 4);
+    SetBit(guidance_h.sp.mask, 5);
+    guidance_h.sp.speed.x = SPEED_BFP_OF_REAL(vx);
+    guidance_h.sp.speed.y = SPEED_BFP_OF_REAL(vy);
     return TRUE;
   }
   return FALSE;

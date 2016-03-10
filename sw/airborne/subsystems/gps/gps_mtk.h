@@ -19,10 +19,22 @@
  * Boston, MA 02111-1307, USA.
  */
 
+/** @file gps_mtk.h
+ * @brief Mediatek MT3329 specific code
+ *
+ * supports:
+ *   DIYDrones V1.4 protocol (AXN1.30_2278)
+ *   DIYDrones V1.6 protocol (AXN1.30_2389)
+ *
+ * documentation is partly incorrect, see mtk.xml for what seems
+ * to be "real"
+ *
+ */
 
 #ifndef MTK_H
 #define MTK_H
 
+#include "subsystems/gps.h"
 #include "mcu_periph/uart.h"
 
 /** Includes macros generated from mtk.xml */
@@ -46,17 +58,19 @@ struct GpsMtk {
 
   uint8_t status_flags;
   uint8_t sol_flags;
+
+  struct GpsState state;
 };
 
 extern struct GpsMtk gps_mtk;
 
-
-/*
- * This part is used by the autopilot to read data from a uart
- */
-#include "mcu_periph/link_device.h"
+extern void gps_mtk_event(void);
+extern void gps_mtk_init(void);
+extern void gps_mtk_register(void);
 
 #ifdef GPS_CONFIGURE
+extern void gps_configure(void);
+extern void gps_configure_uart(void);
 extern bool_t gps_configuring;
 #define GpsConfigure() {            \
     if (gps_configuring)            \
@@ -66,28 +80,5 @@ extern bool_t gps_configuring;
 #define GpsConfigure() {}
 #endif
 
-extern void gps_mtk_read_message(void);
-extern void gps_mtk_parse(uint8_t c);
-
-static inline void GpsEvent(void)
-{
-  struct link_device *dev = &((GPS_LINK).device);
-
-  while (dev->char_available(dev->periph)) {
-    gps_mtk_parse(dev->get_byte(dev->periph));
-    if (gps_mtk.msg_available) {
-      gps_mtk_msg();
-    }
-    GpsConfigure();
-  }
-}
-
-/*
- * dynamic GPS configuration
- */
-#ifdef GPS_CONFIGURE
-extern void gps_configure(void);
-extern void gps_configure_uart(void);
-#endif
 
 #endif /* MTK_H */

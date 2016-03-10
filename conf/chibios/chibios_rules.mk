@@ -149,7 +149,7 @@ CFLAGS   += -MD -MP -MF $(BUILDDIR)/.dep/$(@F).d
 CPPFLAGS += -MD -MP -MF $(BUILDDIR)/.dep/$(@F).d
 
 # Paths where to search for sources
-VPATH     = $(SRCPATHS)
+VPATH     += $(SRCPATHS)
 
 #
 # Include user extra rules if any

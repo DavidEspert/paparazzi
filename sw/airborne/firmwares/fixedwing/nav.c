@@ -25,25 +25,28 @@
  *
  */
 
-#define NAV_C
-
 #include <math.h>
+#include "std.h"
 
+static unit_t unit __attribute__((unused));
+
+#define NAV_C
 #include "firmwares/fixedwing/nav.h"
-#include "subsystems/gps.h"
 #include "firmwares/fixedwing/stabilization/stabilization_attitude.h"
 #include "firmwares/fixedwing/autopilot.h"
 #include "inter_mcu.h"
 #include "subsystems/navigation/traffic_info.h"
+#include "subsystems/gps.h"
 
-#define RCLost() bit_is_set(fbw_state->status, STATUS_RADIO_REALLY_LOST)
+#include "generated/flight_plan.h"
+
 
 enum oval_status oval_status;
 
 float last_x, last_y;
 
 /** Index of last waypoint. Used only in "go" stage in "route" horiz mode */
-static uint8_t last_wp __attribute__((unused));
+uint8_t last_wp __attribute__((unused));
 
 float rc_pitch;
 float carrot_x, carrot_y;
@@ -100,9 +103,6 @@ void nav_init_stage(void)
   nav_shift = 0;
 }
 
-#define PowerVoltage() (vsupply/10.)
-#define RcRoll(travel) (fbw_state->channels[RADIO_ROLL]* (float)travel /(float)MAX_PPRZ)
-
 #define MIN_DX ((int16_t)(MAX_PPRZ * 0.05))
 
 
@@ -156,15 +156,14 @@ void nav_circle_XY(float x, float y, float radius)
 }
 
 
-#define NavGlide(_last_wp, _wp) {                                       \
-    float start_alt = waypoints[_last_wp].a;                            \
-    float diff_alt = waypoints[_wp].a - start_alt;                      \
-    float alt = start_alt + nav_leg_progress * diff_alt;                \
-    float pre_climb = stateGetHorizontalSpeedNorm_f() * diff_alt / nav_leg_length; \
-    NavVerticalAltitudeMode(alt, pre_climb);                            \
-  }
-
-
+void nav_glide(uint8_t start_wp, uint8_t wp)
+{
+  float start_alt = waypoints[start_wp].a;
+  float diff_alt = waypoints[wp].a - start_alt;
+  float alt = start_alt + nav_leg_progress * diff_alt;
+  float pre_climb = stateGetHorizontalSpeedNorm_f() * diff_alt / nav_leg_length;
+  NavVerticalAltitudeMode(alt, pre_climb);
+}
 
 
 #define MAX_DIST_CARROT 250.
@@ -197,13 +196,6 @@ void nav_circle_XY(float x, float y, float radius)
   }
 
 
-#define NavFollow(_ac_id, _distance, _height)   \
-  nav_follow(_ac_id, _distance, _height);
-
-
-static unit_t unit __attribute__((unused));
-
-static inline void nav_follow(uint8_t _ac_id, float _distance, float _height);
 
 #ifdef NAV_GROUND_SPEED_PGAIN
 /** \brief Computes cruise throttle from ground speed setpoint
@@ -223,8 +215,8 @@ static void nav_ground_speed_loop(void)
 }
 #endif
 
-static float baseleg_out_qdr;
-static inline bool_t nav_compute_baseleg(uint8_t wp_af, uint8_t wp_td, uint8_t wp_baseleg, float radius)
+float baseleg_out_qdr;
+bool_t nav_compute_baseleg(uint8_t wp_af, uint8_t wp_td, uint8_t wp_baseleg, float radius)
 {
   nav_radius = radius;
 
@@ -247,7 +239,7 @@ static inline bool_t nav_compute_baseleg(uint8_t wp_af, uint8_t wp_td, uint8_t w
   return FALSE;
 }
 
-static inline bool_t nav_compute_final_from_glide(uint8_t wp_af, uint8_t wp_td, float glide)
+bool_t nav_compute_final_from_glide(uint8_t wp_af, uint8_t wp_td, float glide)
 {
 
   float x_0 = waypoints[wp_td].x - waypoints[wp_af].x;
@@ -285,9 +277,6 @@ static inline bool_t compute_TOD(uint8_t _af, uint8_t _td, uint8_t _tod, float g
 }
 
 
-#include "generated/flight_plan.h"
-
-
 #ifndef LINE_START_FUNCTION
 #define LINE_START_FUNCTION {}
 #endif
@@ -297,7 +286,7 @@ static inline bool_t compute_TOD(uint8_t _af, uint8_t _td, uint8_t _tod, float g
 
 
 
-static inline void nav_follow(uint8_t _ac_id, float _distance, float _height)
+void nav_follow(uint8_t _ac_id, float _distance, float _height)
 {
   struct ac_info_ * ac = get_ac_info(_ac_id);
   NavVerticalAutoThrottleMode(0.);

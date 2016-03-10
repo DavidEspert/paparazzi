@@ -33,7 +33,7 @@
 #include "generated/airframe.h"
 
 #include "mcu_periph/sys_time.h"
-#include "messages.h"
+#include "pprzlink/messages.h"
 
 #if USE_GPS_XSENS
 #if !USE_GPS
@@ -178,7 +178,7 @@ uint8_t xsens_msg_buf[XSENS_MAX_PAYLOAD];
 
 // FIXME Debugging Only
 #include "mcu_periph/uart.h"
-#include "messages.h"
+#include "pprzlink/messages.h"
 #include "subsystems/datalink/downlink.h"
 
 
@@ -259,6 +259,13 @@ void ins_xsens_init(void)
 }
 
 #include "subsystems/abi.h"
+/** ABI binding for gps data.
+ * Used for GPS ABI messages.
+ */
+#ifndef INS_XSENS_GPS_ID
+#define INS_XSENS_GPS_ID GPS_MULTI_ID
+#endif
+PRINT_CONFIG_VAR(INS_XSENS_GPS_ID)
 static abi_event gps_ev;
 static void gps_cb(uint8_t sender_id __attribute__((unused)),
                    uint32_t stamp __attribute__((unused)),
@@ -270,15 +277,12 @@ static void gps_cb(uint8_t sender_id __attribute__((unused)),
 void ins_xsens_register(void)
 {
   ins_register_impl(ins_xsens_init);
-  AbiBindMsgGPS(ABI_BROADCAST, &gps_ev, gps_cb);
+  AbiBindMsgGPS(INS_XSENS_GPS_ID, &gps_ev, gps_cb);
 }
 
 void ins_xsens_update_gps(struct GpsState *gps_s)
 {
-  struct UtmCoor_f utm;
-  utm.east = gps_s->utm_pos.east / 100.;
-  utm.north = gps_s->utm_pos.north / 100.;
-  utm.zone = nav_utm_zone0;
+  struct UtmCoor_f utm = utm_float_from_gps(gps_s, nav_utm_zone0);
   utm.alt = gps_s->hmsl / 1000.;
 
   // set position
@@ -295,7 +299,7 @@ void ins_xsens_update_gps(struct GpsState *gps_s)
 #endif
 
 #if USE_GPS_XSENS
-void gps_impl_init(void)
+void gps_xsens_init(void)
 {
   gps.nb_channels = 0;
 }
@@ -469,6 +473,7 @@ void handle_ins_msg(void)
 
   float fcourse = atan2f((float)ins_vy, (float)ins_vx);
   gps.course = fcourse * 1e7;
+  SetBit(gps.valid_fields, GPS_VALID_COURSE_BIT);
 #endif // USE_GPS_XSENS
 }
 
@@ -534,6 +539,7 @@ void parse_ins_msg(void)
       gps.lla_pos.lat = XSENS_DATA_RAWGPS_lat(xsens_msg_buf, offset);
       gps.lla_pos.lon = XSENS_DATA_RAWGPS_lon(xsens_msg_buf, offset);
       gps.lla_pos.alt = XSENS_DATA_RAWGPS_alt(xsens_msg_buf, offset);
+      SetBit(gps.valid_fields, GPS_VALID_POS_LLA_BIT);
 
       /* Set the real UTM zone */
       gps.utm_pos.zone = (gps.lla_pos.lon / 1e7 + 180) / 6 + 1;
@@ -545,6 +551,7 @@ void parse_ins_msg(void)
       gps.utm_pos.east = utm_f.east * 100;
       gps.utm_pos.north = utm_f.north * 100;
       gps.utm_pos.alt = gps.lla_pos.alt;
+      SetBit(gps.valid_fields, GPS_VALID_POS_UTM_BIT);
 
       ins_x = utm_f.east;
       ins_y = utm_f.north;
@@ -554,6 +561,7 @@ void parse_ins_msg(void)
       // Compute geoid (MSL) height
       float hmsl = wgs84_ellipsoid_to_geoid(lla_f.lat, lla_f.lon);
       gps.hmsl =  XSENS_DATA_RAWGPS_alt(xsens_msg_buf, offset) - (hmsl * 1000.0f);
+      SetBit(gps.valid_fields, GPS_VALID_HMSL_BIT);
 
       ins_vx = ((INS_FORMAT)XSENS_DATA_RAWGPS_vel_n(xsens_msg_buf, offset)) / 100.;
       ins_vy = ((INS_FORMAT)XSENS_DATA_RAWGPS_vel_e(xsens_msg_buf, offset)) / 100.;
@@ -561,6 +569,7 @@ void parse_ins_msg(void)
       gps.ned_vel.x = XSENS_DATA_RAWGPS_vel_n(xsens_msg_buf, offset);
       gps.ned_vel.y = XSENS_DATA_RAWGPS_vel_e(xsens_msg_buf, offset);
       gps.ned_vel.z = XSENS_DATA_RAWGPS_vel_d(xsens_msg_buf, offset);
+      SetBit(gps.valid_fields, GPS_VALID_VEL_NED_BIT);
       gps.pacc = XSENS_DATA_RAWGPS_hacc(xsens_msg_buf, offset) / 100;
       gps.sacc = XSENS_DATA_RAWGPS_sacc(xsens_msg_buf, offset) / 100;
       gps.pdop = 5;  // FIXME Not output by XSens
@@ -647,16 +656,19 @@ void parse_ins_msg(void)
       lla_f.lon = RadOfDeg(XSENS_DATA_Position_lon(xsens_msg_buf, offset));
       gps.lla_pos.lat = (int32_t)(DegOfRad(lla_f.lat) * 1e7);
       gps.lla_pos.lon = (int32_t)(DegOfRad(lla_f.lon) * 1e7);
+      SetBit(gps.valid_fields, GPS_VALID_POS_LLA_BIT);
       gps.utm_pos.zone = (DegOfRad(lla_f.lon) + 180) / 6 + 1;
       /* convert to utm */
       utm_of_lla_f(&utm_f, &lla_f);
       /* copy results of utm conversion */
       gps.utm_pos.east = utm_f.east * 100;
       gps.utm_pos.north = utm_f.north * 100;
+      SetBit(gps.valid_fields, GPS_VALID_POS_UTM_BIT);
       ins_x = utm_f.east;
       ins_y = utm_f.north;
       ins_z = XSENS_DATA_Position_alt(xsens_msg_buf, offset); //TODO is this hms or above ellipsoid?
       gps.hmsl = ins_z * 1000;
+       SetBit(gps.valid_fields, GPS_VALID_HMSL_BIT);
       // what about gps.lla_pos.alt and gps.utm_pos.alt ?
 
       gps_xsens_publish();
@@ -710,7 +722,6 @@ void parse_ins_msg(void)
 
 }
 
-
 void parse_ins_buffer(uint8_t c)
 {
   ck += c;
@@ -763,3 +774,13 @@ restart:
   xsens_status = UNINIT;
   return;
 }
+
+#ifdef USE_GPS_XSENS
+/*
+ * register callbacks & structs
+ */
+void gps_xsens_register(void)
+{
+  gps_register_impl(gps_xsens_init, NULL, GPS_XSENS_ID);
+}
+#endif

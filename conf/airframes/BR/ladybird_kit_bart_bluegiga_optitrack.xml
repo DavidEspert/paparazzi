@@ -28,7 +28,7 @@
      radio="radios/cockpitSX.xml"
      telemetry="telemetry/default_rotorcraft.xml"
      flight_plan="flight_plans/rotorcraft_basic.xml"
-     settings="settings/rotorcraft_basic.xml settings/control/rotorcraft_guidance.xml settings/control/stabilization_att_int.xml settings/control/stabilization_rate.xml"
+     settings="settings/rotorcraft_basic.xml settings/control/rotorcraft_guidance.xml settings/control/stabilization_att_int.xml"
 -->
 
 <airframe name="quadrotor_lisa_s">
@@ -93,19 +93,6 @@
     <define name="MAX_BAT_LEVEL" value="4.1" unit="V"/>
  </section>
 
-  <section name="STABILIZATION_RATE" prefix="STABILIZATION_RATE_">
-    <define name="SP_MAX_P" value="210" unit="deg/s"/>
-    <define name="SP_MAX_Q" value="210" unit="deg/s"/>
-    <define name="SP_MAX_R" value="210" unit="deg/s"/>
-
-    <define name="GAIN_P" value="400"/>
-    <define name="GAIN_Q" value="400"/>
-    <define name="GAIN_R" value="418"/>
-
-    <define name="IGAIN_P" value="301"/>
-    <define name="IGAIN_Q" value="302"/>
-    <define name="IGAIN_R" value="303"/>
-  </section>
 
   <section name="STABILIZATION_ATTITUDE" prefix="STABILIZATION_ATTITUDE_">
 
@@ -159,13 +146,7 @@
 
   <section name="INS" prefix="INS_">
     <define name="USE_GPS_ALT" value="1"/>
-  </section>
-
-  <section name="GPS" prefix="GPS_">
-    <define name="USE_DATALINK_SMALL" value="1"/>
-    <define name="LOCAL_ECEF_ORIGIN_X" value="392433200"/>
-    <define name="LOCAL_ECEF_ORIGIN_Y" value="30036200"/>
-    <define name="LOCAL_ECEF_ORIGIN_Z" value="500219700"/>
+    <define name="USE_GPS_ALT_SPEED" value="1"/>
   </section>
 
  <section name="GUIDANCE_V" prefix="GUIDANCE_V_">
@@ -183,8 +164,6 @@
     <define name="H_Z" value="0.92060036"/>
     <define name="USE_GPS_HEADING" value="1"/>
   </section>
-<define name="USE_GPS" value="TRUE"/>
- <define name="USE_GPS_HEADING" value="TRUE"/>
 
  <section name="GUIDANCE_H" prefix="GUIDANCE_H_">
    <define name="PGAIN" value="290"/>
@@ -214,7 +193,6 @@
 	<configure name="STEREO_UART" value="UART1"/>
 	<configure name="STEREO_BAUD" value="B115200"/>
 </load>
-<load name="stereocam_forward_velocity.xml"/>
  </modules>
 
   <firmware name="rotorcraft">

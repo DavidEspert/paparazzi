@@ -46,18 +46,8 @@ void ins_gps_utm_init(void)
 
 void ins_reset_local_origin(void)
 {
-  struct UtmCoor_f utm;
-#ifdef GPS_USE_LATLONG
-  /* Recompute UTM coordinates in this zone */
-  struct LlaCoor_f lla;
-  LLA_FLOAT_OF_BFP(lla, gps.lla_pos);
-  utm.zone = (gps.lla_pos.lon / 1e7 + 180) / 6 + 1;
-  utm_of_lla_f(&utm, &lla);
-#else
-  utm.zone = gps.utm_pos.zone;
-  utm.east = gps.utm_pos.east / 100.0f;
-  utm.north = gps.utm_pos.north / 100.0f;
-#endif
+  struct UtmCoor_f utm = utm_float_from_gps(&gps, 0);
+
   // ground_alt
   utm.alt = gps.hmsl / 1000.0f;
   // reset state UTM ref
@@ -73,16 +63,20 @@ void ins_reset_altitude_ref(void)
 
 
 #include "subsystems/abi.h"
+/** ABI binding for gps data.
+ * Used for GPS ABI messages.
+ */
+#ifndef INS_PTU_GPS_ID
+#define INS_PTU_GPS_ID GPS_MULTI_ID
+#endif
+PRINT_CONFIG_VAR(INS_PTU_GPS_ID)
 static abi_event gps_ev;
 
 static void gps_cb(uint8_t sender_id __attribute__((unused)),
                    uint32_t stamp __attribute__((unused)),
                    struct GpsState *gps_s)
 {
-  struct UtmCoor_f utm;
-  utm.east = gps_s->utm_pos.east / 100.0f;
-  utm.north = gps_s->utm_pos.north / 100.0f;
-  utm.zone = nav_utm_zone0;
+  struct UtmCoor_f utm = utm_float_from_gps(gps_s, nav_utm_zone0);
   utm.alt = gps_s->hmsl / 1000.0f;
 
   // set position
@@ -100,5 +94,5 @@ static void gps_cb(uint8_t sender_id __attribute__((unused)),
 void ins_gps_utm_register(void)
 {
   ins_register_impl(ins_gps_utm_init);
-  AbiBindMsgGPS(ABI_BROADCAST, &gps_ev, gps_cb);
+  AbiBindMsgGPS(INS_PTU_GPS_ID, &gps_ev, gps_cb);
 }

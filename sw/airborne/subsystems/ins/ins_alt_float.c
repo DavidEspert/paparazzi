@@ -49,6 +49,10 @@
 #warning Please remove the obsolete ALT_KALMAN and ALT_KALMAN_ENABLED defines from your airframe file.
 #endif
 
+#ifndef USE_INS_NAV_INIT
+#define USE_INS_NAV_INIT TRUE
+PRINT_CONFIG_MSG("USE_INS_NAV_INIT defaulting to TRUE")
+#endif
 
 struct InsAltFloat ins_altf;
 
@@ -67,10 +71,18 @@ PRINT_CONFIG_MSG("USE_BAROMETER is TRUE: Using baro for altitude estimation.")
 #endif
 #endif
 PRINT_CONFIG_VAR(INS_BARO_ID)
+
 abi_event baro_ev;
 static void baro_cb(uint8_t sender_id, float pressure);
 #endif /* USE_BAROMETER */
 
+/** ABI binding for gps data.
+ * Used for GPS ABI messages.
+ */
+#ifndef INS_ALT_GPS_ID
+#define INS_ALT_GPS_ID GPS_MULTI_ID
+#endif
+PRINT_CONFIG_VAR(INS_ALT_GPS_ID)
 static abi_event gps_ev;
 static abi_event accel_ev;
 static abi_event body_to_imu_ev;
@@ -87,11 +99,15 @@ void ins_alt_float_update_gps(struct GpsState *gps_s);
 
 void ins_alt_float_init(void)
 {
-
+#if USE_INS_NAV_INIT
   struct UtmCoor_f utm0 = { nav_utm_north0, nav_utm_east0, ground_alt, nav_utm_zone0 };
   stateSetLocalUtmOrigin_f(&utm0);
+  ins_altf.origin_initialized = TRUE;
 
   stateSetPositionUtm_f(&utm0);
+#else
+  ins_altf.origin_initialized = FALSE;
+#endif
 
   // set initial body to imu to 0
   struct Int32Eulers b2i0 = { 0, 0, 0 };
@@ -113,23 +129,16 @@ void ins_alt_float_init(void)
 /** Reset the geographic reference to the current GPS fix */
 void ins_reset_local_origin(void)
 {
-  struct UtmCoor_f utm;
-#ifdef GPS_USE_LATLONG
-  /* Recompute UTM coordinates in this zone */
-  struct LlaCoor_f lla;
-  LLA_FLOAT_OF_BFP(lla, gps.lla_pos);
-  utm.zone = (gps.lla_pos.lon / 1e7 + 180) / 6 + 1;
-  utm_of_lla_f(&utm, &lla);
-#else
-  utm.zone = gps.utm_pos.zone;
-  utm.east = gps.utm_pos.east / 100.0f;
-  utm.north = gps.utm_pos.north / 100.0f;
-#endif
+  // get utm pos
+  struct UtmCoor_f utm = utm_float_from_gps(&gps, 0);
+
   // ground_alt
   utm.alt = gps.hmsl  / 1000.0f;
 
   // reset state UTM ref
   stateSetLocalUtmOrigin_f(&utm);
+
+  ins_altf.origin_initialized = TRUE;
 
   // reset filter flag
   ins_altf.reset_alt_ref = TRUE;
@@ -195,10 +204,15 @@ void ins_alt_float_update_baro(float pressure __attribute__((unused)))
 void ins_alt_float_update_gps(struct GpsState *gps_s)
 {
 #if USE_GPS
-  struct UtmCoor_f utm;
-  utm.east = gps_s->utm_pos.east / 100.0f;
-  utm.north = gps_s->utm_pos.north / 100.0f;
-  utm.zone = nav_utm_zone0;
+  if (gps_s->fix < GPS_FIX_3D) {
+    return;
+  }
+
+  if (!ins_altf.origin_initialized) {
+    ins_reset_local_origin();
+  }
+
+  struct UtmCoor_f utm = utm_float_from_gps(gps_s, nav_utm_zone0);
 
 #if !USE_BAROMETER
 #ifdef GPS_DT
@@ -377,7 +391,7 @@ void ins_altf_register(void)
   // Bind to BARO_ABS message
   AbiBindMsgBARO_ABS(INS_BARO_ID, &baro_ev, baro_cb);
 #endif
-  AbiBindMsgGPS(ABI_BROADCAST, &gps_ev, gps_cb);
+  AbiBindMsgGPS(INS_ALT_GPS_ID, &gps_ev, gps_cb);
   AbiBindMsgIMU_ACCEL_INT32(INS_ALT_IMU_ID, &accel_ev, accel_cb);
   AbiBindMsgBODY_TO_IMU_QUAT(INS_ALT_IMU_ID, &body_to_imu_ev, body_to_imu_cb);
 }
