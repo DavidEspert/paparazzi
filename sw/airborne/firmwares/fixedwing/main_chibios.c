@@ -76,10 +76,6 @@ int main(void)
   Fbw(init);
   Ap(init);
 
-  // ????
-  PWR->CSR &= ~PWR_CSR_BRE;
-  DBGMCU->APB1FZ |= DBGMCU_APB1_FZ_DBG_IWDG_STOP;
-
   // Create threads
   chThdCreateStatic(wa_thd_heartbeat, sizeof(wa_thd_heartbeat),
       NORMALPRIO, thd_heartbeat, NULL);
