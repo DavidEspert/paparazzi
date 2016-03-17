@@ -24,6 +24,7 @@
     <!-- Communication -->
     <module name="telemetry" type="xbee_api"/>
     <module name="logger" type="sd_chibios"/>
+    <module name="sdlog"/>
 
     <!-- Actuators are automatically chosen according to board-->
     <module name="imu"     type="apogee"/>

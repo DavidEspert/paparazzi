@@ -84,8 +84,7 @@ PRINT_CONFIG_VAR(AIRSPEED_ETS_I2C_DEV)
 PRINT_CONFIG_VAR(AIRSPEED_ETS_START_DELAY)
 
 #if AIRSPEED_ETS_SDLOG
-#include "sdLog.h"
-#include "subsystems/chibios-libopencm3/chibios_sdlog.h"
+#include "modules/loggers/sdlog_chibios.h"
 #include "subsystems/gps.h"
 bool_t log_airspeed_ets_started;
 #endif
