@@ -325,7 +325,9 @@
  *
  * @note    The default is @p FALSE.
  */
-#define CH_DBG_STATISTICS                   TRUE
+#if !defined(CH_DBG_STATISTICS)
+#define CH_DBG_STATISTICS                   FALSE
+#endif
 
 /**
  * @brief   Debug option, system state check.
@@ -334,7 +336,9 @@
  *
  * @note    The default is @p FALSE.
  */
-#define CH_DBG_SYSTEM_STATE_CHECK           TRUE
+#if !defined(CH_DBG_SYSTEM_STATE_CHECK)
+#define CH_DBG_SYSTEM_STATE_CHECK           FALSE
+#endif
 
 /**
  * @brief   Debug option, parameters checks.
@@ -343,7 +347,9 @@
  *
  * @note    The default is @p FALSE.
  */
-#define CH_DBG_ENABLE_CHECKS                TRUE
+#if !defined(CH_DBG_ENABLE_CHECKS)
+#define CH_DBG_ENABLE_CHECKS                FALSE
+#endif
 
 /**
  * @brief   Debug option, consistency checks.
@@ -353,7 +359,9 @@
  *
  * @note    The default is @p FALSE.
  */
-#define CH_DBG_ENABLE_ASSERTS               TRUE
+#if !defined(CH_DBG_ENABLE_ASSERTS)
+#define CH_DBG_ENABLE_ASSERTS               FALSE
+#endif
 
 /**
  * @brief   Debug option, trace buffer.
@@ -362,7 +370,9 @@
  *
  * @note    The default is @p FALSE.
  */
-#define CH_DBG_ENABLE_TRACE                 TRUE
+#if !defined(CH_DBG_ENABLE_TRACE)
+#define CH_DBG_ENABLE_TRACE                 FALSE
+#endif
 
 /**
  * @brief   Debug option, stack checks.
@@ -374,7 +384,9 @@
  * @note    The default failure mode is to halt the system with the global
  *          @p panic_msg variable set to @p NULL.
  */
-#define CH_DBG_ENABLE_STACK_CHECK           TRUE
+#if !defined(CH_DBG_ENABLE_STACK_CHECK)
+#define CH_DBG_ENABLE_STACK_CHECK           FALSE
+#endif
 
 /**
  * @brief   Debug option, stacks initialization.
@@ -384,7 +396,9 @@
  *
  * @note    The default is @p FALSE.
  */
-#define CH_DBG_FILL_THREADS                 TRUE
+#if !defined(CH_DBG_FILL_THREADS)
+#define CH_DBG_FILL_THREADS                 FALSE
+#endif
 
 /**
  * @brief   Debug option, threads profiling.
@@ -395,7 +409,9 @@
  * @note    This debug option is not currently compatible with the
  *          tickless mode.
  */
-#define CH_DBG_THREADS_PROFILING            TRUE
+#if !defined(CH_DBG_THREADS_PROFILING)
+#define CH_DBG_THREADS_PROFILING            FALSE
+#endif
 
 /** @} */
 
