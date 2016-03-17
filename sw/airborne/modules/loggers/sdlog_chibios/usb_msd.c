@@ -261,10 +261,8 @@ static void msd_handle_end_point_notification(USBDriver *usbp, usbep_t ep) {
  * @brief Starts sending data
  */
 static void msd_start_transmit(USBMassStorageDriver *msdp, const uint8_t* buffer, size_t size) {
-
-  usbPrepareTransmit(msdp->config->usbp, msdp->config->bulk_ep, buffer, size);
   chSysLock();
-  usbStartTransmitI(msdp->config->usbp, msdp->config->bulk_ep);
+  usbStartTransmitI(msdp->config->usbp, msdp->config->bulk_ep, buffer, size);
   chSysUnlock();
 }
 
@@ -272,10 +270,8 @@ static void msd_start_transmit(USBMassStorageDriver *msdp, const uint8_t* buffer
  * @brief Starts receiving data
  */
 static void msd_start_receive(USBMassStorageDriver *msdp, uint8_t* buffer, size_t size) {
-
-  usbPrepareReceive(msdp->config->usbp, msdp->config->bulk_ep, buffer, size);
   chSysLock();
-  usbStartReceiveI(msdp->config->usbp, msdp->config->bulk_ep);
+  usbStartReceiveI(msdp->config->usbp, msdp->config->bulk_ep, buffer, size);
   chSysUnlock();
 }
 
@@ -723,7 +719,7 @@ bool_t msd_read_command_block(USBMassStorageDriver *msdp) {
 /**
  * @brief Mass storage thread that processes commands
  */
-static THD_WORKING_AREA(mass_storage_thread_wa, 1536);
+static THD_WORKING_AREA(mass_storage_thread_wa, 1024);
 static void mass_storage_thread(void *arg) {
 
   USBMassStorageDriver *msdp = (USBMassStorageDriver *)arg;
@@ -751,7 +747,7 @@ static void mass_storage_thread(void *arg) {
         usbDisconnectBus(msdp->config->usbp);
         usbStop(msdp->config->usbp);
         chThdExit(0);
-        // return 0;
+        return;
     }
 
     /* wait until the ISR wakes thread */
@@ -759,7 +755,6 @@ static void mass_storage_thread(void *arg) {
       msd_wait_for_isr(msdp);
   }
 
-  // return 0;
 }
 
 /**
