@@ -16,7 +16,7 @@ RTOS=chibios
 
 ## FPU on F4
 USE_FPU=yes
-HARD_FLOAT=no
+HARD_FLOAT=yes
 
 #$(TARGET).CFLAGS += -DSTM32F4
 
