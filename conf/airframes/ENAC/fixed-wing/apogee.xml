@@ -51,6 +51,12 @@
     <module name="flight_recorder"/>
   </firmware>
 
+  <firmware name="test_chibios">
+    <target name="test_sys_time_timer"  board="apogee_1.0_chibios"/>
+    <target name="test_led"             board="apogee_1.0_chibios"/>
+    <target name="test_sys_gpio"        board="apogee_1.0_chibios"/>
+  </firmware>
+
 <!-- commands section -->
   <servos>
     <servo name="MOTOR" no="0" min="1040" neutral="1040" max="2000"/>
