@@ -40,7 +40,7 @@ CHIBIOS_ARCH_DIR = $(PAPARAZZI_SRC)/sw/airborne/arch/chibios
 Q=@
 
 # Debugging options
-RTOS_DEBUG ?= 0
+RTOS_DEBUG ?= 1
 
 ifeq (,$(findstring $(RTOS_DEBUG),0 FALSE))
 $(info DEBUGGING ON)
@@ -99,7 +99,7 @@ endif
 
 # Enable this if you want link time optimizations (LTO)
 ifeq ($(USE_LTO),)
-  USE_LTO = yes
+  USE_LTO = no
 endif
 
 # If enabled, this option allows to compile the application in THUMB mode.
@@ -133,7 +133,7 @@ endif
 # Stack size to be allocated to the Cortex-M process stack. This stack is
 # the stack used by the main() thread.
 ifeq ($(USE_PROCESS_STACKSIZE),)
-  USE_PROCESS_STACKSIZE = 0x4000
+  USE_PROCESS_STACKSIZE = 0x2000
 endif
 
 # Stack size to the allocated to the Cortex-M main/exceptions stack. This
@@ -144,7 +144,7 @@ endif
 
 # Enables the use of FPU on Cortex-M4.
 ifeq ($(USE_FPU),)
-  USE_FPU = yes
+  USE_FPU = no
 endif
 
 #
@@ -162,8 +162,8 @@ endif
 include $(CHIBIOS)/os/common/ports/ARMCMx/compilers/GCC/mk/startup_stm32f4xx.mk
 # HAL-OSAL files (optional).
 include $(CHIBIOS)/os/hal/hal.mk
-include $(CHIBIOS_BOARD_DIR)/board.mk
 include $(CHIBIOS)/os/hal/ports/STM32/$(CHIBIOS_BOARD_PLATFORM)
+include $(CHIBIOS_BOARD_DIR)/board.mk
 include $(CHIBIOS)/os/hal/osal/rt/osal.mk
 # RTOS files (optional).
 include $(CHIBIOS)/os/rt/rt.mk
@@ -188,7 +188,6 @@ CSRC = $(STARTUPSRC) \
        $(PLATFORMSRC) \
        $(BOARDSRC) \
        $(FATFSSRC) \
-       $(TESTSRC) \
        $(CHIBIOS_BOARD_MAIN)
 
 ECSRC = $($(TARGET).srcs)
@@ -221,8 +220,7 @@ TCPPSRC =
 ASMSRC = $(STARTUPASM) $(PORTASM) $(OSALASM)
 
 INCDIR = $(STARTUPINC) $(KERNINC) $(PORTINC) $(OSALINC) \
-         $(HALINC) $(PLATFORMINC) $(BOARDINC) $(TESTINC) \
-				 $(FATFSINC) \
+         $(HALINC) $(PLATFORMINC) $(BOARDINC) $(FATFSINC) \
          $(CHIBIOS)/os/various $(CHIBIOS_BOARD_DIR) $(CHIBIOS_PROJECT_DIR)
 
 # Output directory and files
