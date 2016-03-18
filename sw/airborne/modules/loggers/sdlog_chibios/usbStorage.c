@@ -239,10 +239,7 @@ const USBConfig usbConfig =
 /* Turns on a LED when there is I/O activity on the USB port */
 static void usbActivity(bool_t active)
 {
-  if (active)
-    palSetPad(GPIOC, GPIOC_LED4);
-  else
-    palClearPad(GPIOC, GPIOC_LED4);
+  palWritePad(GPIOC, GPIOC_LED4, active);
 }
 
 /* USB mass storage configuration */
