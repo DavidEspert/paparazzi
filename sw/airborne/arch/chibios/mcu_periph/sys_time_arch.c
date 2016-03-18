@@ -50,7 +50,7 @@ uint8_t cpu_frequency;
  * Sys_tick handler thread
  */
 static void thd_sys_tick(void *arg);
-static THD_WORKING_AREA(wa_thd_sys_tick, 128);
+static THD_WORKING_AREA(wa_thd_sys_tick, 512);
 static void sys_tick_handler(void);
 
 void sys_time_arch_init(void)
@@ -61,7 +61,7 @@ void sys_time_arch_init(void)
   idle_counter = 0;
   cpu_frequency = 0;
 
-  sys_time.cpu_ticks_per_sec = AHB_CLK;
+  sys_time.cpu_ticks_per_sec = STM32_SYSCLK;
 
   /* cpu ticks per desired sys_time timer step */
   sys_time.resolution_cpu_ticks = (uint32_t)(sys_time.resolution * sys_time.cpu_ticks_per_sec + 0.5);
