@@ -57,14 +57,14 @@
 /*
  * Heartbeat thread
  */
-static void thd_heartbeat(void *arg);
-static THD_WORKING_AREA(wa_thd_heartbeat, 2048);
+/* static void thd_heartbeat(void *arg); */
+/* static THD_WORKING_AREA(wa_thd_heartbeat, 512); */
 
 /*
  * PPRZ thread
  */
 static void thd_pprz(void *arg);
-static THD_WORKING_AREA(wa_thd_pprz, 4096);
+static THD_WORKING_AREA(wa_thd_pprz, 8192);
 thread_t *pprzThdPtr = NULL;
 
 /**
@@ -77,8 +77,8 @@ int main(void)
   Ap(init);
 
   // Create threads
-  chThdCreateStatic(wa_thd_heartbeat, sizeof(wa_thd_heartbeat),
-      NORMALPRIO, thd_heartbeat, NULL);
+  /* chThdCreateStatic(wa_thd_heartbeat, sizeof(wa_thd_heartbeat), */
+  /*     NORMALPRIO, thd_heartbeat, NULL); */
 
   chThdSleepMilliseconds(100);
 
@@ -96,36 +96,36 @@ int main(void)
 /*
  * Heartbeat thread
  */
-static void thd_heartbeat(void *arg)
-{
-  (void) arg;
-  chRegSetThreadName("pprz heartbeat");
+/* static void thd_heartbeat(void *arg) */
+/* { */
+/*   (void) arg; */
+/*   chRegSetThreadName("pprz heartbeat"); */
 
-  //chThdSleepSeconds (SDLOG_START_DELAY);
-  //if (usbStorageIsItRunning ())
-  //  chThdSleepSeconds (20000); // stuck here for hours
-  //else
-  //  sdOk = chibios_logInit();
+/*   //chThdSleepSeconds (SDLOG_START_DELAY); */
+/*   //if (usbStorageIsItRunning ()) */
+/*   //  chThdSleepSeconds (20000); // stuck here for hours */
+/*   //else */
+/*   //  sdOk = chibios_logInit(); */
 
-  while (TRUE) {
-    //palTogglePad (GPIOC, GPIOC_LED3);
-    //chThdSleepMilliseconds (sdOk == TRUE ? 1000 : 200);
-    //static uint32_t timestamp = 0;
+/*   while (TRUE) { */
+/*     //palTogglePad (GPIOC, GPIOC_LED3); */
+/*     //chThdSleepMilliseconds (sdOk == TRUE ? 1000 : 200); */
+/*     //static uint32_t timestamp = 0; */
 
-    thread_t *tp = chRegFirstThread();
-    do {
-      tp = chRegNextThread(tp);
-    } while (tp != NULL);
-    // we sync gps time to rtc every 5 seconds
-    //if (chVTGetSystemTime() - timestamp > 5000) {
-    //  timestamp = chVTGetSystemTime();
-    //  if (getGpsTimeOfWeek() != 0) {
-    //    setRtcFromGps (getGpsWeek(), getGpsTimeOfWeek());
-    //  }
-    //}
+/*     thread_t *tp = chRegFirstThread(); */
+/*     do { */
+/*       tp = chRegNextThread(tp); */
+/*     } while (tp != NULL); */
+/*     // we sync gps time to rtc every 5 seconds */
+/*     //if (chVTGetSystemTime() - timestamp > 5000) { */
+/*     //  timestamp = chVTGetSystemTime(); */
+/*     //  if (getGpsTimeOfWeek() != 0) { */
+/*     //    setRtcFromGps (getGpsWeek(), getGpsTimeOfWeek()); */
+/*     //  } */
+/*     //} */
 
-  }
-}
+/*   } */
+/* } */
 
 /*
  * PPRZ thread
