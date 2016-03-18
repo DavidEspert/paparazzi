@@ -33,7 +33,9 @@ void		varLenMsgDynamicInit   (VarLenMsgQueue* que)
 bool_t		varLenMsgQueueIsFull (VarLenMsgQueue* que)
 {
   varLenMsgQueueLock (que);
+  chSysLock();
   bool_t retVal = ringBufferIsFull (&que->circBuf) || chMBGetFreeCountI (&que->mb) <= 0;
+  chSysUnlock();
   varLenMsgQueueUnlock (que);
   return retVal;
 }
@@ -94,7 +96,10 @@ int32_t varLenMsgQueuePush(VarLenMsgQueue* que, const void* msg, const size_t ms
     varLenMsgQueueLock (que);
     const uint16_t writeIdx = ringBufferGetWritePointer(&que->circBuf);
 
-    if (chMBGetFreeCountI (&que->mb) <= que->mbReservedSlot) {
+    chSysLock();
+    const uint32_t nbSlots = (chMBGetFreeCountI (&que->mb));
+    chSysUnlock();
+    if (nbSlots <= que->mbReservedSlot) {
       retVal = ERROR_MAILBOX_FULL;
       goto  unlockAndExit;
     }
@@ -202,7 +207,10 @@ int32_t varLenMsgQueueReserveChunk (VarLenMsgQueue* que, ChunkBuffer *cbuf, cons
     goto unlockAndExit;
   }
 
-  if (chMBGetFreeCountI (&que->mb) <= que->mbReservedSlot) {
+  chSysLock();
+  const uint32_t nbSlots = (chMBGetFreeCountI (&que->mb));
+  chSysUnlock();
+  if (nbSlots <= que->mbReservedSlot) {
     retVal = ERROR_MAILBOX_FULL;
     cbuf->bptr=NULL;
     goto  unlockAndExit;
