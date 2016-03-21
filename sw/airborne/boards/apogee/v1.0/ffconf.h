@@ -225,9 +225,9 @@
 
 /* 0:Disable or >=1:Enable */
 #if FLIGHTRECORDER_SDLOG
-#define	_FS_LOCK	2 // Open a second file if flight recorder is used
+#define	_FS_LOCK	3 // Open a second file if flight recorder is used. and opendir need one more
 #else
-#define _FS_LOCK 0
+#define _FS_LOCK	0
 #endif
 /* 0:Disable or >=1:Enable */
 /* To enable file lock control feature, set _FS_LOCK to non-zero value.
