@@ -373,7 +373,7 @@
 #define SDLOG_QUEUE_BUCKETS                 512
 
 /*
- * workaround hardware bug in REV.A revision of STM32F4
+ * workaround hardware bug in REV.A revision of old STM32F4 (sold in 2012, early 2013)
  */
 
 #define STM32_USE_REVISION_A_FIX 1

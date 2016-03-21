@@ -116,7 +116,7 @@ static FATFS fatfs; /* File system object */
 #ifdef SDLOG_NEED_QUEUE
 static size_t logMessageLen (const LogMessage *lm);
 static size_t logRawLen (const size_t len);
-static __attribute__((noreturn)) void thdSdLog(void *arg) ;
+static void thdSdLog(void *arg) ;
 static SdioError sdLoglaunchThread (void);
 static SdioError sdLogStopThread (void);
 static thread_t *sdLogThd = NULL;
@@ -566,6 +566,7 @@ static void thdSdLog(void *arg)
               if (fileDes[lm->op.fd].tagAtClose) {
                 f_write(fo, "\r\nEND_OF_LOG\r\n", 14, &bw);
               }
+	      f_sync (fo);
               f_close (fo);
               fileDes[lm->op.fd].inUse = false; // store that file is closed
             }
@@ -574,6 +575,7 @@ static void thdSdLog(void *arg)
 
         case FCNTL_EXIT:
           chThdExit(SDLOG_OK);
+	  return;
           break; /* To exit from thread when asked : chThdTerminate
                     then send special message with FCNTL_EXIT   */
 
@@ -593,10 +595,10 @@ static void thdSdLog(void *arg)
               f_sync (fo);
               if (rc) {
                 chThdExit(SDLOG_FATFS_ERROR); // FIXME check this
-                //return SDLOG_FATFS_ERROR;
+                return;
               } else if (bw != SDLOG_WRITE_BUFFER_SIZE) {
                 chThdExit(SDLOG_FSFULL); // FIXME check this
-                //return SDLOG_FSFULL;
+                return;
               }
 
               memcpy (perfBuffer, &(lm->mess[stayLen]), messLen-stayLen);
@@ -608,12 +610,11 @@ static void thdSdLog(void *arg)
       varLenMsgQueueFreeChunk (&messagesQueue, &cbro);
     } else {
       chThdExit(SDLOG_INTERNAL_ERROR);
+      return;
     }
   }
 
   chThdExit(SDLOG_OK);
-  while (1) ;
-  //return SDLOG_OK;
 }
 
 static size_t logMessageLen (const LogMessage *lm)

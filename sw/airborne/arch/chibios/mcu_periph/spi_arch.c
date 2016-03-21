@@ -243,14 +243,14 @@ static void handle_spi_thd(struct spi_periph *p)
   // Unselect the slave
   spiUnselect((SPIDriver *)p->reg_addr);
 
-  chMtxLock(&((SPIDriver*)p->reg_addr)->mutex);
+  spiAcquireBus ((SPIDriver*)p->reg_addr);
   // end of transaction, handle fifo
   p->trans_extract_idx++;
   if (p->trans_extract_idx >= SPI_TRANSACTION_QUEUE_LEN) {
     p->trans_extract_idx = 0;
   }
   p->status = SPIIdle;
-  chMtxUnlock(&((SPIDriver*)p->reg_addr)->mutex);
+  spiReleaseBus ((SPIDriver*)p->reg_addr);
 
   // Report the transaction as success
   t->status = SPITransSuccess;
@@ -359,13 +359,14 @@ void spi3_arch_init(void)
 bool_t spi_submit(struct spi_periph *p, struct spi_transaction *t)
 {
   // mutex lock
-  chMtxLock(&((SPIDriver*)p->reg_addr)->mutex);
+  spiAcquireBus ((SPIDriver*)p->reg_addr);
 
   uint8_t idx;
   idx = p->trans_insert_idx + 1;
   if (idx >= SPI_TRANSACTION_QUEUE_LEN) { idx = 0; }
   if ((idx == p->trans_extract_idx) || ((t->input_length == 0) && (t->output_length == 0))) {
     t->status = SPITransFailed;
+    spiReleaseBus ((SPIDriver*)p->reg_addr);
     return FALSE; /* queue full or input_length and output_length both 0 */
     // TODO can't tell why it failed here if it does
   }
@@ -378,7 +379,7 @@ bool_t spi_submit(struct spi_periph *p, struct spi_transaction *t)
 
   // TODO use system event to wake up thread
 
-  chMtxUnlock(&((SPIDriver*)p->reg_addr)->mutex);
+  spiReleaseBus ((SPIDriver*)p->reg_addr);
   // transaction submitted
   return TRUE;
 }

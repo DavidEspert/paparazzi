@@ -74,14 +74,14 @@ static void handle_i2c_thd(struct i2c_periph *p)
       (uint8_t*)t->buf, (size_t)(t->len_r),
       tmo);
 
-  chMtxLock(&((I2CDriver*)p->reg_addr)->mutex);
+  i2cAcquireBus((I2CDriver*)p->reg_addr);
   // end of transaction, handle fifo
   p->trans_extract_idx++;
   if (p->trans_extract_idx >= I2C_TRANSACTION_QUEUE_LEN) {
     p->trans_extract_idx = 0;
   }
   p->status = I2CIdle;
-  chMtxUnlock(&((I2CDriver*)p->reg_addr)->mutex);
+  i2cReleaseBus((I2CDriver*)p->reg_addr);
 
   // Set report status and errors
   switch (status) {
@@ -284,8 +284,7 @@ bool_t i2c_submit(struct i2c_periph *p, struct i2c_transaction *t)
 {
 #if USE_I2C1 || USE_I2C2 || USE_I2C3
   // mutex lock
-  chMtxLock(&((I2CDriver*)p->reg_addr)->mutex);
-
+  i2cAcquireBus ((I2CDriver*)p->reg_addr);
   uint8_t temp;
   temp = p->trans_insert_idx + 1;
   if (temp >= I2C_TRANSACTION_QUEUE_LEN) { temp = 0; }
@@ -293,6 +292,7 @@ bool_t i2c_submit(struct i2c_periph *p, struct i2c_transaction *t)
     // queue full
     p->errors->queue_full_cnt++;
     t->status = I2CTransFailed;
+    i2cReleaseBus ((I2CDriver*)p->reg_addr);
     return FALSE;
   }
 
@@ -304,7 +304,7 @@ bool_t i2c_submit(struct i2c_periph *p, struct i2c_transaction *t)
 
   // TODO use system event to wake up thread
 
-  chMtxUnlock(&((I2CDriver*)p->reg_addr)->mutex);
+  i2cReleaseBus ((I2CDriver*)p->reg_addr);
   // transaction submitted
   return TRUE;
 #else

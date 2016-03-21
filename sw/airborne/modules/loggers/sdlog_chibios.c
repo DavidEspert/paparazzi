@@ -216,7 +216,8 @@ static void thd_bat_survey(void *arg)
   sdlog_chibios_finish (false);
   chThdExit(0);
   systemDeepSleep();
-  while (1) {} ; // CHECK if correct
+  chThdSleepMilliseconds (TIME_INFINITE);
+  while (1); // never goes here, only to avoid compiler  warning: 'noreturn' function does return
 }
 
 
@@ -254,4 +255,5 @@ static void systemDeepSleep (void)
   SCB->SCR |= SCB_SCR_SLEEPDEEP_Msk;
   PWR->CR |= (PWR_CR_PDDS | PWR_CR_LPDS | PWR_CR_CSBF | PWR_CR_CWUF);
   __WFE();
+  chSysUnlock();
 }
