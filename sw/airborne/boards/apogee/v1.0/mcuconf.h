@@ -372,4 +372,10 @@
 #define SDLOG_QUEUE_SIZE                    16384
 #define SDLOG_QUEUE_BUCKETS                 512
 
+/*
+ * workaround hardware bug in REV.A revision of STM32F4
+ */
+
+#define STM32_USE_REVISION_A_FIX 1
+
 #endif /* _MCUCONF_H_ */

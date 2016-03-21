@@ -59,7 +59,7 @@ static __attribute__((noreturn)) void thd_startlog(void *arg);
 /*
  * Bat survey thread
  */
-static THD_WORKING_AREA(wa_thd_bat_survey, 4096);
+static THD_WORKING_AREA(wa_thd_bat_survey, 1024);
 static __attribute__((noreturn)) void thd_bat_survey(void *arg);
 //static void  powerOutageIsr (void);
 static void systemDeepSleep (void);
@@ -216,7 +216,7 @@ static void thd_bat_survey(void *arg)
   sdlog_chibios_finish (false);
   chThdExit(0);
   systemDeepSleep();
-  while (1) ; // CHECK if correct
+  while (1) {} ; // CHECK if correct
 }
 
 

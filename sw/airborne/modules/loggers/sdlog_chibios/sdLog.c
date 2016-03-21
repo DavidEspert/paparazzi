@@ -39,10 +39,10 @@
 #define MIN(x , y)  (((x) < (y)) ? (x) : (y))
 #define MAX(x , y)  (((x) > (y)) ? (x) : (y))
 
-#if _FS_SHARE == 0
+#if  _FS_LOCK == 0
 #define SDLOG_NUM_BUFFER 1
 #else
-#define SDLOG_NUM_BUFFER _FS_SHARE
+#define SDLOG_NUM_BUFFER _FS_LOCK
 #endif
 
 
@@ -148,7 +148,7 @@ SdioError sdLogInit (uint32_t* freeSpaceInKo)
   if (sdio_connect () == FALSE)
     return  SDLOG_NOCARD;
 
-  FRESULT rc = f_mount(&fatfs, 0, 1); // FIXME
+  FRESULT rc = f_mount(&fatfs, "", 0); 
   if (rc != FR_OK) {
     return SDLOG_FATFS_ERROR;
   }
@@ -224,7 +224,7 @@ SdioError sdLogOpenLog (FileDes *fd, const char* directoryName, const char* pref
 SdioError sdLogCloseAllLogs (bool flush)
 {
   FRESULT rc = 0; /* Result code */
-
+  
 
 
   //    do not flush what is in ram, close as soon as possible
@@ -249,6 +249,11 @@ SdioError sdLogCloseAllLogs (bool flush)
     // flush ram buffer then close
   } else { // flush == true
     // queue flush + close order, then stop worker thread
+    if (sdLogThd == NULL) {
+      // something goes wrong, log thread is no more working
+      return SDLOG_NOTHREAD;
+    }
+    
     for (uint8_t fd=0; fd<SDLOG_NUM_BUFFER; fd++) {
       if (fileDes[fd].inUse) {
         sdLogCloseLog (fd);

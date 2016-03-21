@@ -185,12 +185,6 @@
 / System Configurations
 /---------------------------------------------------------------------------*/
 
-#define _FS_LOCK    0   /* 0:Disable or >=1:Enable */
-/* To enable file lock control feature, set _FS_LOCK to non-zero value.
-/  The value defines how many files/sub-directories can be opened simultaneously
-/  with file lock control. This feature uses bss _FS_LOCK * 12 bytes. */
-
-
 #define _FS_REENTRANT   1               /* 0:Disable or 1:Enable */
 #define _FS_TIMEOUT     MS2ST(1000)     /* Timeout period in unit of time tick */
 #define _SYNC_t         semaphore_t*    /* O/S dependent sync object type. e.g. HANDLE, OS_EVENT*, ID, SemaphoreHandle_t and etc.. */
@@ -226,14 +220,19 @@
 /   PIC32       0           H8/300H     0           x86         0/1
 */
 
+
+
+
 /* 0:Disable or >=1:Enable */
 #if FLIGHTRECORDER_SDLOG
-#define	_FS_SHARE	2 // Open a second file if flight recorder is used
+#define	_FS_LOCK	2 // Open a second file if flight recorder is used
 #else
-#define _FS_SHARE 0
+#define _FS_LOCK 0
 #endif
-/* To enable file shareing feature, set _FS_SHARE to 1 or greater. The value
-   defines how many files can be opened simultaneously. */
+/* 0:Disable or >=1:Enable */
+/* To enable file lock control feature, set _FS_LOCK to non-zero value.
+/  The value defines how many files/sub-directories can be opened simultaneously
+/  with file lock control. This feature uses bss _FS_LOCK * 12 bytes. */
 
 
 #endif /* _FFCONF */

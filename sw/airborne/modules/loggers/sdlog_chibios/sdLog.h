@@ -44,7 +44,7 @@ extern "C" {
     several MACRO should be defined before use
 
     FATFS (ffconf.h) :
-    ° _FS_SHARE : number of simultaneously open file
+    ° _FS_LOCK : number of simultaneously open file
     ° _FS_REENTRANT : If you need to open / close file during log, this should be set to 1 at
                        the expense of more used cam and cpu.
                     If you open all files prior to log data on them, it should be left to 0
