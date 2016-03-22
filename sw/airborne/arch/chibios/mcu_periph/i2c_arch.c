@@ -43,6 +43,7 @@
 
 #if USE_I2C1 || USE_I2C2 || USE_I2C3
 
+
 static void handle_i2c_thd(struct i2c_periph *p);
 
 // Timeout for I2C transaction
@@ -55,10 +56,11 @@ static const systime_t tmo = US2ST(1000000/PERIODIC_FREQUENCY);
  */
 static void handle_i2c_thd(struct i2c_periph *p)
 {
+  chSemWait ((semaphore_t *) p->init_struct);
+  
   if (p->trans_insert_idx == p->trans_extract_idx) {
     p->status = I2CIdle;
     // no transaction pending
-    chThdYield();
     return;
   }
 
@@ -74,14 +76,14 @@ static void handle_i2c_thd(struct i2c_periph *p)
       (uint8_t*)t->buf, (size_t)(t->len_r),
       tmo);
 
-  i2cAcquireBus((I2CDriver*)p->reg_addr);
+  chSysLock();
   // end of transaction, handle fifo
   p->trans_extract_idx++;
   if (p->trans_extract_idx >= I2C_TRANSACTION_QUEUE_LEN) {
     p->trans_extract_idx = 0;
   }
   p->status = I2CIdle;
-  i2cReleaseBus((I2CDriver*)p->reg_addr);
+  chSysUnlock();
 
   // Set report status and errors
   switch (status) {
@@ -130,6 +132,7 @@ static void handle_i2c_thd(struct i2c_periph *p)
 #if USE_I2C1
 // I2C1 config
 PRINT_CONFIG_VAR(I2C1_CLOCK_SPEED)
+static SEMAPHORE_DECL(i2c1_sem, 0);
 static const I2CConfig i2cfg1 = I2C1_CFG_DEF;
 // Errors
 struct i2c_errors i2c1_errors;
@@ -146,10 +149,10 @@ void i2c1_hw_init(void)
   i2c1.reg_addr = &I2CD1;
   i2c1.init_struct = NULL;
   i2c1.errors = &i2c1_errors;
-
+  i2c1.init_struct = &i2c1_sem;
   // Create thread
   chThdCreateStatic(wa_thd_i2c1, sizeof(wa_thd_i2c1),
-      NORMALPRIO, thd_i2c1, NULL);
+      NORMALPRIO+1, thd_i2c1, NULL);
 }
 
 /*
@@ -170,6 +173,7 @@ static void thd_i2c1(void *arg)
 #if USE_I2C2
 // I2C2 config
 PRINT_CONFIG_VAR(I2C2_CLOCK_SPEED)
+static SEMAPHORE_DECL(i2c2_sem, 0);
 static const I2CConfig i2cfg2 = I2C2_CFG_DEF;
 // Errors
 struct i2c_errors i2c2_errors;
@@ -186,10 +190,10 @@ void i2c2_hw_init(void)
   i2c2.reg_addr = &I2CD2;
   i2c2.init_struct = NULL;
   i2c2.errors = &i2c2_errors;
-
+  i2c2.init_struct = &i2c2_sem;
   // Create thread
   chThdCreateStatic(wa_thd_i2c2, sizeof(wa_thd_i2c2),
-      NORMALPRIO, thd_i2c2, NULL);
+      NORMALPRIO+1, thd_i2c2, NULL);
 }
 
 /*
@@ -210,6 +214,7 @@ static void thd_i2c2(void *arg)
 #if USE_I2C3
 // I2C3 config
 PRINT_CONFIG_VAR(I2C3_CLOCK_SPEED)
+static SEMAPHORE_DECL(i2c3_sem, 0);
 static const I2CConfig i2cfg3 = I2C3_CFG_DEF;
 // Errors
 struct i2c_errors i2c3_errors;
@@ -226,10 +231,10 @@ void i2c3_hw_init(void)
   i2c3.reg_addr = &I2CD3;
   i2c3.init_struct = NULL;
   i2c3.errors = &i2c3_errors;
-
+  i2c1.init_struct = &i2c3_sem;
   // Create thread
   chThdCreateStatic(wa_thd_i2c3, sizeof(wa_thd_i2c3),
-      NORMALPRIO, thd_i2c3, NULL);
+      NORMALPRIO+1, thd_i2c3, NULL);
 }
 
 /*
@@ -283,8 +288,8 @@ void i2c_setbitrate(struct i2c_periph *p __attribute__((unused)), int bitrate __
 bool_t i2c_submit(struct i2c_periph *p, struct i2c_transaction *t)
 {
 #if USE_I2C1 || USE_I2C2 || USE_I2C3
-  // mutex lock
-  i2cAcquireBus ((I2CDriver*)p->reg_addr);
+  // sys lock
+  chSysLock();
   uint8_t temp;
   temp = p->trans_insert_idx + 1;
   if (temp >= I2C_TRANSACTION_QUEUE_LEN) { temp = 0; }
@@ -292,7 +297,7 @@ bool_t i2c_submit(struct i2c_periph *p, struct i2c_transaction *t)
     // queue full
     p->errors->queue_full_cnt++;
     t->status = I2CTransFailed;
-    i2cReleaseBus ((I2CDriver*)p->reg_addr);
+    chSysUnlock();
     return FALSE;
   }
 
@@ -304,7 +309,8 @@ bool_t i2c_submit(struct i2c_periph *p, struct i2c_transaction *t)
 
   // TODO use system event to wake up thread
 
-  i2cReleaseBus ((I2CDriver*)p->reg_addr);
+   chSysUnlock();
+   chSemSignal ((semaphore_t *) p->init_struct);
   // transaction submitted
   return TRUE;
 #else
