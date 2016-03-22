@@ -747,7 +747,6 @@ static void mass_storage_thread(void *arg) {
         usbDisconnectBus(msdp->config->usbp);
         usbStop(msdp->config->usbp);
         chThdExit(0);
-        return;
     }
 
     /* wait until the ISR wakes thread */
