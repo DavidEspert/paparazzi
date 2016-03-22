@@ -56,6 +56,7 @@ static const systime_t tmo = US2ST(1000000/PERIODIC_FREQUENCY);
  */
 static void handle_i2c_thd(struct i2c_periph *p)
 {
+  // wait for a transaction to be pushed in the queue
   chSemWait ((semaphore_t *) p->init_struct);
   
   if (p->trans_insert_idx == p->trans_extract_idx) {
@@ -231,7 +232,7 @@ void i2c3_hw_init(void)
   i2c3.reg_addr = &I2CD3;
   i2c3.init_struct = NULL;
   i2c3.errors = &i2c3_errors;
-  i2c1.init_struct = &i2c3_sem;
+  i2c3.init_struct = &i2c3_sem;
   // Create thread
   chThdCreateStatic(wa_thd_i2c3, sizeof(wa_thd_i2c3),
       NORMALPRIO+1, thd_i2c3, NULL);
@@ -306,8 +307,6 @@ bool_t i2c_submit(struct i2c_periph *p, struct i2c_transaction *t)
   /* put transacation in queue */
   p->trans[p->trans_insert_idx] = t;
   p->trans_insert_idx = temp;
-
-  // TODO use system event to wake up thread
 
    chSysUnlock();
    chSemSignal ((semaphore_t *) p->init_struct);

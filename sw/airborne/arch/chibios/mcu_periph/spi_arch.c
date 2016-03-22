@@ -200,10 +200,12 @@ static inline uint16_t spi_resolve_CR1(struct spi_transaction *t)
  */
 static void handle_spi_thd(struct spi_periph *p)
 {
+  // wait for a transaction to be pushed in the queue
+  chSemWait ((semaphore_t *) p->init_struct);
+  
   if ((p->trans_insert_idx == p->trans_extract_idx) || p->suspend) {
     p->status = SPIIdle;
     // no transaction pending
-    chThdYield();
     return;
   }
 
@@ -243,14 +245,14 @@ static void handle_spi_thd(struct spi_periph *p)
   // Unselect the slave
   spiUnselect((SPIDriver *)p->reg_addr);
 
-  spiAcquireBus ((SPIDriver*)p->reg_addr);
+  chSysLock();
   // end of transaction, handle fifo
   p->trans_extract_idx++;
   if (p->trans_extract_idx >= SPI_TRANSACTION_QUEUE_LEN) {
     p->trans_extract_idx = 0;
   }
   p->status = SPIIdle;
-  spiReleaseBus ((SPIDriver*)p->reg_addr);
+  chSysUnlock();
 
   // Report the transaction as success
   t->status = SPITransSuccess;
@@ -270,6 +272,7 @@ static void handle_spi_thd(struct spi_periph *p)
  */
 
 #if USE_SPI1
+static SEMAPHORE_DECL(spi1_sem, 0);
 static __attribute__((noreturn)) void thd_spi1(void *arg)
 {
   (void) arg;
@@ -285,7 +288,7 @@ static THD_WORKING_AREA(wa_thd_spi1, 1024);
 void spi1_arch_init(void)
 {
   spi1.reg_addr = &SPID1;
-
+  spi1.init_struct = &spi1_sem;
   // Create thread
   chThdCreateStatic(wa_thd_spi1, sizeof(wa_thd_spi1),
       NORMALPRIO, thd_spi1, NULL);
@@ -293,6 +296,7 @@ void spi1_arch_init(void)
 #endif
 
 #if USE_SPI2
+static SEMAPHORE_DECL(spi2_sem, 0);
 static __attribute__((noreturn)) void thd_spi2(void *arg)
 {
   (void) arg;
@@ -308,7 +312,7 @@ static THD_WORKING_AREA(wa_thd_spi2, 1024);
 void spi2_arch_init(void)
 {
   spi2.reg_addr = &SPID2;
-
+  spi2.init_struct = &spi2_sem;
   // Create thread
   chThdCreateStatic(wa_thd_spi2, sizeof(wa_thd_spi2),
       NORMALPRIO, thd_spi2, NULL);
@@ -316,6 +320,7 @@ void spi2_arch_init(void)
 #endif
 
 #if USE_SPI3
+static SEMAPHORE_DECL(spi3_sem, 0);
 static __attribute__((noreturn)) void thd_spi3(void *arg)
 {
   (void) arg;
@@ -331,7 +336,8 @@ static THD_WORKING_AREA(wa_thd_spi3, 1024);
 void spi3_arch_init(void)
 {
   spi3.reg_addr = &SPID3;
-
+  spi3.init_struct = &spi3_sem;
+  
   // Create thread
   chThdCreateStatic(wa_thd_spi3, sizeof(wa_thd_spi3),
       NORMALPRIO, thd_spi3, NULL);
@@ -358,15 +364,15 @@ void spi3_arch_init(void)
  */
 bool_t spi_submit(struct spi_periph *p, struct spi_transaction *t)
 {
-  // mutex lock
-  spiAcquireBus ((SPIDriver*)p->reg_addr);
+  // system lock
+  chSysLock();
 
   uint8_t idx;
   idx = p->trans_insert_idx + 1;
   if (idx >= SPI_TRANSACTION_QUEUE_LEN) { idx = 0; }
   if ((idx == p->trans_extract_idx) || ((t->input_length == 0) && (t->output_length == 0))) {
     t->status = SPITransFailed;
-    spiReleaseBus ((SPIDriver*)p->reg_addr);
+    chSysUnlock();
     return FALSE; /* queue full or input_length and output_length both 0 */
     // TODO can't tell why it failed here if it does
   }
@@ -377,9 +383,8 @@ bool_t spi_submit(struct spi_periph *p, struct spi_transaction *t)
   p->trans[p->trans_insert_idx] = t;
   p->trans_insert_idx = idx;
 
-  // TODO use system event to wake up thread
-
-  spiReleaseBus ((SPIDriver*)p->reg_addr);
+  chSysUnlock();
+  chSemSignal ((semaphore_t *) p->init_struct);
   // transaction submitted
   return TRUE;
 }
