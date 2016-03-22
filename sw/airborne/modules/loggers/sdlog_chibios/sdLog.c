@@ -42,7 +42,8 @@
 #if  _FS_LOCK == 0
 #define SDLOG_NUM_BUFFER 1
 #else
-#define SDLOG_NUM_BUFFER _FS_LOCK
+#define SDLOG_NUM_BUFFER (_FS_LOCK/2) /* each file is in a different subdir. 
+				         so _FS_LOCK is set at 2 * nbFile*/
 #endif
 
 
@@ -549,71 +550,75 @@ static void thdSdLog(void *arg)
       const LogMessage *lm = (LogMessage *) cbro.bptr;
       FIL *fo =  &fileDes[lm->op.fd].fil;
       uint8_t * const perfBuffer = perfBuffers[lm->op.fd].buffer;
-      const uint16_t curBufFill = perfBuffers[lm->op.fd].size;
 
       switch (lm->op.fcntl) {
 
-        case FCNTL_FLUSH:
-        case FCNTL_CLOSE:
-          if (fileDes[lm->op.fd].inUse) {
-            if (curBufFill) {
-              f_write(fo, perfBuffer, curBufFill, &bw);
-              perfBuffers[lm->op.fd].size = 0;
-            }
-            if (lm->op.fcntl ==  FCNTL_FLUSH) {
-              f_sync (fo);
-            } else { // close
-              if (fileDes[lm->op.fd].tagAtClose) {
-                f_write(fo, "\r\nEND_OF_LOG\r\n", 14, &bw);
-              }
+      case FCNTL_FLUSH:
+      case FCNTL_CLOSE:
+	{
+	  const uint16_t curBufFill = perfBuffers[lm->op.fd].size;
+	  if (fileDes[lm->op.fd].inUse) {
+	    if (curBufFill) {
+	      f_write(fo, perfBuffer, curBufFill, &bw);
+	      perfBuffers[lm->op.fd].size = 0;
+	    }
+	    if (lm->op.fcntl ==  FCNTL_FLUSH) {
 	      f_sync (fo);
-              f_close (fo);
-              fileDes[lm->op.fd].inUse = false; // store that file is closed
-            }
-          }
-          break;
-
-        case FCNTL_EXIT:
-          chThdExit(SDLOG_OK);
-	  return;
-          break; /* To exit from thread when asked : chThdTerminate
-                    then send special message with FCNTL_EXIT   */
-
-
-        case FCNTL_WRITE:
-          if (fileDes[lm->op.fd].inUse) {
-            const int32_t messLen = retLen-sizeof(LogMessage);
-            if (messLen < (SDLOG_WRITE_BUFFER_SIZE-curBufFill)) {
-              // the buffer can accept this message
-              memcpy (&(perfBuffer[curBufFill]), lm->mess, messLen);
-              perfBuffers[lm->op.fd].size += messLen; // curBufFill
-            } else {
-              // fill the buffer
-              const uint32_t stayLen = SDLOG_WRITE_BUFFER_SIZE-curBufFill;
-              memcpy (&(perfBuffer[curBufFill]), lm->mess, stayLen);
-              FRESULT rc = f_write(fo, perfBuffer, SDLOG_WRITE_BUFFER_SIZE, &bw);
-              f_sync (fo);
-              if (rc) {
-                chThdExit(SDLOG_FATFS_ERROR); // FIXME check this
-                return;
-              } else if (bw != SDLOG_WRITE_BUFFER_SIZE) {
-                chThdExit(SDLOG_FSFULL); // FIXME check this
-                return;
-              }
-
-              memcpy (perfBuffer, &(lm->mess[stayLen]), messLen-stayLen);
-              perfBuffers[lm->op.fd].size = messLen-stayLen; // curBufFill
-            }
-          }
+	    } else { // close
+	      if (fileDes[lm->op.fd].tagAtClose) {
+		f_write(fo, "\r\nEND_OF_LOG\r\n", 14, &bw);
+	      }
+	      f_sync (fo);
+	      f_close (fo);
+	      fileDes[lm->op.fd].inUse = false; // store that file is closed
+	    }
+	  }
+	}
+	break;
+	
+      case FCNTL_EXIT:
+	chThdExit(SDLOG_OK);
+	return;
+	break; /* To exit from thread when asked : chThdTerminate
+		  then send special message with FCNTL_EXIT   */
+	
+	
+      case FCNTL_WRITE:
+	{
+	  const uint16_t curBufFill = perfBuffers[lm->op.fd].size;
+	  if (fileDes[lm->op.fd].inUse) {
+	    const int32_t messLen = retLen-sizeof(LogMessage);
+	    if (messLen < (SDLOG_WRITE_BUFFER_SIZE-curBufFill)) {
+	      // the buffer can accept this message
+	      memcpy (&(perfBuffer[curBufFill]), lm->mess, messLen);
+	      perfBuffers[lm->op.fd].size += messLen; // curBufFill
+	    } else {
+	      // fill the buffer
+	      const uint32_t stayLen = SDLOG_WRITE_BUFFER_SIZE-curBufFill;
+	      memcpy (&(perfBuffer[curBufFill]), lm->mess, stayLen);
+	      FRESULT rc = f_write(fo, perfBuffer, SDLOG_WRITE_BUFFER_SIZE, &bw);
+	      f_sync (fo);
+	      if (rc) {
+		chThdExit(SDLOG_FATFS_ERROR); // FIXME check this
+		return;
+	      } else if (bw != SDLOG_WRITE_BUFFER_SIZE) {
+		chThdExit(SDLOG_FSFULL); // FIXME check this
+		return;
+	      }
+	      
+	      memcpy (perfBuffer, &(lm->mess[stayLen]), messLen-stayLen);
+	      perfBuffers[lm->op.fd].size = messLen-stayLen; // curBufFill
+	    }
+	  }
+	}
       }
-
       varLenMsgQueueFreeChunk (&messagesQueue, &cbro);
     } else {
       chThdExit(SDLOG_INTERNAL_ERROR);
       return;
     }
   }
-
+  
   chThdExit(SDLOG_OK);
 }
 
