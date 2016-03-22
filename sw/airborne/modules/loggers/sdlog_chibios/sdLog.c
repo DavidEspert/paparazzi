@@ -39,9 +39,17 @@
 #define MIN(x , y)  (((x) < (y)) ? (x) : (y))
 #define MAX(x , y)  (((x) > (y)) ? (x) : (y))
 
-#if  _FS_LOCK == 0
-#define SDLOG_NUM_BUFFER 1
-#else
+
+#define SDLOG_NUM_BUFFER 2 // FIXME : should be put somewhere in a configuration file
+
+
+#if  _FS_LOCK == 0 // no limit on simultaneously opened file, but no file locking
+                   // all fatfs operations should be done from same thread
+#ifndef SDLOG_NUM_BUFFER
+#error when _FS_LOCK == 0, SDLOG_NUM_BUFFER should be defined
+#endif
+
+#else //  _FS_LOCK != 0
 #define SDLOG_NUM_BUFFER (_FS_LOCK/2) /* each file is in a different subdir. 
 				         so _FS_LOCK is set at 2 * nbFile*/
 #endif
