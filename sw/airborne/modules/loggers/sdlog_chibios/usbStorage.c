@@ -260,7 +260,7 @@ void usbStorageStartPolling (thread_t *ap_thd)
 {
   populateSerialNumberDescriptorData ();
   usbStorageThreadPtr = chThdCreateStatic (waThdUsbStorage, sizeof(waThdUsbStorage),
-      NORMALPRIO, thdUsbStorage, (void *)ap_thd);
+      NORMALPRIO+2, thdUsbStorage, (void *)ap_thd);
 
 }
 

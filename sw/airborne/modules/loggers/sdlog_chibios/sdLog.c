@@ -396,7 +396,7 @@ SdioError sdLoglaunchThread ()
   chThdSleepMilliseconds(100);
 
   sdLogThd = chThdCreateStatic(waThdSdLog, sizeof(waThdSdLog),
-      NORMALPRIO, thdSdLog, NULL);
+      NORMALPRIO+1, thdSdLog, NULL);
   if (sdLogThd == NULL)
     return SDLOG_INTERNAL_ERROR;
   else

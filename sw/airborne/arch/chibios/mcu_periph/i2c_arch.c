@@ -58,7 +58,7 @@ static void handle_i2c_thd(struct i2c_periph *p)
   if (p->trans_insert_idx == p->trans_extract_idx) {
     p->status = I2CIdle;
     // no transaction pending
-    chThdSleepMilliseconds(1);
+    chThdYield();
     return;
   }
 
@@ -149,7 +149,7 @@ void i2c1_hw_init(void)
 
   // Create thread
   chThdCreateStatic(wa_thd_i2c1, sizeof(wa_thd_i2c1),
-      NORMALPRIO+2, thd_i2c1, NULL);
+      NORMALPRIO, thd_i2c1, NULL);
 }
 
 /*
@@ -189,7 +189,7 @@ void i2c2_hw_init(void)
 
   // Create thread
   chThdCreateStatic(wa_thd_i2c2, sizeof(wa_thd_i2c2),
-      NORMALPRIO+2, thd_i2c2, NULL);
+      NORMALPRIO, thd_i2c2, NULL);
 }
 
 /*
@@ -229,7 +229,7 @@ void i2c3_hw_init(void)
 
   // Create thread
   chThdCreateStatic(wa_thd_i2c3, sizeof(wa_thd_i2c3),
-      NORMALPRIO+2, thd_i2c3, NULL);
+      NORMALPRIO, thd_i2c3, NULL);
 }
 
 /*

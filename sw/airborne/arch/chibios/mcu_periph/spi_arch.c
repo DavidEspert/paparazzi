@@ -203,7 +203,7 @@ static void handle_spi_thd(struct spi_periph *p)
   if ((p->trans_insert_idx == p->trans_extract_idx) || p->suspend) {
     p->status = SPIIdle;
     // no transaction pending
-    chThdSleepMilliseconds(1);
+    chThdYield();
     return;
   }
 
@@ -288,7 +288,7 @@ void spi1_arch_init(void)
 
   // Create thread
   chThdCreateStatic(wa_thd_spi1, sizeof(wa_thd_spi1),
-      NORMALPRIO+2, thd_spi1, NULL);
+      NORMALPRIO, thd_spi1, NULL);
 }
 #endif
 
@@ -311,7 +311,7 @@ void spi2_arch_init(void)
 
   // Create thread
   chThdCreateStatic(wa_thd_spi2, sizeof(wa_thd_spi2),
-      NORMALPRIO+2, thd_spi2, NULL);
+      NORMALPRIO, thd_spi2, NULL);
 }
 #endif
 
@@ -334,7 +334,7 @@ void spi3_arch_init(void)
 
   // Create thread
   chThdCreateStatic(wa_thd_spi3, sizeof(wa_thd_spi3),
-      NORMALPRIO+2, thd_spi3, NULL);
+      NORMALPRIO, thd_spi3, NULL);
 }
 #endif
 

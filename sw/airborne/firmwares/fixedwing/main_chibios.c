@@ -83,7 +83,7 @@ int main(void)
   chThdSleepMilliseconds(100);
 
   pprzThdPtr = chThdCreateStatic(wa_thd_pprz, sizeof(wa_thd_pprz),
-      NORMALPRIO+1, thd_pprz, NULL);
+      NORMALPRIO, thd_pprz, NULL);
 
   // Main loop, do nothing
   while (TRUE) {
@@ -132,6 +132,7 @@ int main(void)
  *
  * Call PPRZ periodic and event functions
  */
+
 static void thd_pprz(void *arg)
 {
   /*
@@ -147,7 +148,7 @@ static void thd_pprz(void *arg)
     Ap(handle_periodic_tasks);
     Fbw(event_task);
     Ap(event_task);
-    chThdSleepMilliseconds(1);
+    chThdYield();
   }
 
 }

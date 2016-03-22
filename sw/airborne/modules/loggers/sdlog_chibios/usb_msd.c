@@ -831,7 +831,8 @@ void msdStart(USBMassStorageDriver *msdp, const USBMassStorageConfig *config) {
   config->usbp->out_params[config->bulk_ep] = (void *)msdp;
 
   /* run the thread */
-  msdp->thread = chThdCreateStatic(mass_storage_thread_wa, sizeof(mass_storage_thread_wa), NORMALPRIO, mass_storage_thread, msdp);
+  msdp->thread = chThdCreateStatic(mass_storage_thread_wa, sizeof(mass_storage_thread_wa), NORMALPRIO+1,
+				   mass_storage_thread, msdp);
 }
 
 /**

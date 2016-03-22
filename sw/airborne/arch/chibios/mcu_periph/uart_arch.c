@@ -79,7 +79,7 @@ static void handle_uart_tx(struct uart_periph *p)
     p->tx_extract_idx %= UART_TX_BUFFER_SIZE;
     chMtxUnlock(init_struct->tx_mtx);
   } else {
-    chThdSleepMilliseconds(1);
+    chThdYield();
   }
 }
 
@@ -148,12 +148,12 @@ void uart1_init(void)
 #if USE_UART1_RX
   uart1_mtx.rx_mtx = &uart1_rx_mtx;
   chThdCreateStatic(wa_thd_uart1_rx, sizeof(wa_thd_uart1_rx),
-      NORMALPRIO+2, thd_uart1_rx, NULL);
+      NORMALPRIO, thd_uart1_rx, NULL);
 #endif
 #if USE_UART1_TX
   uart1_mtx.tx_mtx = &uart1_tx_mtx;
   chThdCreateStatic(wa_thd_uart1_tx, sizeof(wa_thd_uart1_tx),
-      NORMALPRIO+2, thd_uart1_tx, NULL);
+      NORMALPRIO, thd_uart1_tx, NULL);
 #endif
   uart1.init_struct = &uart1_mtx;
 }
@@ -226,12 +226,12 @@ void uart2_init(void)
 #if USE_UART2_RX
   uart2_mtx.rx_mtx = &uart2_rx_mtx;
   chThdCreateStatic(wa_thd_uart2_rx, sizeof(wa_thd_uart2_rx),
-      NORMALPRIO+2, thd_uart2_rx, NULL);
+      NORMALPRIO, thd_uart2_rx, NULL);
 #endif
 #if USE_UART2_TX
   uart2_mtx.tx_mtx = &uart2_tx_mtx;
   chThdCreateStatic(wa_thd_uart2_tx, sizeof(wa_thd_uart2_tx),
-      NORMALPRIO+2, thd_uart2_tx, NULL);
+      NORMALPRIO, thd_uart2_tx, NULL);
 #endif
   uart2.init_struct = &uart2_mtx;
 }
@@ -303,12 +303,12 @@ void uart3_init(void)
 #if USE_UART3_RX
   uart3_mtx.rx_mtx = &uart3_rx_mtx;
   chThdCreateStatic(wa_thd_uart3_rx, sizeof(wa_thd_uart3_rx),
-      NORMALPRIO+2, thd_uart3_rx, NULL);
+      NORMALPRIO, thd_uart3_rx, NULL);
 #endif
 #if USE_UART3_TX
   uart3_mtx.tx_mtx = &uart3_tx_mtx;
   chThdCreateStatic(wa_thd_uart3_tx, sizeof(wa_thd_uart3_tx),
-      NORMALPRIO+2, thd_uart3_tx, NULL);
+      NORMALPRIO, thd_uart3_tx, NULL);
 #endif
   uart3.init_struct = &uart3_mtx;
 }
@@ -380,12 +380,12 @@ void uart4_init(void)
 #if USE_UART4_RX
   uart4_mtx.rx_mtx = &uart4_rx_mtx;
   chThdCreateStatic(wa_thd_uart4_rx, sizeof(wa_thd_uart4_rx),
-      NORMALPRIO+2, thd_uart4_rx, NULL);
+      NORMALPRIO, thd_uart4_rx, NULL);
 #endif
 #if USE_UART4_TX
   uart4_mtx.tx_mtx = &uart4_tx_mtx;
   chThdCreateStatic(wa_thd_uart4_tx, sizeof(wa_thd_uart4_tx),
-      NORMALPRIO+2, thd_uart4_tx, NULL);
+      NORMALPRIO, thd_uart4_tx, NULL);
 #endif
   uart4.init_struct = &uart4_mtx;
 }
@@ -449,12 +449,12 @@ void uart5_init(void)
 #if USE_UART5_RX
   uart5_mtx.rx_mtx = &uart5_rx_mtx;
   chThdCreateStatic(wa_thd_uart5_rx, sizeof(wa_thd_uart5_rx),
-      NORMALPRIO+2, thd_uart5_rx, NULL);
+      NORMALPRIO, thd_uart5_rx, NULL);
 #endif
 #if USE_UART5_TX
   uart5_mtx.tx_mtx = &uart5_tx_mtx;
   chThdCreateStatic(wa_thd_uart5_tx, sizeof(wa_thd_uart5_tx),
-      NORMALPRIO+2, thd_uart5_tx, NULL);
+      NORMALPRIO, thd_uart5_tx, NULL);
 #endif
   uart5.init_struct = &uart5_mtx;
 }
@@ -518,12 +518,12 @@ void uart6_init(void)
 #if USE_UART6_RX
   uart6_mtx.rx_mtx = &uart6_rx_mtx;
   chThdCreateStatic(wa_thd_uart6_rx, sizeof(wa_thd_uart6_rx),
-      NORMALPRIO+2, thd_uart6_rx, NULL);
+      NORMALPRIO, thd_uart6_rx, NULL);
 #endif
 #if USE_UART6_TX
   uart6_mtx.tx_mtx = &uart6_tx_mtx;
   chThdCreateStatic(wa_thd_uart6_tx, sizeof(wa_thd_uart6_tx),
-      NORMALPRIO+2, thd_uart6_tx, NULL);
+      NORMALPRIO, thd_uart6_tx, NULL);
 #endif
   uart6.init_struct = &uart6_mtx;
 }
