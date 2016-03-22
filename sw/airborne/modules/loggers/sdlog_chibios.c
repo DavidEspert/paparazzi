@@ -140,7 +140,7 @@ static void thd_startlog(void *arg)
   chThdSleepSeconds (SDLOG_START_DELAY);
   // Check if we are already in USB Storage mode
   if (usbStorageIsItRunning ())
-    chThdExit (MSG_RESET);
+    chThdSleepSeconds (20000); // stuck here for hours FIXME stop the thread ?
 
   // Init sdlog struct
   chibios_sdlog_init(&chibios_sdlog, &pprzLogFile);
