@@ -225,8 +225,8 @@
 
 /* 0:Disable or >=1:Enable */
 #if FLIGHTRECORDER_SDLOG
-#define	_FS_LOCK	3 // Open a second file if flight recorder is used. and opendir need one more
-#else
+#define	_FS_LOCK	4 // Open a second file if flight recorder is used. N=nb_file + nb_subdirectories
+#else			  
 #define _FS_LOCK	0
 #endif
 /* 0:Disable or >=1:Enable */
