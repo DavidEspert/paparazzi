@@ -141,6 +141,16 @@ static uint8_t adc1_samples_tmp[ADC_NUM_CHANNELS];
 #error ADC3_not implemented in ChibiOS
 #endif
 
+#if USE_ADC_WATCHDOG
+// watchdog structure with adc bank and callback
+static struct {
+  ADCDriver *adc;
+  adc_channels_num_t channel;
+  adcsample_t vmin;
+  adc_watchdog_callback cb;
+} adc_watchdog;
+#endif
+
 // From libopencm3
 static void adc_regular_sequence(uint32_t *sqr1, uint32_t *sqr2, uint32_t *sqr3, uint8_t length, const uint8_t channel[])
 {
@@ -210,7 +220,7 @@ void adc1callback(ADCDriver *adcp, adcsample_t *buffer, size_t n)
         for (unsigned int sample = 0; sample < n; sample++) {
           adc1_sum_tmp[channel] += buffer[channel + sample * ADC_NUM_CHANNELS];
         }
-        adc1_sum_tmp[channel] = adc1_sum_tmp[channel];
+        adc1_sum_tmp[channel] = adc1_sum_tmp[channel]; // FIXME : lhs is same as rsh
       }
     }
     chSysLockFromISR();
@@ -220,6 +230,17 @@ void adc1callback(ADCDriver *adcp, adcsample_t *buffer, size_t n)
         adc1_buffers[channel]->av_nb_sample = adc1_samples_tmp[channel];
       }
     }
+#ifdef USE_ADC_WATCHDOG
+    if ((adc_watchdog.adc == adcp) &&
+	(adc_watchdog.channel < ADC_NUM_CHANNELS) &&
+	(adc_watchdog.cb != NULL)) {
+      if (adc1_buffers[adc_watchdog.channel]->sum <
+	  (adc1_buffers[adc_watchdog.channel]->av_nb_sample * adc_watchdog.vmin)) {
+	adc_watchdog.cb ();
+      }
+    }
+#endif // USE_ADC_WATCHDOG	
+    
     chSysUnlockFromISR();
 #endif
   }
@@ -320,6 +341,14 @@ void adc_init(void)
   adcgrpcfg.cr2 = ADC_CR2_SWSTART;
 #endif
 
+#if USE_ADC_WATCHDOG
+  adc_watchdog.adc = NULL;
+  adc_watchdog.cb = NULL;
+  adc_watchdog.channel = 0;
+  adc_watchdog.vmin = (1<<12)-1; // max adc
+#endif
+
+  
   adcgrpcfg.circular = TRUE;
   adcgrpcfg.num_channels = ADC_NUM_CHANNELS;
   adcgrpcfg.end_cb = adc1callback;
@@ -335,3 +364,19 @@ void adc_init(void)
   adcStart(&ADCD1, NULL);
   adcStartConversion(&ADCD1, &adcgrpcfg, adc_samples, ADC_BUF_DEPTH);
 }
+
+#if USE_ADC_WATCHDOG
+void register_adc_watchdog(ADCDriver *adc, adc_channels_num_t channel, adcsample_t vmin,
+			   adc_watchdog_callback cb)
+{
+  for (int i=0; i< NB_ADC1_CHANNELS; i++) { // FIXME when more than ADC1 will be in use
+    if (adc_channel_map[i] == channel) {
+      adc_watchdog.adc = adc;
+      adc_watchdog.channel = i;
+      adc_watchdog.vmin = vmin;
+      adc_watchdog.cb = cb;
+      break;
+    }
+  }
+}
+#endif

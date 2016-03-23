@@ -96,4 +96,24 @@ enum adc1_channels {
 extern uint8_t adc_error_flag;
 extern ADCDriver *adcp_err;
 
+#if USE_ADC_WATCHDOG
+
+/* Watchdog callback type definition
+ */
+typedef void (*adc_watchdog_callback)(void);
+
+/* Watchdog register function
+ *
+ * @param adc adc bank to monitor
+ * @param channel adc channel to monitor
+ * @param vmin low threshhold for callback trigger
+ * @param cb callback function call within ISR locked zone
+ */
+extern void register_adc_watchdog(ADCDriver *adc, adc_channels_num_t channel, adcsample_t vmin,
+				  adc_watchdog_callback cb);
+
+#endif
+
+
+
 #endif /* ADC_ARCH_H */

@@ -74,7 +74,7 @@ $(TARGET).objs	= $($(TARGET).objso:%.S=$(OBJDIR)/%.o)
 ifeq ($(USE_OPT),)
 #  USE_OPT = -O2 -ggdb -fomit-frame-pointer -falign-functions=16
   USE_OPT = -std=gnu99 -O0 -ggdb3 -fomit-frame-pointer -falign-functions \
-	 -W -Wall -DUSE_CHIBIOS_RTOS
+	 -W -Wall -DUSE_CHIBIOS_RTOS -DUSE_ADC_WATCHDOG
 endif
 
 # C specific options here (added to USE_OPT).

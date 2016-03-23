@@ -45,8 +45,13 @@
 #define SDLOG_START_DELAY 30
 #endif
 
+
+#if (!defined USE_ADC_WATCHDOG) || (USE_ADC_WATCHDOG == 0)
+#error sdlog_chibios need USE_ADC_WATCHDOG in order to properly close files when power is unplugged 
+#endif
+
 #define DefaultAdcOfVoltage(voltage) ((uint32_t) (voltage/(DefaultVoltageOfAdc(1))))
-static const uint16_t V_ALERT = DefaultAdcOfVoltage(5.0f);
+static const uint16_t V_ALERT = DefaultAdcOfVoltage(7.5f);
 static const char PPRZ_LOG_NAME[] = "pprzlog_";
 static const char PPRZ_LOG_DIR[] = "PPRZ";
 
@@ -61,7 +66,7 @@ static __attribute__((noreturn)) void thd_startlog(void *arg);
  */
 static THD_WORKING_AREA(wa_thd_bat_survey, 1024);
 static __attribute__((noreturn)) void thd_bat_survey(void *arg);
-//static void  powerOutageIsr (void);
+static void  powerOutageIsr (void);
 static void systemDeepSleep (void);
 event_source_t powerOutageSource;
 event_listener_t powerOutageListener;
@@ -208,12 +213,11 @@ static void thd_bat_survey(void *arg)
   chEvtRegister(&powerOutageSource, &powerOutageListener, 1);
   chThdSleepMilliseconds (2000);
 
-  // FIXME directly trigger chibios event
-  //register_adc_watchdog((uint32_t) ADC1, 4,
-  //    V_ALERT, 0xfff, &powerOutageIsr);
+  // FIXME: &ADCD1 and channel AD1_4 should not be hardcoded like this
+  register_adc_watchdog(&ADCD1, AD1_4_CHANNEL, V_ALERT, &powerOutageIsr);
 
   chEvtWaitOne(EVENT_MASK(1));
-  sdlog_chibios_finish (false);
+  sdlog_chibios_finish (true);
   chThdExit(0);
   systemDeepSleep();
   chThdSleepMilliseconds (TIME_INFINITE);
@@ -222,32 +226,13 @@ static void thd_bat_survey(void *arg)
 
 
 /*
-  powerOutageIsr is called from an isr not managed by chibios, so it is not possible
-  to directly call chibios api from this isr.
-  We have to use a 2 stage system and trigger a pendSV isr that is directly managed
-  by chibios
-
-  ° if in the future we have more than one pprz(ocm3) isr which have to call
-    chibios api, we will need to route the pendSV isr to the right isr routine
-
-  ° all theses problems will vanish when we will use a chibios hal
+  powerOutageIsr is called within a lock zone from an isr, so no lock/unlock is needed 
  */
-/*static void  powerOutageIsr (void)
+static void  powerOutageIsr (void)
 {
-  // trigger PendSVVector isr
-  SCB_ICSR = ICSR_PENDSVSET;
-}*/
-
-/*FIXME
-
-CH_CFG_IRQ_HANDLER(PendSVVector) {
-  CH_CFG_IRQ_PROLOGUE();
-  chSysLockFromISR();
   chEvtBroadcastI(&powerOutageSource);
-  chSysUnlockFromISR();
-  CH_CFG_IRQ_EPILOGUE();
 }
-*/
+
 
 static void systemDeepSleep (void)
 {

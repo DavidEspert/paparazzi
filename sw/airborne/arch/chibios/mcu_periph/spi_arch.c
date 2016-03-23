@@ -291,7 +291,7 @@ void spi1_arch_init(void)
   spi1.init_struct = &spi1_sem;
   // Create thread
   chThdCreateStatic(wa_thd_spi1, sizeof(wa_thd_spi1),
-      NORMALPRIO, thd_spi1, NULL);
+      NORMALPRIO+1, thd_spi1, NULL);
 }
 #endif
 
@@ -315,7 +315,7 @@ void spi2_arch_init(void)
   spi2.init_struct = &spi2_sem;
   // Create thread
   chThdCreateStatic(wa_thd_spi2, sizeof(wa_thd_spi2),
-      NORMALPRIO, thd_spi2, NULL);
+      NORMALPRIO+1, thd_spi2, NULL);
 }
 #endif
 
@@ -340,7 +340,7 @@ void spi3_arch_init(void)
   
   // Create thread
   chThdCreateStatic(wa_thd_spi3, sizeof(wa_thd_spi3),
-      NORMALPRIO, thd_spi3, NULL);
+      NORMALPRIO+1, thd_spi3, NULL);
 }
 #endif
 

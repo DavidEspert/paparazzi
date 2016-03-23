@@ -50,7 +50,7 @@ uint8_t cpu_frequency;
  * Sys_tick handler thread
  */
 static void thd_sys_tick(void *arg);
-static THD_WORKING_AREA(wa_thd_sys_tick, 512);
+static THD_WORKING_AREA(wa_thd_sys_tick, 1024);
 static void sys_tick_handler(void);
 
 void sys_time_arch_init(void)
