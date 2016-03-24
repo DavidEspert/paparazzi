@@ -243,7 +243,10 @@ SdioError sdLogCloseAllLogs (bool flush)
     for (uint8_t fd=0; fd<SDLOG_NUM_BUFFER; fd++) {
       if (fileDes[fd].inUse) {
         FIL *fileObject = &fileDes[fd].fil;
-
+	if (fileDes[fd].tagAtClose) {
+	  UINT bw=0;
+	  f_write(fileObject, "\r\nEND_OF_LOG\r\n", 14, &bw);
+	}
         FRESULT trc = f_close(fileObject);
         fileDes[fd].inUse = false;
         if (!rc)

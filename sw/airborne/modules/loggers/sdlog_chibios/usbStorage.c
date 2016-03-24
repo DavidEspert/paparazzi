@@ -309,7 +309,7 @@ static void thdUsbStorage(void *arg)
   chRegSetThreadName("UsbStorage:connected");
 
   /* Stop the logs*/
-  sdlog_chibios_finish (true);
+  sdlog_chibios_finish (false);
 
 
   /* connect sdcard sdc interface sdio */
