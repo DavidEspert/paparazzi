@@ -175,8 +175,8 @@ include $(PAPARAZZI_HOME)/conf/chibios/fatfs.mk
 endif
 
 # Define linker script file here
-#LDSCRIPT= $(CHIBIOS_ARCH_DIR)/$(CHIBIOS_BOARD_LINKER)
-LDSCRIPT= $(STARTUPLD)/$(CHIBIOS_BOARD_LINKER)
+LDSCRIPT= $(CHIBIOS_ARCH_DIR)/$(CHIBIOS_BOARD_LINKER)
+#LDSCRIPT= $(STARTUPLD)/$(CHIBIOS_BOARD_LINKER)
 
 # C sources that can be compiled in ARM or THUMB mode depending on the global
 # setting.
