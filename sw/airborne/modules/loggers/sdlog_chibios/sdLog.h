@@ -88,6 +88,7 @@ typedef enum {
   SDLOG_OK,
   SDLOG_NOCARD,
   SDLOG_FATFS_ERROR,
+  SDLOG_FATFS_NOENT,
   SDLOG_FSFULL,
   SDLOG_FDFULL,
   SDLOG_QUEUEFULL,
@@ -124,6 +125,20 @@ SdioError sdLogInit (uint32_t* freeSpaceInKo);
  */
 SdioError getFileName(const char* prefix, const char* directoryName,
 		      char* nextFileName, const size_t nameLength, const int indexOffset);
+
+/**
+ * @brief	remove spurious log file left on sd
+ * @details	when tuning firmware, log files are created at each tries, and we consider
+ *		that empty or nearly empty log are of no value
+ *              this function remove log file whose size is less than a given value
+ *		  
+ * @param[in]	prefix : the pattern for the file : example LOG_
+ * @param[in]	directoryName : root directory where to find file
+ * @param[in]	sizeConsideredEmpty : file whose size is less or equal to that value will be removed
+ */
+SdioError removeEmptyLogs(const char* directoryName, const char* prefix, 
+			  const size_t sizeConsideredEmpty);
+
 
 /**
  * @brief	unmount filesystem

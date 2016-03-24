@@ -488,6 +488,11 @@ SdioError getFileName(const char* prefix, const char* directoryName,
     return SDLOG_FATFS_ERROR;
   }
 
+  rc = f_closedir (&dir);
+  if (rc) {
+    return SDLOG_FATFS_ERROR;
+  }
+  
   if (maxCurrentIndex < NUMBERMAX) {
     chsnprintf (nextFileName, nameLength, NUMBERFMF,
         directoryName, prefix, maxCurrentIndex+indexOffset);
@@ -497,6 +502,60 @@ SdioError getFileName(const char* prefix, const char* directoryName,
         directoryName, prefix);
     return SDLOG_LOGNUM_ERROR;
   }
+}
+
+SdioError removeEmptyLogs(const char* directoryName, const char* prefix,
+			  const size_t sizeConsideredEmpty)
+{
+  DIR dir; /* Directory object */
+  FRESULT rc; /* Result code */
+  FILINFO fno; /* File information object */
+  char *fn;   /* This function is assuming non-Unicode cfg. */
+#if _USE_LFN
+  char lfn[_MAX_LFN + 1];
+  fno.lfname = lfn;
+  fno.lfsize = sizeof lfn;
+#endif
+
+  rc = f_opendir(&dir, directoryName);
+  if (rc != FR_OK) {
+    return SDLOG_FATFS_NOENT;
+  }
+
+  for (;;) {
+    rc = f_readdir(&dir, &fno); /* Read a directory item */
+    if (rc != FR_OK || fno.fname[0] ==  0) break; /* Error or end of dir */
+#if _USE_LFN
+    fn = *fno.lfname ? fno.lfname : fno.fname;
+#else
+    fn = fno.fname;
+#endif
+    if (fn[0] == '.') continue;
+
+    if (!(fno.fattrib & AM_DIR)) {
+      //      DebugTrace ("fno.fsize=%d  fn=%s\n", fno.fsize, fn);
+      if ((strncmp (fn, prefix, strlen(prefix)) == 0) && (fno.fsize <= sizeConsideredEmpty)) {
+	char absPathName[128];
+	strlcpy (absPathName, directoryName, sizeof(absPathName));
+	strlcat (absPathName, "/", sizeof(absPathName));
+	strlcat (absPathName, fn, sizeof(absPathName));
+	rc = f_unlink (absPathName);
+	if (rc) 
+	  break;
+      }
+    }
+  }
+  
+  if (rc) {
+    return SDLOG_FATFS_ERROR;
+  }
+  
+  rc = f_closedir (&dir);
+  if (rc) {
+    return SDLOG_FATFS_ERROR;
+  }
+
+  return SDLOG_OK;
 }
 
 
