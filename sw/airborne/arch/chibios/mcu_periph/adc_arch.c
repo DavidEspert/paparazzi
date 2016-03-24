@@ -336,7 +336,7 @@ void adc_init(void)
   adcgrpcfg.cr2 = ADC_CR2_TSVREFE;
 #elif defined(__STM32F4xx_H)
   uint32_t smpr1, smpr2;
-  adc_sample_time_on_all_channels(&smpr1, &smpr2, ADC_SAMPLE_56);
+  adc_sample_time_on_all_channels(&smpr1, &smpr2, ADC_SAMPLE_480);
 
   adcgrpcfg.cr2 = ADC_CR2_SWSTART;
 #endif
