@@ -40,18 +40,17 @@
 #define MAX(x , y)  (((x) > (y)) ? (x) : (y))
 
 
-#define SDLOG_NUM_BUFFER 2 // FIXME : should be put somewhere in a configuration file
-
-
-#if  _FS_LOCK == 0 // no limit on simultaneously opened file, but no file locking
-                   // all fatfs operations should be done from same thread
+// Number of files opened simultaneously
+// Set to 2 by default since we have the default log file
+// and optionally the flight recorder file
+//
+// WARNING:
+// - if _FS_LOCK is set to 0, there is no limit on simultaneously opened file,
+//   but no file locking, all fatfs operations should be done from same thread
+// - if _FS_LOCK is > 0, each file is in a different subdir, so _FS_LOCK should
+//   be set to 2 * nbFile
 #ifndef SDLOG_NUM_BUFFER
-#error when _FS_LOCK == 0, SDLOG_NUM_BUFFER should be defined
-#endif
-
-#else //  _FS_LOCK != 0
-#define SDLOG_NUM_BUFFER (_FS_LOCK/2) /* each file is in a different subdir. 
-				         so _FS_LOCK is set at 2 * nbFile*/
+#define SDLOG_NUM_BUFFER 2
 #endif
 
 

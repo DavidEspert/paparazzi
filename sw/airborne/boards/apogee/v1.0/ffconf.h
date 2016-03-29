@@ -223,16 +223,17 @@
 
 
 
-/* 0:Disable or >=1:Enable */
-#if FLIGHTRECORDER_SDLOG
-#define	_FS_LOCK	0 // we don't need file locking since all file are written sequentially from
-#else			  // one thread (thdSdLog)
-#define _FS_LOCK	0
-#endif
-/* 0:Disable or >=1:Enable */
+#define _FS_LOCK	0   /* 0:Disable or >=1:Enable */
 /* To enable file lock control feature, set _FS_LOCK to non-zero value.
 /  The value defines how many files/sub-directories can be opened simultaneously
-/  with file lock control. This feature uses bss _FS_LOCK * 12 bytes. */
+/  with file lock control. This feature uses bss _FS_LOCK * 12 bytes.
+/
+/  IMPORTANT NOTE:
+/  For Paparazzi, we don't need file locking since all file are written sequentially
+/  from one thread (thdSdLog)
+/
+*/
+
 
 
 #endif /* _FFCONF */
