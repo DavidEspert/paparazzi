@@ -1,5 +1,4 @@
 #include "msg_queue.h"
-#include "stdutil.h"
 #include "tlsf_malloc.h"
 #include <string.h>
 
@@ -136,7 +135,8 @@ static const char* _strerror[] = {"MsgQueue_MAILBOX_FULL",
 const char*     msgqueue_strerror (const MsgQueueStatus _errno)
 {
   size_t indice = _errno - MsgQueue_MAILBOX_FULL;
-  indice = MIN(indice, ARRAY_LEN(_strerror)-1);
+  const size_t arrayLen = sizeof(_strerror)/sizeof(_strerror[0]);
+  indice = indice < arrayLen ? indice : arrayLen-1;
   return _strerror[indice];
 }
 
