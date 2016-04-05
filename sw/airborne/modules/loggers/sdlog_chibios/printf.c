@@ -41,14 +41,14 @@
 #if CHPRINTF_USE_FLOAT
 static int intPow(int a, int b)
 {
-  uint32_t c=a;
-  for (uint32_t n=b; n>1; n--) c*=a;
+  uint32_t c = a;
+  for (uint32_t n = b; n > 1; n--) { c *= a; }
   return c;
 }
 #endif
 
 
-static bool writeBufferWithinSize (char **buffer, const char c, size_t *size)
+static bool writeBufferWithinSize(char **buffer, const char c, size_t *size)
 {
   if (*size) {
     **buffer = c;
@@ -63,7 +63,8 @@ static bool writeBufferWithinSize (char **buffer, const char c, size_t *size)
 static char *long_to_string_with_divisor(char *p,
     long num,
     unsigned radix,
-    long divisor) {
+    long divisor)
+{
   int i;
   char *q;
   long l, ll;
@@ -79,27 +80,30 @@ static char *long_to_string_with_divisor(char *p,
   do {
     i = (int)(l % radix);
     i += '0';
-    if (i > '9')
+    if (i > '9') {
       i += 'A' - '0' - 10;
+    }
     *--q = i;
     l /= radix;
   } while ((ll /= radix) != 0);
 
   i = (int)(p + MAX_FILLER - q);
-  do
+  do {
     *p++ = *q++;
-  while (--i);
+  } while (--i);
 
   return p;
 }
 
-static char *ltoa(char *p, long num, unsigned radix) {
+static char *ltoa(char *p, long num, unsigned radix)
+{
 
   return long_to_string_with_divisor(p, num, radix, 0);
 }
 
 #if CHPRINTF_USE_FLOAT
-static char *ftoa(char *p, double num, uint32_t precision) {
+static char *ftoa(char *p, double num, uint32_t precision)
+{
   long l;
   //  unsigned long precision = FLOAT_PRECISION;
 
@@ -133,15 +137,16 @@ static char *ftoa(char *p, double num, uint32_t precision) {
  * @param[in] fmt       formatting string
  */
 
-void chvprintf(BaseSequentialStream *chp, const char *fmt, va_list ap) {
+void chvprintf(BaseSequentialStream *chp, const char *fmt, va_list ap)
+{
   char *p, *s, c, filler;
   int i, precision, width;
   bool is_long, left_align;
   long l;
 #if CHPRINTF_USE_FLOAT
   double d;
-  char tmpbuf[2*MAX_FILLER + 1];
-  int fprec=0;
+  char tmpbuf[2 * MAX_FILLER + 1];
+  int fprec = 0;
 #else
   char tmpbuf[MAX_FILLER + 1];
 #endif
@@ -167,18 +172,19 @@ void chvprintf(BaseSequentialStream *chp, const char *fmt, va_list ap) {
       fmt++;
       filler = '0';
 #if CHPRINTF_USE_FLOAT
-      fprec = intPow (10, (*fmt)-'0');
+      fprec = intPow(10, (*fmt) - '0');
 #endif
     }
     width = 0;
     while (TRUE) {
       c = *fmt++;
-      if (c >= '0' && c <= '9')
+      if (c >= '0' && c <= '9') {
         c -= '0';
-      else if (c == '*')
+      } else if (c == '*') {
         c = va_arg(ap, int);
-      else
+      } else {
         break;
+      }
       width = width * 10 + c;
     }
     precision = 0;
@@ -188,13 +194,13 @@ void chvprintf(BaseSequentialStream *chp, const char *fmt, va_list ap) {
         if (c >= '0' && c <= '9') {
           c -= '0';
 #if CHPRINTF_USE_FLOAT
-          fprec = intPow (10, c);
+          fprec = intPow(10, c);
 #endif
-        }
-        else if (c == '*')
+        } else if (c == '*') {
           c = va_arg(ap, int);
-        else
+        } else {
           break;
+        }
         precision *= 10;
         precision += c;
       }
@@ -202,11 +208,12 @@ void chvprintf(BaseSequentialStream *chp, const char *fmt, va_list ap) {
     /* Long modifier.*/
     if (c == 'l' || c == 'L') {
       is_long = TRUE;
-      if (*fmt)
+      if (*fmt) {
         c = *fmt++;
-    }
-    else
+      }
+    } else {
       is_long = (c >= 'A') && (c <= 'Z');
+    }
 
     /* Command decoding.*/
     switch (c) {
@@ -216,19 +223,22 @@ void chvprintf(BaseSequentialStream *chp, const char *fmt, va_list ap) {
         break;
       case 's':
         filler = ' ';
-        if ((s = va_arg(ap, char *)) == 0)
+        if ((s = va_arg(ap, char *)) == 0) {
           s = "(null)";
-        if (precision == 0)
+        }
+        if (precision == 0) {
           precision = 32767;
+        }
         for (p = s; *p && (--precision >= 0); p++)
           ;
         break;
       case 'D':
       case 'd':
-        if (is_long)
+        if (is_long) {
           l = va_arg(ap, long);
-        else
+        } else {
           l = va_arg(ap, int);
+        }
         if (l < 0) {
           *p++ = '-';
           l = -l;
@@ -257,10 +267,11 @@ void chvprintf(BaseSequentialStream *chp, const char *fmt, va_list ap) {
       case 'o':
         c = 8;
 unsigned_common:
-        if (is_long)
+        if (is_long) {
           l = va_arg(ap, long);
-        else
+        } else {
           l = va_arg(ap, int);
+        }
         p = ltoa(p, l, c);
         break;
       default:
@@ -268,21 +279,24 @@ unsigned_common:
         break;
     }
     i = (int)(p - s);
-    if ((width -= i) < 0)
+    if ((width -= i) < 0) {
       width = 0;
-    if (left_align == FALSE)
+    }
+    if (left_align == FALSE) {
       width = -width;
+    }
     if (width < 0) {
       if (*s == '-' && filler == '0') {
         chSequentialStreamPut(chp, (uint8_t)*s++);
         i--;
       }
-      do
+      do {
         chSequentialStreamPut(chp, (uint8_t)filler);
-      while (++width != 0);
+      } while (++width != 0);
     }
-    while (--i >= 0)
+    while (--i >= 0) {
       chSequentialStreamPut(chp, (uint8_t)*s++);
+    }
 
     while (width) {
       chSequentialStreamPut(chp, (uint8_t)filler);
@@ -292,15 +306,16 @@ unsigned_common:
 }
 
 
-void chvsnprintf(char *buffer, size_t size, const char *fmt, va_list ap) {
+void chvsnprintf(char *buffer, size_t size, const char *fmt, va_list ap)
+{
   char *p, *s, c, filler;
   int i, precision, width;
   bool is_long, left_align;
   long l;
 #if CHPRINTF_USE_FLOAT
   double d;
-  char tmpbuf[2*MAX_FILLER + 1];
-  int fprec=0;
+  char tmpbuf[2 * MAX_FILLER + 1];
+  int fprec = 0;
 #else
   char tmpbuf[MAX_FILLER + 1];
 #endif
@@ -308,11 +323,11 @@ void chvsnprintf(char *buffer, size_t size, const char *fmt, va_list ap) {
   while (TRUE) {
     c = *fmt++;
     if (c == 0) {
-      writeBufferWithinSize (&buffer, 0, &size);
+      writeBufferWithinSize(&buffer, 0, &size);
       return;
     }
     if (c != '%') {
-      if (writeBufferWithinSize (&buffer, c, &size)) return;
+      if (writeBufferWithinSize(&buffer, c, &size)) { return; }
       continue;
     }
     p = tmpbuf;
@@ -327,18 +342,19 @@ void chvsnprintf(char *buffer, size_t size, const char *fmt, va_list ap) {
       fmt++;
       filler = '0';
 #if CHPRINTF_USE_FLOAT
-      fprec = intPow (10, (*fmt)-'0');
+      fprec = intPow(10, (*fmt) - '0');
 #endif
     }
     width = 0;
     while (TRUE) {
       c = *fmt++;
-      if (c >= '0' && c <= '9')
+      if (c >= '0' && c <= '9') {
         c -= '0';
-      else if (c == '*')
+      } else if (c == '*') {
         c = va_arg(ap, int);
-      else
+      } else {
         break;
+      }
       width = width * 10 + c;
     }
     precision = 0;
@@ -348,12 +364,13 @@ void chvsnprintf(char *buffer, size_t size, const char *fmt, va_list ap) {
         if (c >= '0' && c <= '9') {
           c -= '0';
 #if CHPRINTF_USE_FLOAT
-          fprec = intPow (10, c);
+          fprec = intPow(10, c);
 #endif
-        } else if (c == '*')
+        } else if (c == '*') {
           c = va_arg(ap, int);
-        else
+        } else {
           break;
+        }
         precision *= 10;
         precision += c;
       }
@@ -361,11 +378,12 @@ void chvsnprintf(char *buffer, size_t size, const char *fmt, va_list ap) {
     /* Long modifier.*/
     if (c == 'l' || c == 'L') {
       is_long = TRUE;
-      if (*fmt)
+      if (*fmt) {
         c = *fmt++;
-    }
-    else
+      }
+    } else {
       is_long = (c >= 'A') && (c <= 'Z');
+    }
 
     /* Command decoding.*/
     switch (c) {
@@ -375,19 +393,22 @@ void chvsnprintf(char *buffer, size_t size, const char *fmt, va_list ap) {
         break;
       case 's':
         filler = ' ';
-        if ((s = va_arg(ap, char *)) == 0)
+        if ((s = va_arg(ap, char *)) == 0) {
           s = "(null)";
-        if (precision == 0)
+        }
+        if (precision == 0) {
           precision = 32767;
+        }
         for (p = s; *p && (--precision >= 0); p++)
           ;
         break;
       case 'D':
       case 'd':
-        if (is_long)
+        if (is_long) {
           l = va_arg(ap, long);
-        else
+        } else {
           l = va_arg(ap, int);
+        }
         if (l < 0) {
           *p++ = '-';
           l = -l;
@@ -416,10 +437,11 @@ void chvsnprintf(char *buffer, size_t size, const char *fmt, va_list ap) {
       case 'o':
         c = 8;
 unsigned_common:
-        if (is_long)
+        if (is_long) {
           l = va_arg(ap, long);
-        else
+        } else {
           l = va_arg(ap, int);
+        }
         p = ltoa(p, l, c);
         break;
       default:
@@ -427,28 +449,30 @@ unsigned_common:
         break;
     }
     i = (int)(p - s);
-    if ((width -= i) < 0)
+    if ((width -= i) < 0) {
       width = 0;
-    if (left_align == FALSE)
+    }
+    if (left_align == FALSE) {
       width = -width;
+    }
     if (width < 0) {
       if (*s == '-' && filler == '0') {
-        if (writeBufferWithinSize (&buffer, (uint8_t)*s++, &size)) return;
+        if (writeBufferWithinSize(&buffer, (uint8_t)*s++, &size)) { return; }
         i--;
       }
       do
-        if (writeBufferWithinSize (&buffer,  (uint8_t)filler, &size)) return;
+        if (writeBufferWithinSize(&buffer, (uint8_t)filler, &size)) { return; }
       while (++width != 0);
     }
     while (--i >= 0)
-      if (writeBufferWithinSize (&buffer, (uint8_t)*s++, &size)) return;
+      if (writeBufferWithinSize(&buffer, (uint8_t)*s++, &size)) { return; }
 
     while (width) {
-      if (writeBufferWithinSize (&buffer,  (uint8_t)filler, &size)) return;
+      if (writeBufferWithinSize(&buffer, (uint8_t)filler, &size)) { return; }
       width--;
     }
   }
-  writeBufferWithinSize (&buffer, 0, &size) ;
+  writeBufferWithinSize(&buffer, 0, &size) ;
 }
 
 void chsnprintf(char *buffer, size_t size, const char *fmt, ...)

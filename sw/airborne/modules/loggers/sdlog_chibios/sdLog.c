@@ -1,10 +1,38 @@
+/*
+ * Copyright (C) 2013-2016 Gautier Hattenberger, Alexandre Bustico
+ *
+ * This file is part of paparazzi.
+ *
+ * paparazzi is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2, or (at your option)
+ * any later version.
+ *
+ * paparazzi is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with paparazzi; see the file COPYING.  If not, write to
+ * the Free Software Foundation, 59 Temple Place - Suite 330,
+ * Boston, MA 02111-1307, USA.
+ */
+
+/*
+ * @file modules/loggers/sdlog_chibios/sdLog.c
+ * @brief sdlog API using ChibiOS and Fatfs
+ *
+ */
+
 #include <string.h>
 #include <stdlib.h>
-#include "sdLog.h"
-#include "ch.h"
-#include "hal.h"
-#include "ff.h"
+#include <ch.h>
+#include <hal.h>
+#include <ff.h>
+#include "modules/loggers/sdlog_chibios/sdLog.h"
 #include "printf.h"
+#include "mcu_periph/sdio.h"
 #include <ctype.h>
 
 
@@ -15,32 +43,30 @@
 #define MAX(x , y)  (((x) > (y)) ? (x) : (y))
 
 
-#if _FATFS < 8000
-#if _FS_SHARE == 0
-#define SDLOG_NUM_BUFFER 1
-#else
-#define SDLOG_NUM_BUFFER _FS_SHARE
-#endif
-
-#else // _FATFS > 8000
-#if _FS_LOCK == 0
+// Number of files opened simultaneously
+// Set to 2 by default since we have the default log file
+// and optionally the flight recorder file
+//
+// WARNING:
+// - if _FS_LOCK is set to 0, there is no limit on simultaneously opened file,
+//   but no file locking, all fatfs operations should be done from same thread
+// - if _FS_LOCK is > 0, each file is in a different subdir, so _FS_LOCK should
+//   be set to 2 * nbFile
+#ifndef SDLOG_NUM_BUFFER
 #define SDLOG_NUM_BUFFER 2
-#else
-#define SDLOG_NUM_BUFFER (_FS_LOCK/2)
-#endif
 #endif
 
-#ifndef  SDLOG_ALL_BUFFERS_SIZE
-#error SDLOG_ALL_BUFFERS_SIZE should be defined in mcuconf.h
+#ifndef SDLOG_ALL_BUFFERS_SIZE
+#error  SDLOG_ALL_BUFFERS_SIZE should be defined in mcuconf.h
 #endif
 
 #define SDLOG_WRITE_BUFFER_SIZE (SDLOG_ALL_BUFFERS_SIZE/SDLOG_NUM_BUFFER)
 
 #ifndef SDLOG_MAX_MESSAGE_LEN
-#error  SDLOG_MAX_MESSAGE_LENshould be defined in mcuconf.h
+#error  SDLOG_MAX_MESSAGE_LEN should be defined in mcuconf.h
 #endif
 
-#ifndef  SDLOG_QUEUE_SIZE
+#ifndef SDLOG_QUEUE_SIZE
 #error  SDLOG_QUEUE_SIZE should be defined in mcuconf.h
 #endif
 
@@ -55,17 +81,17 @@
 
 
 #ifdef SDLOG_NEED_QUEUE
-#include "msg_queue.h"
+#include "modules/loggers/sdlog_chibios/msg_queue.h"
 
 
-static msg_t   queMbBuffer[SDLOG_QUEUE_BUCKETS] __attribute__ ((section(".ccmram"), aligned(8))) ;
+static msg_t   queMbBuffer[SDLOG_QUEUE_BUCKETS] __attribute__((section(".ccmram"), aligned(8))) ;
 static MsgQueue messagesQueue;
 
 #define WRITE_BYTE_CACHE_SIZE 15 // limit overhead :
-				 // malloc (15+1) occupies 20bytes
+// malloc (15+1) occupies 20bytes
 typedef struct {
-  uint8_t fcntl:2;
-  uint8_t fd:6;
+  uint8_t fcntl: 2;
+  uint8_t fd: 6;
 } FileOp;
 
 struct LogMessage {
@@ -83,9 +109,12 @@ struct FilePoolUnit {
   uint8_t writeByteSeek;
 };
 
-static  struct FilePoolUnit fileDes[SDLOG_NUM_BUFFER] =
-  {[0 ... SDLOG_NUM_BUFFER-1] = {.fil = {0}, .inUse = false, .tagAtClose=false,
-				 .writeByteCache=NULL, .writeByteSeek=0}};
+static  struct FilePoolUnit fileDes[SDLOG_NUM_BUFFER] = {
+  [0 ... SDLOG_NUM_BUFFER - 1] = {
+    .fil = {0}, .inUse = false, .tagAtClose = false,
+    .writeByteCache = NULL, .writeByteSeek = 0
+  }
+};
 
 typedef enum {
   FCNTL_WRITE = 0b00,
@@ -103,12 +132,12 @@ typedef enum {
 static FATFS fatfs; /* File system object */
 
 #ifdef SDLOG_NEED_QUEUE
-static size_t logMessageLen (const LogMessage *lm);
-static size_t logRawLen (const size_t len);
-static SdioError sdLoglaunchThread (void);
-static SdioError sdLogStopThread (void);
+static size_t logMessageLen(const LogMessage *lm);
+static size_t logRawLen(const size_t len);
+static SdioError sdLoglaunchThread(void);
+static SdioError sdLogStopThread(void);
 static thread_t *sdLogThd = NULL;
-static SdioError  getNextFIL (FileDes *fd);
+static SdioError  getNextFIL(FileDes *fd);
 
 #if (CH_KERNEL_MAJOR > 2)
 static void thdSdLog(void *arg) ;
@@ -121,35 +150,37 @@ static msg_t thdSdLog(void *arg) ;
 
 
 
-static int32_t uiGetIndexOfLogFile (const char* prefix, const char* fileName) ;
-static inline SdioError flushWriteByteBuffer (const FileDes fd);
+static int32_t uiGetIndexOfLogFile(const char *prefix, const char *fileName) ;
+static inline SdioError flushWriteByteBuffer(const FileDes fd);
 
-SdioError sdLogInit (uint32_t* freeSpaceInKo)
+SdioError sdLogInit(uint32_t *freeSpaceInKo)
 {
-  DWORD clusters=0;
-  FATFS *fsp=NULL;
+  DWORD clusters = 0;
+  FATFS *fsp = NULL;
 
 #ifdef SDLOG_NEED_QUEUE
-  msgqueue_init (&messagesQueue, &HEAP_DEFAULT, queMbBuffer, SDLOG_QUEUE_BUCKETS);
+  msgqueue_init(&messagesQueue, &HEAP_DEFAULT, queMbBuffer, SDLOG_QUEUE_BUCKETS);
 #endif
 
-  if  (!sdc_lld_is_card_inserted (NULL))
+  if (!sdc_lld_is_card_inserted(NULL)) {
     return  SDLOG_NOCARD;
+  }
 
 
-  sdioConnect ();
-  chThdSleepMilliseconds (10);
-  sdioDisconnect ();
+  sdio_connect();
+  chThdSleepMilliseconds(10);
+  sdio_disconnect();
 
-  if (sdioConnect () == FALSE)
+  if (sdio_connect() == FALSE) {
     return  SDLOG_NOCARD;
+  }
 
 #if _FATFS < 8000
   FRESULT rc = f_mount(0, &fatfs);
 #else
   FRESULT rc = f_mount(&fatfs, "", 0);
 #endif
-  
+
   if (rc != FR_OK) {
     return SDLOG_FATFS_ERROR;
   }
@@ -160,13 +191,13 @@ SdioError sdLogInit (uint32_t* freeSpaceInKo)
   }
 
 #ifdef SDLOG_NEED_QUEUE
-  for (uint8_t i=0; i<SDLOG_NUM_BUFFER; i++) {
+  for (uint8_t i = 0; i < SDLOG_NUM_BUFFER; i++) {
     fileDes[i].inUse = fileDes[i].tagAtClose = false;
     fileDes[i].writeByteCache = NULL;
     fileDes[i].writeByteSeek = 0;
   }
 
-  return sdLoglaunchThread ();
+  return sdLoglaunchThread();
 #else
   return SDLOG_OK;
 #endif
@@ -174,7 +205,7 @@ SdioError sdLogInit (uint32_t* freeSpaceInKo)
 }
 
 
-SdioError sdLogFinish (void)
+SdioError sdLogFinish(void)
 {
 #if _FATFS < 8000
   FRESULT rc = f_mount(0, NULL);
@@ -186,7 +217,7 @@ SdioError sdLogFinish (void)
   }
 
   // if we mount, unmount, don't disconnect sdio
-  /* if (sdioDisconnect () == FALSE) */
+  /* if (sdio_disconnect () == FALSE) */
   /*   return  SDLOG_NOCARD; */
 
   return  SDLOG_OK ;
@@ -195,8 +226,8 @@ SdioError sdLogFinish (void)
 
 
 #ifdef SDLOG_NEED_QUEUE
-SdioError sdLogOpenLog (FileDes *fd, const char* directoryName, const char* prefix,
-			bool appendTagAtClose)
+SdioError sdLogOpenLog(FileDes *fd, const char *directoryName, const char *prefix,
+                       bool appendTagAtClose)
 {
   FRESULT rc; /* fatfs result code */
   SdioError sde; /* sdio result code */
@@ -204,12 +235,12 @@ SdioError sdLogOpenLog (FileDes *fd, const char* directoryName, const char* pref
   //FILINFO fno; /* File information object */
   char fileName[32];
 
-  sde = getNextFIL (fd);
+  sde = getNextFIL(fd);
   if (sde != SDLOG_OK) {
     return sde;
   }
 
-  sde = getFileName(prefix, directoryName, fileName, sizeof (fileName), +1);
+  sde = getFileName(prefix, directoryName, fileName, sizeof(fileName), +1);
   if (sde != SDLOG_OK) {
     // sd card is not inserted, so logging task can be deleted
     return SDLOG_FATFS_ERROR;
@@ -228,7 +259,7 @@ SdioError sdLogOpenLog (FileDes *fd, const char* directoryName, const char* pref
 }
 
 
-SdioError sdLogCloseAllLogs (bool flush)
+SdioError sdLogCloseAllLogs(bool flush)
 {
   FRESULT rc = 0; /* Result code */
 
@@ -237,15 +268,16 @@ SdioError sdLogCloseAllLogs (bool flush)
   //    do not flush what is in ram, close as soon as possible
   if (flush == false) {
     // stop worker thread then close file
-    sdLogStopThread ();
-    for (FileDes fd=0; fd<SDLOG_NUM_BUFFER; fd++) {
+    sdLogStopThread();
+    for (FileDes fd = 0; fd < SDLOG_NUM_BUFFER; fd++) {
       if (fileDes[fd].inUse) {
-	FIL *fileObject = &fileDes[fd].fil;
+        FIL *fileObject = &fileDes[fd].fil;
 
-	FRESULT trc = f_close(fileObject);
-	fileDes[fd].inUse = false;
-	if (!rc)
-	  rc = trc;
+        FRESULT trc = f_close(fileObject);
+        fileDes[fd].inUse = false;
+        if (!rc) {
+          rc = trc;
+        }
       }
     }
 
@@ -259,100 +291,108 @@ SdioError sdLogCloseAllLogs (bool flush)
       // something goes wrong, log thread is no more working
       return SDLOG_NOTHREAD;
     }
-    
+
     // queue flush + close order, then stop worker thread
-    for (FileDes fd=0; fd<SDLOG_NUM_BUFFER; fd++) {
+    for (FileDes fd = 0; fd < SDLOG_NUM_BUFFER; fd++) {
       if (fileDes[fd].inUse) {
-	flushWriteByteBuffer (fd);
-	sdLogCloseLog (fd);
+        flushWriteByteBuffer(fd);
+        sdLogCloseLog(fd);
       }
     }
 
-    LogMessage *lm =  tlsf_malloc_r (&HEAP_DEFAULT, sizeof(LogMessage));
-    if (lm == NULL) 
+    LogMessage *lm =  tlsf_malloc_r(&HEAP_DEFAULT, sizeof(LogMessage));
+    if (lm == NULL) {
       return SDLOG_QUEUEFULL;
+    }
 
     lm->op.fcntl = FCNTL_EXIT;
-    
-    if (msgqueue_send (&messagesQueue, lm, sizeof(LogMessage), MsgQueue_REGULAR) < 0) {
+
+    if (msgqueue_send(&messagesQueue, lm, sizeof(LogMessage), MsgQueue_REGULAR) < 0) {
       return SDLOG_QUEUEFULL;
     } else {
-      chThdWait (sdLogThd);
+      chThdWait(sdLogThd);
       sdLogThd = NULL;
     }
-    
+
   }
   return SDLOG_OK;
 }
 
 
 
-SdioError sdLogWriteLog (const FileDes fd, const char* fmt, ...)
+SdioError sdLogWriteLog(const FileDes fd, const char *fmt, ...)
 {
-  if ((fd >= SDLOG_NUM_BUFFER) || (fileDes[fd].inUse == false))
+  if ((fd >= SDLOG_NUM_BUFFER) || (fileDes[fd].inUse == false)) {
     return SDLOG_FATFS_ERROR;
+  }
 
-  flushWriteByteBuffer (fd);
-  
+  flushWriteByteBuffer(fd);
+
   va_list ap;
   va_start(ap, fmt);
-  
-  LogMessage *lm = tlsf_malloc_r (&HEAP_DEFAULT, LOG_MESSAGE_PREBUF_LEN);
-  if (lm == NULL) 
+
+  LogMessage *lm = tlsf_malloc_r(&HEAP_DEFAULT, LOG_MESSAGE_PREBUF_LEN);
+  if (lm == NULL) {
     return SDLOG_QUEUEFULL;
-    
+  }
+
   lm->op.fcntl = FCNTL_WRITE;
   lm->op.fd = fd & 0x1f;
-  
-  chvsnprintf (lm->mess, SDLOG_MAX_MESSAGE_LEN-1,  fmt, ap);
-  lm->mess[SDLOG_MAX_MESSAGE_LEN-1]=0;
+
+  chvsnprintf(lm->mess, SDLOG_MAX_MESSAGE_LEN - 1,  fmt, ap);
+  lm->mess[SDLOG_MAX_MESSAGE_LEN - 1] = 0;
   va_end(ap);
 
   const size_t msgLen =  logMessageLen(lm);
-  lm = tlsf_realloc_r (&HEAP_DEFAULT, lm, msgLen);
-  if (lm == NULL) 
-    return SDLOG_QUEUEFULL;
-  
-  if (msgqueue_send (&messagesQueue, lm, msgLen, MsgQueue_REGULAR) < 0) {
+  lm = tlsf_realloc_r(&HEAP_DEFAULT, lm, msgLen);
+  if (lm == NULL) {
     return SDLOG_QUEUEFULL;
   }
-  
+
+  if (msgqueue_send(&messagesQueue, lm, msgLen, MsgQueue_REGULAR) < 0) {
+    return SDLOG_QUEUEFULL;
+  }
+
   return SDLOG_OK;
 }
 
-SdioError sdLogFlushLog (const FileDes fd)
+SdioError sdLogFlushLog(const FileDes fd)
 {
-  if ((fd >= SDLOG_NUM_BUFFER) || (fileDes[fd].inUse == false))
+  if ((fd >= SDLOG_NUM_BUFFER) || (fileDes[fd].inUse == false)) {
     return SDLOG_FATFS_ERROR;
-  
-  flushWriteByteBuffer (fd);
-  LogMessage *lm =  tlsf_malloc_r (&HEAP_DEFAULT, sizeof(LogMessage));
-  if (lm == NULL) 
+  }
+
+  flushWriteByteBuffer(fd);
+  LogMessage *lm =  tlsf_malloc_r(&HEAP_DEFAULT, sizeof(LogMessage));
+  if (lm == NULL) {
     return SDLOG_QUEUEFULL;
+  }
 
   lm->op.fcntl = FCNTL_FLUSH;
   lm->op.fd = fd & 0x1f;
 
-  if (msgqueue_send (&messagesQueue, lm, sizeof(LogMessage), MsgQueue_REGULAR) < 0) {
+  if (msgqueue_send(&messagesQueue, lm, sizeof(LogMessage), MsgQueue_REGULAR) < 0) {
     return SDLOG_QUEUEFULL;
   }
 
   return SDLOG_OK;
 }
 
-SdioError sdLogCloseLog (const FileDes fd)
+SdioError sdLogCloseLog(const FileDes fd)
 {
-  if ((fd >= SDLOG_NUM_BUFFER) || (fileDes[fd].inUse == false))
+  if ((fd >= SDLOG_NUM_BUFFER) || (fileDes[fd].inUse == false)) {
     return SDLOG_FATFS_ERROR;
+  }
 
-  LogMessage *lm =  tlsf_malloc_r (&HEAP_DEFAULT, sizeof(LogMessage));
-  if (lm == NULL) 
+  LogMessage *lm =  tlsf_malloc_r(&HEAP_DEFAULT, sizeof(LogMessage));
+  if (lm == NULL) {
     return SDLOG_QUEUEFULL;
+  }
 
   lm->op.fcntl = FCNTL_CLOSE;
   lm->op.fd = fd & 0x1f;
 
-  if (msgqueue_send (&messagesQueue, lm, sizeof(lm), MsgQueue_REGULAR) < 0) {
+  if (msgqueue_send(&messagesQueue, lm, sizeof(lm), MsgQueue_REGULAR) < 0) {
     return SDLOG_QUEUEFULL;
   }
 
@@ -363,15 +403,16 @@ SdioError sdLogCloseLog (const FileDes fd)
 
 
 
-static inline SdioError flushWriteByteBuffer (const FileDes fd)
+static inline SdioError flushWriteByteBuffer(const FileDes fd)
 {
-  if ((fd >= SDLOG_NUM_BUFFER) || (fileDes[fd].inUse == false))
+  if ((fd >= SDLOG_NUM_BUFFER) || (fileDes[fd].inUse == false)) {
     return SDLOG_FATFS_ERROR;
-  
-  if (unlikely (fileDes[fd].writeByteCache != NULL)) {
-    if (msgqueue_send (&messagesQueue, fileDes[fd].writeByteCache,
-		       sizeof(LogMessage) + fileDes[fd].writeByteSeek,
-		       MsgQueue_REGULAR) < 0) {
+  }
+
+  if (unlikely(fileDes[fd].writeByteCache != NULL)) {
+    if (msgqueue_send(&messagesQueue, fileDes[fd].writeByteCache,
+                      sizeof(LogMessage) + fileDes[fd].writeByteSeek,
+                      MsgQueue_REGULAR) < 0) {
       return SDLOG_QUEUEFULL;
     }
     fileDes[fd].writeByteCache = NULL;
@@ -379,21 +420,23 @@ static inline SdioError flushWriteByteBuffer (const FileDes fd)
   return SDLOG_OK;
 }
 
-SdioError sdLogWriteRaw (const FileDes fd, const uint8_t * buffer, const size_t len)
+SdioError sdLogWriteRaw(const FileDes fd, const uint8_t *buffer, const size_t len)
 {
-  if ((fd >= SDLOG_NUM_BUFFER) || (fileDes[fd].inUse == false))
+  if ((fd >= SDLOG_NUM_BUFFER) || (fileDes[fd].inUse == false)) {
     return SDLOG_FATFS_ERROR;
+  }
 
-  flushWriteByteBuffer (fd);
-  LogMessage *lm = tlsf_malloc_r (&HEAP_DEFAULT, logRawLen(len));
-  if (lm == NULL)
+  flushWriteByteBuffer(fd);
+  LogMessage *lm = tlsf_malloc_r(&HEAP_DEFAULT, logRawLen(len));
+  if (lm == NULL) {
     return SDLOG_QUEUEFULL;
+  }
 
   lm->op.fcntl = FCNTL_WRITE;
   lm->op.fd = fd & 0x1f;
-  memcpy (lm->mess, buffer, len);
+  memcpy(lm->mess, buffer, len);
 
-  if (msgqueue_send (&messagesQueue, lm, logRawLen(len), MsgQueue_REGULAR) < 0) {
+  if (msgqueue_send(&messagesQueue, lm, logRawLen(len), MsgQueue_REGULAR) < 0) {
     return SDLOG_QUEUEFULL;
   }
 
@@ -402,31 +445,33 @@ SdioError sdLogWriteRaw (const FileDes fd, const uint8_t * buffer, const size_t 
 
 
 
-SdioError sdLogWriteByte (const FileDes fd, const uint8_t value)
+SdioError sdLogWriteByte(const FileDes fd, const uint8_t value)
 {
-  if ((fd >= SDLOG_NUM_BUFFER) || (fileDes[fd].inUse == false))
+  if ((fd >= SDLOG_NUM_BUFFER) || (fileDes[fd].inUse == false)) {
     return SDLOG_FATFS_ERROR;
+  }
   LogMessage *lm;
-  
-  if  (fileDes[fd].writeByteCache == NULL) {
-    lm = tlsf_malloc_r (&HEAP_DEFAULT, sizeof(LogMessage) + WRITE_BYTE_CACHE_SIZE);
-    if (lm == NULL) 
+
+  if (fileDes[fd].writeByteCache == NULL) {
+    lm = tlsf_malloc_r(&HEAP_DEFAULT, sizeof(LogMessage) + WRITE_BYTE_CACHE_SIZE);
+    if (lm == NULL) {
       return SDLOG_QUEUEFULL;
+    }
 
     lm->op.fcntl = FCNTL_WRITE;
     lm->op.fd = fd & 0x1f;
-    
+
     fileDes[fd].writeByteCache = lm;
     fileDes[fd].writeByteSeek = 0;
   } else {
     lm = fileDes[fd].writeByteCache;
   }
-  
+
   lm->mess[fileDes[fd].writeByteSeek++] = value;
 
   if (fileDes[fd].writeByteSeek == WRITE_BYTE_CACHE_SIZE) {
-    return flushWriteByteBuffer (fd);
-  } 
+    return flushWriteByteBuffer(fd);
+  }
   return SDLOG_OK;
 }
 
@@ -437,54 +482,56 @@ SdioError sdLogWriteByte (const FileDes fd, const uint8_t value)
    si necessaire
    */
 static THD_WORKING_AREA(waThdSdLog, 1024);
-SdioError sdLoglaunchThread ()
+SdioError sdLoglaunchThread()
 {
   chThdSleepMilliseconds(100);
 
   sdLogThd = chThdCreateStatic(waThdSdLog, sizeof(waThdSdLog),
-			       NORMALPRIO+1, thdSdLog, NULL);
-  if (sdLogThd == NULL)
+                               NORMALPRIO + 1, thdSdLog, NULL);
+  if (sdLogThd == NULL) {
     return SDLOG_INTERNAL_ERROR;
-  else
+  } else {
     return SDLOG_OK;
+  }
 }
 
-SdioError sdLogStopThread (void)
+SdioError sdLogStopThread(void)
 {
-  SdioError retVal=SDLOG_OK;
+  SdioError retVal = SDLOG_OK;
 
-  if (sdLogThd == NULL)
+  if (sdLogThd == NULL) {
     return SDLOG_NOTHREAD;
+  }
 
   LogMessage lm;
 
   // ask for closing (after flushing) all opened files
-  for (uint8_t i=0; i<SDLOG_NUM_BUFFER; i++) {
+  for (uint8_t i = 0; i < SDLOG_NUM_BUFFER; i++) {
     if (fileDes[i].inUse) {
-      flushWriteByteBuffer (i);
+      flushWriteByteBuffer(i);
       lm.op.fcntl = FCNTL_CLOSE;
       lm.op.fd = i & 0x1f;
-      if (msgqueue_copy_send (&messagesQueue, &lm, sizeof(LogMessage), MsgQueue_OUT_OF_BAND) < 0) {
-	retVal= SDLOG_QUEUEFULL;
+      if (msgqueue_copy_send(&messagesQueue, &lm, sizeof(LogMessage), MsgQueue_OUT_OF_BAND) < 0) {
+        retVal = SDLOG_QUEUEFULL;
       }
     }
   }
 
   lm.op.fcntl = FCNTL_EXIT;
-  if (msgqueue_copy_send (&messagesQueue, &lm, sizeof(LogMessage), MsgQueue_OUT_OF_BAND) < 0) {
-    retVal= SDLOG_QUEUEFULL;
+  if (msgqueue_copy_send(&messagesQueue, &lm, sizeof(LogMessage), MsgQueue_OUT_OF_BAND) < 0) {
+    retVal = SDLOG_QUEUEFULL;
   }
 
-  chThdTerminate (sdLogThd);
-  chThdWait (sdLogThd);
+  chThdTerminate(sdLogThd);
+  chThdWait(sdLogThd);
   sdLogThd = NULL;
   return retVal;
 }
 #endif
 
 
-SdioError getFileName(const char* prefix, const char* directoryName,
-			     char* nextFileName, const size_t nameLength, const int indexOffset)
+SdioError getFileName(const char *prefix, const char *directoryName,
+                      char *nextFileName, const size_t nameLength, const int indexOffset)
 {
   DIR dir; /* Directory object */
   FRESULT rc; /* Result code */
@@ -497,11 +544,11 @@ SdioError getFileName(const char* prefix, const char* directoryName,
   fno.lfname = lfn;
   fno.lfsize = sizeof lfn;
 #endif
-  const size_t directoryNameLen = MIN(strlen (directoryName), 128);
-  const size_t slashDirNameLen = directoryNameLen+2;
+  const size_t directoryNameLen = MIN(strlen(directoryName), 128);
+  const size_t slashDirNameLen = directoryNameLen + 2;
   char slashDirName[slashDirNameLen];
-  strlcpy (slashDirName, "/", slashDirNameLen);
-  strlcat (slashDirName, directoryName, slashDirNameLen);
+  strlcpy(slashDirName, "/", slashDirNameLen);
+  strlcat(slashDirName, directoryName, slashDirNameLen);
 
   rc = f_opendir(&dir, directoryName);
   if (rc != FR_OK) {
@@ -517,41 +564,41 @@ SdioError getFileName(const char* prefix, const char* directoryName,
 
   for (;;) {
     rc = f_readdir(&dir, &fno); /* Read a directory item */
-    if (rc != FR_OK || fno.fname[0] ==  0) break; /* Error or end of dir */
+    if (rc != FR_OK || fno.fname[0] ==  0) { break; } /* Error or end of dir */
 #if _USE_LFN
     fn = *fno.lfname ? fno.lfname : fno.fname;
 #else
     fn = fno.fname;
 #endif
-    if (fn[0] == '.') continue;
+    if (fn[0] == '.') { continue; }
 
     if (!(fno.fattrib & AM_DIR)) {
       //      DebugTrace ("fno.fsize=%d  fn=%s\n", fno.fsize, fn);
-      fileIndex = uiGetIndexOfLogFile (prefix, fn);
-      maxCurrentIndex = MAX (maxCurrentIndex, fileIndex);
+      fileIndex = uiGetIndexOfLogFile(prefix, fn);
+      maxCurrentIndex = MAX(maxCurrentIndex, fileIndex);
     }
   }
   if (rc) {
     return SDLOG_FATFS_ERROR;
   }
 
-  rc = f_closedir (&dir);
+  rc = f_closedir(&dir);
   if (rc) {
     return SDLOG_FATFS_ERROR;
   }
-  
+
   if (maxCurrentIndex < NUMBERMAX) {
-    chsnprintf (nextFileName, nameLength, NUMBERFMF,
-		directoryName, prefix, maxCurrentIndex+indexOffset);
+    chsnprintf(nextFileName, nameLength, NUMBERFMF,
+               directoryName, prefix, maxCurrentIndex + indexOffset);
     return SDLOG_OK;
   } else {
-    chsnprintf (nextFileName, nameLength, "%s\\%s%.ERR",
-		directoryName, prefix);
+    chsnprintf(nextFileName, nameLength, "%s\\%s%.ERR",
+               directoryName, prefix);
     return SDLOG_LOGNUM_ERROR;
   }
 }
 
-SdioError removeEmptyLogs(const char* directoryName, const char* prefix, const size_t sizeConsideredEmpty)
+SdioError removeEmptyLogs(const char *directoryName, const char *prefix, const size_t sizeConsideredEmpty)
 {
   DIR dir; /* Directory object */
   FRESULT rc; /* Result code */
@@ -570,33 +617,34 @@ SdioError removeEmptyLogs(const char* directoryName, const char* prefix, const s
 
   for (;;) {
     rc = f_readdir(&dir, &fno); /* Read a directory item */
-    if (rc != FR_OK || fno.fname[0] ==  0) break; /* Error or end of dir */
+    if (rc != FR_OK || fno.fname[0] ==  0) { break; } /* Error or end of dir */
 #if _USE_LFN
     fn = *fno.lfname ? fno.lfname : fno.fname;
 #else
     fn = fno.fname;
 #endif
-    if (fn[0] == '.') continue;
+    if (fn[0] == '.') { continue; }
 
     if (!(fno.fattrib & AM_DIR)) {
       //      DebugTrace ("fno.fsize=%d  fn=%s\n", fno.fsize, fn);
-      if ((strncmp (fn, prefix, strlen(prefix)) == 0) && (fno.fsize <= sizeConsideredEmpty)) {
-	char absPathName[128];
-	strlcpy (absPathName, directoryName, sizeof(absPathName));
-	strlcat (absPathName, "/", sizeof(absPathName));
-	strlcat (absPathName, fn, sizeof(absPathName));
-	rc = f_unlink (absPathName);
-	if (rc) 
-	  break;
+      if ((strncmp(fn, prefix, strlen(prefix)) == 0) && (fno.fsize <= sizeConsideredEmpty)) {
+        char absPathName[128];
+        strlcpy(absPathName, directoryName, sizeof(absPathName));
+        strlcat(absPathName, "/", sizeof(absPathName));
+        strlcat(absPathName, fn, sizeof(absPathName));
+        rc = f_unlink(absPathName);
+        if (rc) {
+          break;
+        }
       }
     }
   }
-  
+
   if (rc) {
     return SDLOG_FATFS_ERROR;
   }
-  
-  rc = f_closedir (&dir);
+
+  rc = f_closedir(&dir);
   if (rc) {
     return SDLOG_FATFS_ERROR;
   }
@@ -619,32 +667,33 @@ SdioError removeEmptyLogs(const char* directoryName, const char* prefix, const s
 
 
 
-int32_t uiGetIndexOfLogFile (const char* prefix, const char* fileName)
+int32_t uiGetIndexOfLogFile(const char *prefix, const char *fileName)
 {
   const size_t len = strlen(prefix);
 
   // if filename does not began with prefix, return 0
-  if (strncmp (prefix, fileName, len) != 0)
+  if (strncmp(prefix, fileName, len) != 0) {
     return 0;
+  }
 
   // we point on the first char after prefix
-  const char* suffix = &(fileName[len]);
+  const char *suffix = &(fileName[len]);
 
   // we test that suffix is valid (at least begin with digit)
-    if (!isdigit ((int) suffix[0])) {
-      //      DebugTrace ("DBG> suffix = %s", suffix);
-      return 0;
-    }
+  if (!isdigit((int) suffix[0])) {
+    //      DebugTrace ("DBG> suffix = %s", suffix);
+    return 0;
+  }
 
-  return (int32_t) atoi (suffix);
+  return (int32_t) atoi(suffix);
 }
 
 
 #ifdef SDLOG_NEED_QUEUE
 #if (CH_KERNEL_MAJOR > 2)
-static void thdSdLog(void *arg) 
+static void thdSdLog(void *arg)
 #else
-static msg_t thdSdLog(void *arg) 
+static msg_t thdSdLog(void *arg)
 #endif
 {
   (void) arg;
@@ -655,72 +704,70 @@ static msg_t thdSdLog(void *arg)
 
   UINT bw;
   static struct PerfBuffer perfBuffers[SDLOG_NUM_BUFFER] =
-    {[0 ... SDLOG_NUM_BUFFER-1] = {.buffer = {0}, .size = 0}};
+  {[0 ... SDLOG_NUM_BUFFER - 1] = {.buffer = {0}, .size = 0}};
 
   chRegSetThreadName("thdSdLog");
   while (!chThdShouldTerminateX()) {
     LogMessage *lm;
-    const int32_t retLen = ( int32_t) (msgqueue_pop (&messagesQueue, (void **) &lm));
+    const int32_t retLen = (int32_t)(msgqueue_pop(&messagesQueue, (void **) &lm));
     if (retLen > 0) {
       FIL *fo =  &fileDes[lm->op.fd].fil;
-      uint8_t * const perfBuffer = perfBuffers[lm->op.fd].buffer;
+      uint8_t *const perfBuffer = perfBuffers[lm->op.fd].buffer;
 
       switch (lm->op.fcntl) {
-	
-      case FCNTL_FLUSH:
-      case FCNTL_CLOSE:
-	{
-	  const uint16_t curBufFill = perfBuffers[lm->op.fd].size;
-	  if (fileDes[lm->op.fd].inUse) {
-	    if (curBufFill) {
-	      f_write(fo, perfBuffer, curBufFill, &bw);
-	      perfBuffers[lm->op.fd].size = 0;
-	    }
-	    if (lm->op.fcntl ==  FCNTL_FLUSH) {
-	      f_sync (fo);
-	    } else { // close
-	      if (fileDes[lm->op.fd].tagAtClose) {
-		f_write(fo, "\r\nEND_OF_LOG\r\n", 14, &bw);
-	      }
-	      f_close (fo);
-	      fileDes[lm->op.fd].inUse = false; // store that file is closed
-	    }
-	  }
-	}
-	break;
-	
-      case FCNTL_EXIT:
-	chThdExit(SDLOG_OK);
-	break; /* To exit from thread when asked : chThdTerminate
-		  then send special message with FCNTL_EXIT   */
-	
-	
-      case FCNTL_WRITE:
-	{
-	  const uint16_t curBufFill = perfBuffers[lm->op.fd].size;
-	  if (fileDes[lm->op.fd].inUse) {
-	    const int32_t messLen = retLen-(int32_t) (sizeof(LogMessage));
-	    if (messLen < (SDLOG_WRITE_BUFFER_SIZE-curBufFill)) {
-	      // the buffer can accept this message
-	      memcpy (&(perfBuffer[curBufFill]), lm->mess, (size_t) (messLen));
-	      perfBuffers[lm->op.fd].size = (uint16_t) ((perfBuffers[lm->op.fd].size)+messLen);
-	    } else {
-	      // fill the buffer
-	      const int32_t stayLen = SDLOG_WRITE_BUFFER_SIZE-curBufFill;
-	      memcpy (&(perfBuffer[curBufFill]), lm->mess, (size_t)(stayLen));
-	      FRESULT rc = f_write(fo, perfBuffer, SDLOG_WRITE_BUFFER_SIZE, &bw);
-	      f_sync (fo);
-	      if (rc) {
-		chThdExit (SDLOG_FATFS_ERROR);
-	      } else if (bw != SDLOG_WRITE_BUFFER_SIZE) {
-		chThdExit (SDLOG_FSFULL);
-	      }
-	      
-	      memcpy (perfBuffer, &(lm->mess[stayLen]),  (uint32_t) (messLen-stayLen));
-	      perfBuffers[lm->op.fd].size = (uint16_t) (messLen-stayLen); // curBufFill
-	    }
-	  }
-	}
+
+        case FCNTL_FLUSH:
+        case FCNTL_CLOSE: {
+          const uint16_t curBufFill = perfBuffers[lm->op.fd].size;
+          if (fileDes[lm->op.fd].inUse) {
+            if (curBufFill) {
+              f_write(fo, perfBuffer, curBufFill, &bw);
+              perfBuffers[lm->op.fd].size = 0;
+            }
+            if (lm->op.fcntl ==  FCNTL_FLUSH) {
+              f_sync(fo);
+            } else { // close
+              if (fileDes[lm->op.fd].tagAtClose) {
+                f_write(fo, "\r\nEND_OF_LOG\r\n", 14, &bw);
+              }
+              f_close(fo);
+              fileDes[lm->op.fd].inUse = false; // store that file is closed
+            }
+          }
+        }
+        break;
+
+        case FCNTL_EXIT:
+          chThdExit(SDLOG_OK);
+          break; /* To exit from thread when asked : chThdTerminate
+      then send special message with FCNTL_EXIT   */
+
+
+        case FCNTL_WRITE: {
+          const uint16_t curBufFill = perfBuffers[lm->op.fd].size;
+          if (fileDes[lm->op.fd].inUse) {
+            const int32_t messLen = retLen - (int32_t)(sizeof(LogMessage));
+            if (messLen < (SDLOG_WRITE_BUFFER_SIZE - curBufFill)) {
+              // the buffer can accept this message
+              memcpy(&(perfBuffer[curBufFill]), lm->mess, (size_t)(messLen));
+              perfBuffers[lm->op.fd].size = (uint16_t)((perfBuffers[lm->op.fd].size) + messLen);
+            } else {
+              // fill the buffer
+              const int32_t stayLen = SDLOG_WRITE_BUFFER_SIZE - curBufFill;
+              memcpy(&(perfBuffer[curBufFill]), lm->mess, (size_t)(stayLen));
+              FRESULT rc = f_write(fo, perfBuffer, SDLOG_WRITE_BUFFER_SIZE, &bw);
+              f_sync(fo);
+              if (rc) {
+                chThdExit(SDLOG_FATFS_ERROR);
+              } else if (bw != SDLOG_WRITE_BUFFER_SIZE) {
+                chThdExit(SDLOG_FSFULL);
+              }
+
+              memcpy(perfBuffer, &(lm->mess[stayLen]), (uint32_t)(messLen - stayLen));
+              perfBuffers[lm->op.fd].size = (uint16_t)(messLen - stayLen); // curBufFill
+            }
+          }
+        }
       }
       tlsf_free_r(&HEAP_DEFAULT, lm);
     } else {
@@ -732,22 +779,22 @@ static msg_t thdSdLog(void *arg)
 #endif
 }
 
-static size_t logMessageLen (const LogMessage *lm)
+static size_t logMessageLen(const LogMessage *lm)
 {
-  return sizeof(LogMessage) + strnlen (lm->mess, SDLOG_MAX_MESSAGE_LEN);
+  return sizeof(LogMessage) + strnlen(lm->mess, SDLOG_MAX_MESSAGE_LEN);
 }
 
-static size_t logRawLen (const size_t len)
+static size_t logRawLen(const size_t len)
 {
   return sizeof(LogMessage) + len;
 }
 
-static SdioError  getNextFIL (FileDes *fd)
+static SdioError  getNextFIL(FileDes *fd)
 {
   // if there is a free slot in fileDes, use it
   // else, if all slots are buzy, maximum open files limit
   // is reach.
-  for (FileDes i=0; i<SDLOG_NUM_BUFFER; i++) {
+  for (FileDes i = 0; i < SDLOG_NUM_BUFFER; i++) {
     if (fileDes[i].inUse ==  false) {
       *fd = i;
       fileDes[i].inUse = true;

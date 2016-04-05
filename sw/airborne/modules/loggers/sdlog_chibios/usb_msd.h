@@ -69,80 +69,79 @@ PACK_STRUCT_BEGIN typedef struct {
  * @brief Structure holding sense data (status/error information)
  */
 PACK_STRUCT_BEGIN typedef struct {
-    uint8_t byte[18];
+  uint8_t byte[18];
 } PACK_STRUCT_STRUCT msd_scsi_sense_response_t PACK_STRUCT_END;
 
 /**
  * @brief structure holding the data to reply to an INQUIRY SCSI command
  */
-PACK_STRUCT_BEGIN typedef struct
-{
-    uint8_t peripheral;
-    uint8_t removable;
-    uint8_t version;
-    uint8_t response_data_format;
-    uint8_t additional_length;
-    uint8_t sccstp;
-    uint8_t bqueetc;
-    uint8_t cmdque;
-    uint8_t vendor_id[8];
-    uint8_t product_id[16];
-    uint8_t product_rev[4];
+PACK_STRUCT_BEGIN typedef struct {
+  uint8_t peripheral;
+  uint8_t removable;
+  uint8_t version;
+  uint8_t response_data_format;
+  uint8_t additional_length;
+  uint8_t sccstp;
+  uint8_t bqueetc;
+  uint8_t cmdque;
+  uint8_t vendor_id[8];
+  uint8_t product_id[16];
+  uint8_t product_rev[4];
 } PACK_STRUCT_STRUCT msd_scsi_inquiry_response_t PACK_STRUCT_END;
 
 /**
  * @brief Possible states for the USB mass storage driver
  */
 typedef enum {
-    MSD_IDLE,
-    MSD_READ_COMMAND_BLOCK,
-    MSD_EJECTED
+  MSD_IDLE,
+  MSD_READ_COMMAND_BLOCK,
+  MSD_EJECTED
 } msd_state_t;
 
 /**
  * @brief Driver configuration structure
  */
 typedef struct {
-    /**
-    * @brief USB driver to use for communication
-    */
-    USBDriver *usbp;
+  /**
+  * @brief USB driver to use for communication
+  */
+  USBDriver *usbp;
 
-    /**
-    * @brief Block device to use for storage
-    */
-    BaseBlockDevice *bbdp;
+  /**
+  * @brief Block device to use for storage
+  */
+  BaseBlockDevice *bbdp;
 
-    /**
-    * @brief Index of the USB endpoint to use for transfers
-    */
-    usbep_t bulk_ep;
+  /**
+  * @brief Index of the USB endpoint to use for transfers
+  */
+  usbep_t bulk_ep;
 
-    /**
-    * @brief Optional callback that will be called whenever there is
-    *        read/write activity
-    * @note  The callback is called with argument TRUE when activity starts,
-    *        and FALSE when activity stops.
-    */
-    void (*rw_activity_callback)(bool);
+  /**
+  * @brief Optional callback that will be called whenever there is
+  *        read/write activity
+  * @note  The callback is called with argument TRUE when activity starts,
+  *        and FALSE when activity stops.
+  */
+  void (*rw_activity_callback)(bool);
 
-    /**
-    * @brief Short vendor identification
-    * @note  ASCII characters only, maximum 8 characters (pad with zeroes).
-    */
-    uint8_t short_vendor_id[8];
+  /**
+  * @brief Short vendor identification
+  * @note  ASCII characters only, maximum 8 characters (pad with zeroes).
+  */
+  uint8_t short_vendor_id[8];
 
-    /**
-    * @brief Short product identification
-    * @note  ASCII characters only, maximum 16 characters (pad with zeroes).
-    */
-    uint8_t short_product_id[16];
+  /**
+  * @brief Short product identification
+  * @note  ASCII characters only, maximum 16 characters (pad with zeroes).
+  */
+  uint8_t short_product_id[16];
 
-    /**
-    * @brief Short product revision
-    * @note  ASCII characters only, maximum 4 characters (pad with zeroes).
-    */
-    uint8_t short_product_version[4];
+  /**
+  * @brief Short product revision
+  * @note  ASCII characters only, maximum 4 characters (pad with zeroes).
+  */
+  uint8_t short_product_version[4];
 
 } USBMassStorageConfig;
 
@@ -152,9 +151,9 @@ typedef struct {
  *          storage driver.
  */
 typedef struct {
-    const USBMassStorageConfig* config;
+  const USBMassStorageConfig *config;
   binary_semaphore_t bsem;
-  thread_t* thread;
+  thread_t *thread;
   event_source_t evt_connected, evt_ejected;
   BlockDeviceInfo block_dev_info;
   msd_state_t state;

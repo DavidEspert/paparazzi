@@ -10,6 +10,7 @@
       by using the autopilot as a mass storage (plug USB while the board is running).
     </description>
   </doc>
+  <depends>tlsf</depends>
   <header>
     <file name="sdlog_chibios.h" />
   </header>
@@ -19,6 +20,7 @@
     <file name="sdlog_chibios/sdLog.c"/>
     <file name="sdlog_chibios/msg_queue.c"/>
     <file name="sdlog_chibios/sdLog.c"/>
+    <file name="sdlog_chibios/printf.c"/>
     <file name="sdlog_chibios/usb_msd.c"/>
     <file name="sdlog_chibios/usbStorage.c"/>
     <file_arch name="sdio_arch.c" dir="mcu_periph"/>

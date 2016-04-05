@@ -47,7 +47,7 @@
 
 
 #if (!defined USE_ADC_WATCHDOG) || (USE_ADC_WATCHDOG == 0)
-#error sdlog_chibios need USE_ADC_WATCHDOG in order to properly close files when power is unplugged 
+#error sdlog_chibios need USE_ADC_WATCHDOG in order to properly close files when power is unplugged
 #endif
 
 #define DefaultAdcOfVoltage(voltage) ((uint32_t) (voltage/(DefaultVoltageOfAdc(1))))
@@ -228,7 +228,7 @@ static void thd_bat_survey(void *arg)
 
 
 /*
-  powerOutageIsr is called within a lock zone from an isr, so no lock/unlock is needed 
+  powerOutageIsr is called within a lock zone from an isr, so no lock/unlock is needed
  */
 static void  powerOutageIsr (void)
 {
