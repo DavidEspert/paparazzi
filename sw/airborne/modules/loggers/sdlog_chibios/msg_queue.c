@@ -136,7 +136,7 @@ const char*     msgqueue_strerror (const MsgQueueStatus _errno)
 {
   size_t indice = _errno - MsgQueue_MAILBOX_FULL;
   const size_t arrayLen = sizeof(_strerror)/sizeof(_strerror[0]);
-  indice = indice < arrayLen ? indice : arrayLen-1;
+  indice = (indice < arrayLen) ? indice : arrayLen-1;
   return _strerror[indice];
 }
 
