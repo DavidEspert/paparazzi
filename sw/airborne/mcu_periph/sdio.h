@@ -29,15 +29,15 @@
 
 /** Connect a SD card on SDIO peripheral
  */
-bool_t sdio_connect(void);
+bool sdio_connect(void);
 
 /** Disconnect a SD card on SDIO peripheral
  */
-bool_t sdio_disconnect(void);
+bool sdio_disconnect(void);
 
 /** Check if a SD card is inserted
  */
-bool_t is_card_inserted  (void);
+bool is_card_inserted  (void);
 
 #endif
 

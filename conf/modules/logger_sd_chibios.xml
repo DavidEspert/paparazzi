@@ -16,10 +16,9 @@
   <init fun="sdlog_chibios_init()"/>
   <makefile target="ap">
     <file name="sdlog_chibios.c"/>
-    <file name="sdlog_chibios/ringBuffer.c"/>
-    <file name="sdlog_chibios/varLengthMsgQ.c"/>
     <file name="sdlog_chibios/sdLog.c"/>
-    <file name="sdlog_chibios/printf.c"/>
+    <file name="sdlog_chibios/msg_queue.c"/>
+    <file name="sdlog_chibios/sdLog.c"/>
     <file name="sdlog_chibios/usb_msd.c"/>
     <file name="sdlog_chibios/usbStorage.c"/>
     <file_arch name="sdio_arch.c" dir="mcu_periph"/>

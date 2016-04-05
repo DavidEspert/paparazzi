@@ -1,34 +1,8 @@
-/*
- * Copyright (C) 2013-2016 Gautier Hattenberger, Alexandre Bustico
- *
- * This file is part of paparazzi.
- *
- * paparazzi is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * paparazzi is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with paparazzi; see the file COPYING.  If not, write to
- * the Free Software Foundation, 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.
- */
-
-/*
- * @file modules/loggers/sdlog_chibios/sdLog.h
- * @brief sdlog API using ChibiOS and Fatfs
- *
- */
-
 #pragma once
-#include "std.h"
-#include "mcuconf.h"
+#include "ch.h"
+#include "hal.h"
 
+#include "ff.h"
 #include <stdarg.h>
 
 #define NUMBERLEN 4
@@ -43,16 +17,13 @@ extern "C" {
     This module is highly coupled with fatfs, and mcuconf.h
     several MACRO should be defined before use
 
-    FATFS (ffconf.h) :
-    ° _FS_LOCK : number of simultaneously open file
-    ° _FS_REENTRANT : If you need to open / close file during log, this should be set to 1 at
-                       the expense of more used cam and cpu.
-                    If you open all files prior to log data on them, it should be left to 0
+    FATFS (ffconf.h) 
+
 
    MCUCONF.H (or any other header included before sdLog.h
-   ° SDLOG_ALL_BUFFERS_SIZE : (in bytes) performance ram buffer size shared between all opened log file
+   ° SDLOG_ALL_BUFFERS_SIZE : (in bytes) cache buffer size shared between all opened log file
    ° SDLOG_MAX_MESSAGE_LEN  : (in bytes) maximum length of a message
-   ° SDLOG_QUEUE_SIZE       : (in bytes) size of the message queue
+   ° SDLOG_QUEUE_SIZE       : (in bytes) size of the memory pool associated with message queue
    ° SDLOG_QUEUE_BUCKETS    : number of entries in queue
 
 
@@ -60,7 +31,7 @@ extern "C" {
    sdLogInit (initialize peripheral,  verify sdCard availibility)
    sdLogOpenLog : open file
    sdLogWriteXXX
-   sdLogFlushLog : flush buffer (optional)
+ r sdLogFlushLog : flush buffer (optional)
    sdLogCloseLog
    sdLogFinish
 
@@ -126,6 +97,9 @@ SdioError sdLogInit (uint32_t* freeSpaceInKo);
 SdioError getFileName(const char* prefix, const char* directoryName,
 		      char* nextFileName, const size_t nameLength, const int indexOffset);
 
+
+
+
 /**
  * @brief	remove spurious log file left on sd
  * @details	when tuning firmware, log files are created at each tries, and we consider
@@ -138,8 +112,6 @@ SdioError getFileName(const char* prefix, const char* directoryName,
  */
 SdioError removeEmptyLogs(const char* directoryName, const char* prefix, 
 			  const size_t sizeConsideredEmpty);
-
-
 /**
  * @brief	unmount filesystem
  * @details	unmount filesystem, free sdio peripheral
@@ -161,7 +133,7 @@ SdioError sdLogFinish (void);
  *		files.
  */
 SdioError sdLogOpenLog (FileDes *fileObject, const char* directoryName, const char* fileName,
-			bool_t appendTagAtClose);
+			bool appendTagAtClose);
 
 
 /**
@@ -185,6 +157,9 @@ SdioError sdLogCloseLog (const FileDes fileObject);
  *				   emergency close after power outage is detected
  */
 SdioError sdLogCloseAllLogs (bool flush);
+
+
+
 
 
 /**

@@ -124,7 +124,7 @@ typedef struct {
     * @note  The callback is called with argument TRUE when activity starts,
     *        and FALSE when activity stops.
     */
-    void (*rw_activity_callback)(bool_t);
+    void (*rw_activity_callback)(bool);
 
     /**
     * @brief Short vendor identification
@@ -162,7 +162,7 @@ typedef struct {
   msd_csw_t csw;
   msd_scsi_sense_response_t sense;
   msd_scsi_inquiry_response_t inquiry;
-  bool_t result;
+  bool result;
 } USBMassStorageDriver;
 
 #ifdef __cplusplus

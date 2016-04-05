@@ -43,7 +43,7 @@
 static enum {STOP, CONNECT} cnxState = STOP;
 
 
-bool_t sdio_connect(void)
+bool sdio_connect(void)
 {
   if (!sdc_lld_is_card_inserted (NULL)) {
     return FALSE;
@@ -82,7 +82,7 @@ bool_t sdio_connect(void)
 }
 
 
-bool_t sdio_disconnect(void)
+bool sdio_disconnect(void)
 {
   if (cnxState == STOP)
     return TRUE;
@@ -94,7 +94,7 @@ bool_t sdio_disconnect(void)
   return TRUE;
 }
 
-bool_t is_card_inserted(void)
+bool is_card_inserted(void)
 {
   return sdc_lld_is_card_inserted (NULL);
 }

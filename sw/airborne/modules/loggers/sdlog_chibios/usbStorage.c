@@ -40,7 +40,7 @@ static void thdUsbStorage(void *arg);
 static thread_t* usbStorageThreadPtr=NULL;
 /* USB mass storage driver */
 static USBMassStorageDriver UMSD1;
-static bool_t isRunning = false;
+static bool isRunning = false;
 
 /* endpoint index */
 #define USB_MS_DATA_EP 1
@@ -237,7 +237,7 @@ const USBConfig usbConfig =
 };
 
 /* Turns on a LED when there is I/O activity on the USB port */
-static void usbActivity(bool_t active)
+static void usbActivity(bool active)
 {
   palWritePad(GPIOC, GPIOC_LED4, active);
 }
@@ -297,7 +297,7 @@ static void thdUsbStorage(void *arg)
   // be used concurrently by chibios api
   // Should be fixed when using chibios-rt branch
   while (!chThdShouldTerminateX() && antiBounce) {
-    const bool_t usbConnected = palReadPad (GPIOA, GPIOA_OTG_FS_VBUS);
+    const bool usbConnected = palReadPad (GPIOA, GPIOA_OTG_FS_VBUS);
     if (usbConnected)
       antiBounce--;
     else
@@ -355,7 +355,7 @@ static void thdUsbStorage(void *arg)
   return;
 }
 
-bool_t usbStorageIsItRunning (void)
+bool usbStorageIsItRunning (void)
 {
   return isRunning;
 }
