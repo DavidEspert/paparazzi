@@ -6,7 +6,7 @@
 #include <string.h>
 
 #include "tlsf.h"
-#include "tlsf_conf.h"
+//#include "tlsf_conf.h"
 #include "ch.h"
 
 static inline int tlsf_ffs(unsigned int word)
