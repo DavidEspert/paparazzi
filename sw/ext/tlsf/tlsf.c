@@ -7,7 +7,7 @@
 
 #include "tlsf.h"
 //#include "tlsf_conf.h"
-#include "ch.h"
+//#include "ch.h"
 
 static inline int tlsf_ffs(unsigned int word)
 {
@@ -69,7 +69,7 @@ enum tlsf_private
     */
     FL_INDEX_MAX = 32,
 #elif defined  MAX_FLI
-    FL_INDEX_MAX = MAX_FLI, 
+    FL_INDEX_MAX = MAX_FLI,
 #else
     FL_INDEX_MAX = 30,
 #endif
@@ -158,16 +158,14 @@ static const size_t block_header_prev_free_bit = 1 << 1;
 static const size_t block_header_overhead = sizeof(size_t);
 
 /* User data starts directly after the size field in a used block. */
-static const size_t block_start_offset =
-  offsetof(block_header_t, size) + sizeof(size_t);
+static const size_t block_start_offset = offsetof(block_header_t, size) + sizeof(size_t);
 
-				 /*
-				 ** A free block must be large enough to store its header minus the size of
-				 ** the prev_phys_block field, and no larger than the number of addressable
-				 ** bits for FL_INDEX.
-				 */
-				 static const size_t block_size_min = 
-				   sizeof(block_header_t) - sizeof(block_header_t*);
+/*
+ ** A free block must be large enough to store its header minus the size of
+ ** the prev_phys_block field, and no larger than the number of addressable
+ ** bits for FL_INDEX.
+ */
+static const size_t block_size_min = sizeof(block_header_t) - sizeof(block_header_t*);
 static const size_t block_size_max = tlsf_cast(size_t, 1) << FL_INDEX_MAX;
 
 
