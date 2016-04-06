@@ -3,7 +3,6 @@
 #include <string.h>
 #include "tlsf.h"
 
-
 #define likely(x)      __builtin_expect(!!(x), 1)
 #define unlikely(x)    __builtin_expect(!!(x), 0)
 
@@ -612,7 +611,7 @@ static void* block_prepare_used(control_t* control, block_header_t* block, size_
 }
 
 /* Clear structure and point all empty lists at the null block. */
-static void control_construct(control_t* control, error_cb_t _error_cb)
+static void control_construct(control_t* control)
 {
   int i, j;
 
@@ -628,7 +627,6 @@ static void control_construct(control_t* control, error_cb_t _error_cb)
 	  control->blocks[i][j] = &control->block_null;
 	}
     }
-   error_cb = _error_cb;
 }
 
 /*
@@ -852,7 +850,7 @@ void tlsf_remove_pool(tlsf_t tlsf, pool_t pool)
 */
 
 #if defined TLSF_DEBUG && TLSF_DEBUG
-int test_ffs_fls(error_cb_t error_cb)
+int test_ffs_fls(void)
 {
   /* Verify ffs/fls work properly. */
   int rv = 0;
@@ -879,8 +877,10 @@ int test_ffs_fls(error_cb_t error_cb)
 }
 #endif
 
-tlsf_t tlsf_create(void* mem, error_cb_t error_cb)
+tlsf_t tlsf_create(void* mem, error_cb_t _error_cb)
 {
+  error_cb = _error_cb;
+
 #if defined TLSF_DEBUG && TLSF_DEBUG
   if (test_ffs_fls())
     {
@@ -894,14 +894,14 @@ tlsf_t tlsf_create(void* mem, error_cb_t error_cb)
       return 0;
     }
 
-  control_construct(tlsf_cast(control_t*, mem), error_cb);
+  control_construct(tlsf_cast(control_t*, mem));
 
   return tlsf_cast(tlsf_t, mem);
 }
 
-tlsf_t tlsf_create_with_pool(void* mem, size_t bytes, error_cb_t error_cb)
+tlsf_t tlsf_create_with_pool(void* mem, size_t bytes, error_cb_t _error_cb)
 {
-  tlsf_t tlsf = tlsf_create(mem, error_cb);
+  tlsf_t tlsf = tlsf_create(mem, _error_cb);
   tlsf_add_pool(tlsf, (char*)mem + tlsf_size(), bytes - tlsf_size());
   return tlsf;
 }
