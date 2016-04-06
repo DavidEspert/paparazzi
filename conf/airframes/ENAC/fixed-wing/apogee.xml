@@ -25,6 +25,7 @@
 
     <!-- Communication -->
     <module name="telemetry" type="xbee_api"/>
+    <module name="tlsf"/>
     <module name="logger" type="sd_chibios"/>
     <module name="sdlog"/>
 

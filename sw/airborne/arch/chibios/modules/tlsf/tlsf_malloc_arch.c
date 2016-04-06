@@ -28,7 +28,7 @@
 #include <ch.h>
 #include <tlsf.h>
 #include "modules/tlsf/tlsf_malloc.h"
-//#include "portage.h"
+
 
 struct _tlsf_memory_heap_t {
   tlsf_t tlsf;
@@ -62,24 +62,28 @@ tlsf_memory_heap_t HEAP_EXTERN;
 
 static void stat_tlsf_walker(void *ptr, size_t size, int used, void *user);
 
+#if defined RTOS_DEBUG && RTOS_DEBUG == 1
 static void error_cb(const char *msg)
 {
   chSysHalt(msg);
 }
+#else
+#define error_cb NULL
+#endif
 
 void tlsf_init_heaps(void)
 {
 #ifdef HEAP_CCM
   HEAP_CCM.mtx = &HEAP_CCM_MTX;
-  HEAP_CCM.tlsf = tlsf_create_with_pool(HEAP_CCM_BUFFER, HEAP_CCM_SIZE, &error_cb);
+  HEAP_CCM.tlsf = tlsf_create_with_pool(HEAP_CCM_BUFFER, HEAP_CCM_SIZE, error_cb);
 #endif
 #ifdef HEAP_SRAM
   HEAP_SRAM.mtx = &HEAP_SRAM_MTX;
-  HEAP_SRAM.tlsf = tlsf_create_with_pool(HEAP_SRAM_BUFFER, HEAP_SRAM_SIZE, &error_cb);
+  HEAP_SRAM.tlsf = tlsf_create_with_pool(HEAP_SRAM_BUFFER, HEAP_SRAM_SIZE, error_cb);
 #endif
 #ifdef HEAP_EXTERN
   HEAP_EXTERN.mtx = &HEAP_EXTERN_MTX;
-  HEAP_EXTERN.tlsf = tlsf_create_with_pool(HEAP_EXTERN_BUFFER, HEAP_EXTERN_SIZE, &error_cb);
+  HEAP_EXTERN.tlsf = tlsf_create_with_pool(HEAP_EXTERN_BUFFER, HEAP_EXTERN_SIZE, error_cb);
 #endif
 }
 
