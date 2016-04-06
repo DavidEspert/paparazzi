@@ -66,11 +66,6 @@
 #error  SDLOG_MAX_MESSAGE_LEN should be defined in mcuconf.h
 #endif
 
-#ifndef SDLOG_QUEUE_SIZE
-#error  SDLOG_QUEUE_SIZE should be defined in mcuconf.h
-#endif
-
-
 #ifndef SDLOG_QUEUE_BUCKETS
 #error  SDLOG_QUEUE_BUCKETS should be defined in mcuconf.h
 #endif

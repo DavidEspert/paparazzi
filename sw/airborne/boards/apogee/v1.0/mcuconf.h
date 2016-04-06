@@ -369,7 +369,6 @@
 #define STM32_SDC_READ_TIMEOUT_MS           15
 #define SDLOG_ALL_BUFFERS_SIZE              8192
 #define SDLOG_MAX_MESSAGE_LEN               252
-#define SDLOG_QUEUE_SIZE                    16384
 #define SDLOG_QUEUE_BUCKETS                 512
 
 /*

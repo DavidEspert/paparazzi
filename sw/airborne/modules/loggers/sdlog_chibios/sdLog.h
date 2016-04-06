@@ -53,7 +53,6 @@ extern "C" {
  MCUCONF.H (or any other header included before sdLog.h
  ° SDLOG_ALL_BUFFERS_SIZE : (in bytes) cache buffer size shared between all opened log file
  ° SDLOG_MAX_MESSAGE_LEN  : (in bytes) maximum length of a message
- ° SDLOG_QUEUE_SIZE       : (in bytes) size of the memory pool associated with message queue
  ° SDLOG_QUEUE_BUCKETS    : number of entries in queue
 
  use of the api :
@@ -72,7 +71,7 @@ r sdLogFlushLog : flush buffer (optional)
 
 
 #if SDLOG_ALL_BUFFERS_SIZE == 0 || SDLOG_MAX_MESSAGE_LEN == 0 || \
-    SDLOG_QUEUE_SIZE  == 0 || SDLOG_QUEUE_BUCKETS  == 0
+    SDLOG_QUEUE_BUCKETS  == 0
 #undef SDLOG_NEED_QUEUE
 #else
 #define SDLOG_NEED_QUEUE
