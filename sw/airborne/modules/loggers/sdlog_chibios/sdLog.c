@@ -78,8 +78,17 @@
 #ifdef SDLOG_NEED_QUEUE
 #include "modules/loggers/sdlog_chibios/msg_queue.h"
 
+#if defined STM32F4XX
+#define NODMA_SECTION ".ram4"
+#define DMA_SECTION ".ram0"
+#elif  defined STM32F7XX
+#define NODMA_SECTION ".ram0"
+#define DMA_SECTION ".ram3"
+#else
+#error "section defined only for STM32F4 and STM32F7"
+#endif
 
-static msg_t   queMbBuffer[SDLOG_QUEUE_BUCKETS] __attribute__((section(".ccmram"), aligned(8))) ;
+static msg_t   queMbBuffer[SDLOG_QUEUE_BUCKETS] __attribute__((section(NODMA_SECTION), aligned(8))) ;
 static MsgQueue messagesQueue;
 
 #define WRITE_BYTE_CACHE_SIZE 15 // limit overhead :
@@ -698,7 +707,8 @@ static msg_t thdSdLog(void *arg)
   } ;
 
   UINT bw;
-  static struct PerfBuffer perfBuffers[SDLOG_NUM_BUFFER] =
+  static struct PerfBuffer perfBuffers[SDLOG_NUM_BUFFER] __attribute__ ((section(DMA_SECTION),
+									 aligned(8))) =
   {[0 ... SDLOG_NUM_BUFFER - 1] = {.buffer = {0}, .size = 0}};
 
   chRegSetThreadName("thdSdLog");
