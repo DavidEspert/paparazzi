@@ -565,7 +565,7 @@ void uart_periph_set_bits_stop_parity(struct uart_periph *p __attribute__((unuse
 /**
 * Uart transmit implementation
 */
-void uart_put_byte(struct uart_periph *p, uint8_t data)
+void uart_put_byte(struct uart_periph *p, long fd __attribute__((unused)), uint8_t data)
 {
   struct SerialInit *init_struct = (struct SerialInit*)(p->init_struct);
   chSysLock();
@@ -588,12 +588,12 @@ void uart_put_byte(struct uart_periph *p, uint8_t data)
 * uint8_t tx_switch[10] = { 0x01, 0x08, 0x12, 0x34, 0x56, 0x78, 0x12, 0x34, '\r' };
 * uart_transmit_buffer(&uart2, tx_switch, sizeof(tx_switch));
 */
-void uart_transmit_buffer(struct uart_periph *p, uint8_t *data_buffer, uint16_t length)
+void uart_put_buffer(struct uart_periph *p, long fd, const uint8_t *data_buffer, uint16_t length)
 {
   // TODO properly insert buffer
   int i;
   for (i = 0; i < length; i++) {
-    uart_put_byte(p, data_buffer[i]);
+    uart_put_byte(p, fd, data_buffer[i]);
   }
 }
 

@@ -296,10 +296,3 @@ void WEAK uart_arch_init(void)
 {
 }
 
-void WEAK uart_transmit_buffer(struct uart_periph *p __attribute__((unused)),
-                               uint8_t *data_buffer __attribute__((unused)),
-                               uint16_t length __attribute__((unused)))
-{
-
-}
-
