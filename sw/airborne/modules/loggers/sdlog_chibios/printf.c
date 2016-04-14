@@ -208,7 +208,7 @@ void chvprintf(BaseSequentialStream *chp, const char *fmt, va_list ap)
     /* Long modifier.*/
     if (c == 'l' || c == 'L') {
       is_long = true;
-      if (*fmt)
+      if (*fmt) {
         c = *fmt++;
       }
     } else {
@@ -378,7 +378,7 @@ void chvsnprintf(char *buffer, size_t size, const char *fmt, va_list ap)
     /* Long modifier.*/
     if (c == 'l' || c == 'L') {
       is_long = true;
-      if (*fmt)
+      if (*fmt) {
         c = *fmt++;
       }
     } else {
