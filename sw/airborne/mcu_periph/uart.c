@@ -91,8 +91,8 @@ static void send_uart3_err(struct transport_tx *trans, struct link_device *dev)
                             &ore, &ne_err, &fe_err, &_bus3);
 }
 #endif
-#endif
 
+#endif
 
 #if USE_UART4
 struct uart_periph uart4;
