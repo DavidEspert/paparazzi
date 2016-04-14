@@ -20,11 +20,11 @@
  */
 
 /*
- * @file subsystems/chibios-libopencm3/usb_msd.c
+ * @file modules/loggers/sdlog_chibios/usb_msd.c
  *
  */
 
-#include "usb_msd.h"
+#include "modules/loggers/sdlog_chibios/usb_msd.h"
 
 /* Request types */
 #define MSD_REQ_RESET   0xFF

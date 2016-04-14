@@ -23,11 +23,6 @@
  * @file firmwares/fixedwing/main_chibios.c
  */
 
-//#include "firmwares/fixedwing/chibios-libopencm3/chibios_init.h"
-//#include "chibios_stub.h"
-//#include "subsystems/chibios-libopencm3/chibios_sdlog.h"
-//#include "sdLog.h"
-
 #include "mcu_periph/sys_time.h"
 
 #ifndef  SYS_TIME_FREQUENCY
