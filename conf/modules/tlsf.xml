@@ -16,7 +16,7 @@
     <configure name="TLSF_MAX_FLI" default="16"/>
     <define name="MAX_FLI" value="$(TLSF_MAX_FLI)"/>
     <file_arch name="tlsf_malloc_arch.c"/>
-    <define name="$(PAPARAZZI_SRC)/sw/ext/tlsf" type="include"/>
+    <include name="$(PAPARAZZI_SRC)/sw/ext/tlsf"/>
     <file name="tlsf.c" dir="$(PAPARAZZI_SRC)/sw/ext/tlsf"/>
   </makefile>
 </module>
