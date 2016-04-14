@@ -553,8 +553,8 @@ void uart_periph_set_baudrate(struct uart_periph *p __attribute__((unused)), uin
 /**
  * Set mode (not necessary, or can be set by SerialConfig)
  */
-void uart_periph_set_mode(struct uart_periph *p __attribute__((unused)), bool_t tx_enabled __attribute__((unused)),
-                          bool_t rx_enabled __attribute__((unused)), bool_t hw_flow_control __attribute__((unused))) {}
+void uart_periph_set_mode(struct uart_periph *p __attribute__((unused)), bool tx_enabled __attribute__((unused)),
+                          bool rx_enabled __attribute__((unused)), bool hw_flow_control __attribute__((unused))) {}
 
 void uart_periph_set_bits_stop_parity(struct uart_periph *p __attribute__((unused)),
                                       uint8_t bits __attribute__((unused)), uint8_t stop __attribute__((unused)), uint8_t __attribute__((unused)) parity)

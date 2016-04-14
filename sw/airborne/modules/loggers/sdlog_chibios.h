@@ -48,7 +48,7 @@ extern FileDes flightRecorderLogFile;
 #endif
 
 extern void sdlog_chibios_init(void);
-extern void sdlog_chibios_finish(bool_t flush);
+extern void sdlog_chibios_finish(bool flush);
 
 
 /** chibios_sdlog structure

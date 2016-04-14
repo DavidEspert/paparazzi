@@ -362,7 +362,7 @@ void spi3_arch_init(void)
  * @param[in] p pointer to a @p spi_periph struct
  * @param[in] t pointer to a @p spi_transaction struct
  */
-bool_t spi_submit(struct spi_periph *p, struct spi_transaction *t)
+bool spi_submit(struct spi_periph *p, struct spi_transaction *t)
 {
   // system lock
   chSysLock();
@@ -480,7 +480,7 @@ void spi_slave_unselect(uint8_t slave)
  *
  * Empty, for paparazzi compatibility only
  */
-bool_t spi_lock(struct spi_periph *p, uint8_t slave)
+bool spi_lock(struct spi_periph *p, uint8_t slave)
 {
   if (slave < 254 && p->suspend == 0) {
     p->suspend = slave + 1; // 0 is reserved for unlock state
@@ -494,7 +494,7 @@ bool_t spi_lock(struct spi_periph *p, uint8_t slave)
  *
  * Empty, for paparazzi compatibility only
  */
-bool_t spi_resume(struct spi_periph *p, uint8_t slave)
+bool spi_resume(struct spi_periph *p, uint8_t slave)
 {
   if (p->suspend == slave + 1) {
     // restart fifo

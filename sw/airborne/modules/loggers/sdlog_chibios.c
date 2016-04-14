@@ -71,7 +71,7 @@ static void systemDeepSleep (void);
 event_source_t powerOutageSource;
 event_listener_t powerOutageListener;
 
-bool_t sdOk = FALSE;
+bool sdOk = FALSE;
 
 FileDes pprzLogFile = -1;
 
@@ -124,7 +124,7 @@ void sdlog_chibios_init(void)
 }
 
 
-void sdlog_chibios_finish(bool_t flush)
+void sdlog_chibios_finish(bool flush)
 {
   if (pprzLogFile != -1) {
     sdLogCloseAllLogs(flush);

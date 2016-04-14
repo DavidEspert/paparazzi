@@ -34,7 +34,7 @@
 
 uint8_t  ppm_cur_pulse;
 uint32_t ppm_last_pulse_time;
-bool_t   ppm_data_valid;
+bool   ppm_data_valid;
 static uint32_t timer_rollover_cnt;
 
 #ifndef PPM_TIMER_FREQUENCY

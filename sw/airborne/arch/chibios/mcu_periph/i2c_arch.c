@@ -286,7 +286,7 @@ void i2c_setbitrate(struct i2c_periph *p __attribute__((unused)), int bitrate __
  * @param[in] p pointer to a @p i2c_periph struct
  * @param[in] t pointer to a @p i2c_transaction struct
  */
-bool_t i2c_submit(struct i2c_periph *p, struct i2c_transaction *t)
+bool i2c_submit(struct i2c_periph *p, struct i2c_transaction *t)
 {
 #if USE_I2C1 || USE_I2C2 || USE_I2C3
   // sys lock
@@ -325,7 +325,7 @@ bool_t i2c_submit(struct i2c_periph *p, struct i2c_transaction *t)
  *
  * Empty, for paparazzi compatibility only
  */
-bool_t i2c_idle(struct i2c_periph *p __attribute__((unused)))
+bool i2c_idle(struct i2c_periph *p __attribute__((unused)))
 {
   return FALSE;
 }
