@@ -103,44 +103,44 @@ typedef enum {
  */
 typedef struct {
   /**
-  * @brief USB driver to use for communication
-  */
+   * @brief USB driver to use for communication
+   */
   USBDriver *usbp;
 
   /**
-  * @brief Block device to use for storage
-  */
+   * @brief Block device to use for storage
+   */
   BaseBlockDevice *bbdp;
 
   /**
-  * @brief Index of the USB endpoint to use for transfers
-  */
+   * @brief Index of the USB endpoint to use for transfers
+   */
   usbep_t bulk_ep;
 
   /**
-  * @brief Optional callback that will be called whenever there is
-  *        read/write activity
-  * @note  The callback is called with argument TRUE when activity starts,
-  *        and FALSE when activity stops.
-  */
+   * @brief Optional callback that will be called whenever there is
+   *        read/write activity
+   * @note  The callback is called with argument TRUE when activity starts,
+   *        and FALSE when activity stops.
+   */
   void (*rw_activity_callback)(bool);
 
   /**
-  * @brief Short vendor identification
-  * @note  ASCII characters only, maximum 8 characters (pad with zeroes).
-  */
+   * @brief Short vendor identification
+   * @note  ASCII characters only, maximum 8 characters (pad with zeroes).
+   */
   uint8_t short_vendor_id[8];
 
   /**
-  * @brief Short product identification
-  * @note  ASCII characters only, maximum 16 characters (pad with zeroes).
-  */
+   * @brief Short product identification
+   * @note  ASCII characters only, maximum 16 characters (pad with zeroes).
+   */
   uint8_t short_product_id[16];
 
   /**
-  * @brief Short product revision
-  * @note  ASCII characters only, maximum 4 characters (pad with zeroes).
-  */
+   * @brief Short product revision
+   * @note  ASCII characters only, maximum 4 characters (pad with zeroes).
+   */
   uint8_t short_product_version[4];
 
 } USBMassStorageConfig;

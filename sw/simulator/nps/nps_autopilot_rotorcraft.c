@@ -46,8 +46,8 @@
 #include "subsystems/datalink/datalink.h"
 
 struct NpsAutopilot autopilot;
-bool_t nps_bypass_ahrs;
-bool_t nps_bypass_ins;
+bool nps_bypass_ahrs;
+bool nps_bypass_ins;
 
 #ifndef NPS_BYPASS_AHRS
 #define NPS_BYPASS_AHRS FALSE
@@ -133,10 +133,12 @@ void nps_autopilot_run_step(double time)
   }
 #endif
 
+#if USE_GPS
   if (nps_sensors_gps_available()) {
     gps_feed_value();
     main_event();
   }
+#endif
 
   if (nps_bypass_ahrs) {
     sim_overwrite_ahrs();
