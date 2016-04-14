@@ -5,6 +5,8 @@
  * Michal Podhradsky (michal.podhradsky@aggiemail.usu.edu)
  * Calvin Coopmans (c.r.coopmans@ieee.org)
  *
+ * Alexandre Bustico <alexandre.bustico@enac.fr>
+ * Gautier Hattenberger <gautier.hattenberger@enac.fr>
  *
  * This file is part of paparazzi.
  *
@@ -589,39 +591,92 @@ void uart_periph_set_bits_stop_parity(struct uart_periph *p __attribute__((unuse
   // TBD
 }
 
-/**
-* Uart transmit implementation
-*/
-void uart_put_byte(struct uart_periph *p, long fd __attribute__((unused)), uint8_t data)
+// Check free space and set a positive value for fd if valid
+// and lock driver with mutex
+bool uart_check_free_space(struct uart_periph *p, long *fd, uint16_t len)
 {
   struct SerialInit *init_struct = (struct SerialInit*)(p->init_struct);
-  chMtxLock(init_struct->tx_mtx);
-
-  uint16_t temp = (p->tx_insert_idx + 1) % UART_TX_BUFFER_SIZE;
-  if (temp == p->tx_extract_idx) {
-    chMtxUnlock(init_struct->tx_mtx);
-    return;  // no room
+  int16_t space = p->tx_extract_idx - p->tx_insert_idx;
+  if (space <= 0) {
+    space += UART_TX_BUFFER_SIZE;
   }
-  p->tx_buf[p->tx_insert_idx] = data;
-  p->tx_insert_idx = temp;
-
-  chMtxUnlock(init_struct->tx_mtx);
-  chSemSignal (init_struct->tx_sem);
+  if ((uint16_t)(space - 1) >= len) {
+    *fd = 1;
+    chMtxLock(init_struct->tx_mtx);
+    return true;
+  }
+  return false;
 }
 
 /**
-* Uart/SerialDriver transmit buffer implementation
-*
-* Typical use:
-* uint8_t tx_switch[10] = { 0x01, 0x08, 0x12, 0x34, 0x56, 0x78, 0x12, 0x34, '\r' };
-* uart_transmit_buffer(&uart2, tx_switch, sizeof(tx_switch));
+* Uart transmit implementation
 */
-void uart_put_buffer(struct uart_periph *p, long fd, const uint8_t *data_buffer, uint16_t length)
+void uart_put_byte(struct uart_periph *p, long fd, uint8_t data)
 {
-  // TODO properly insert buffer
-  int i;
-  for (i = 0; i < length; i++) {
-    uart_put_byte(p, fd, data_buffer[i]);
+  struct SerialInit *init_struct = (struct SerialInit*)(p->init_struct);
+  if (fd == 0) {
+    // if fd is zero, assume the driver is not already locked
+    chMtxLock(init_struct->tx_mtx);
+    uint16_t temp = (p->tx_insert_idx + 1) % UART_TX_BUFFER_SIZE;
+    if (temp == p->tx_extract_idx) {
+      chMtxUnlock(init_struct->tx_mtx);
+      return;  // no room
+    }
+    p->tx_buf[p->tx_insert_idx] = data;
+    p->tx_insert_idx = temp;
+
+    chMtxUnlock(init_struct->tx_mtx);
+    // send signal to start transmission
+    chSemSignal (init_struct->tx_sem);
   }
+  else {
+    // assume driver is locked and available space have been checked
+    p->tx_buf[p->tx_insert_idx] = data;
+    p->tx_insert_idx = (p->tx_insert_idx + 1) % UART_TX_BUFFER_SIZE;
+  }
+}
+
+/**
+ * Uart transmit buffer implementation
+ */
+void uart_put_buffer(struct uart_periph *p, long fd, const uint8_t *data, uint16_t len)
+{
+  struct SerialInit *init_struct = (struct SerialInit*)(p->init_struct);
+  if (fd == 0) {
+    // if fd is zero, assume the driver is not already locked
+    // and available space should be checked
+    chMtxLock(init_struct->tx_mtx);
+    int16_t space = p->tx_extract_idx - p->tx_insert_idx;
+    if (space <= 0) {
+      space += UART_TX_BUFFER_SIZE;
+    }
+    if ((uint16_t)(space - 1) < len) {
+      chMtxUnlock(init_struct->tx_mtx);
+      return;  // no room
+    }
+  }
+  // insert data into buffer
+  int i;
+  for (i = 0; i < len; i++) {
+    p->tx_buf[p->tx_insert_idx] = data[i];
+    p->tx_insert_idx = (p->tx_insert_idx + 1) % UART_TX_BUFFER_SIZE;
+  }
+  // unlock if needed
+  if (fd == 0) {
+    chMtxUnlock(init_struct->tx_mtx);
+    // send signal to start transmission
+    chSemSignal (init_struct->tx_sem);
+  }
+}
+
+void uart_send_message(struct uart_periph *p, long fd)
+{
+  struct SerialInit *init_struct = (struct SerialInit*)(p->init_struct);
+  // unlock driver in case it is not done (fd > 0)
+  if (fd != 0) {
+    chMtxUnlock(init_struct->tx_mtx);
+  }
+  // send signal to start transmission
+  chSemSignal (init_struct->tx_sem);
 }
 
