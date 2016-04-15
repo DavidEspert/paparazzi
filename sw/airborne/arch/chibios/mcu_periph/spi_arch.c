@@ -202,7 +202,7 @@ static void handle_spi_thd(struct spi_periph *p)
 {
   // wait for a transaction to be pushed in the queue
   chSemWait ((semaphore_t *) p->init_struct);
-  
+
   if ((p->trans_insert_idx == p->trans_extract_idx) || p->suspend) {
     p->status = SPIIdle;
     // no transaction pending
@@ -337,7 +337,6 @@ void spi3_arch_init(void)
 {
   spi3.reg_addr = &SPID3;
   spi3.init_struct = &spi3_sem;
-  
   // Create thread
   chThdCreateStatic(wa_thd_spi3, sizeof(wa_thd_spi3),
       NORMALPRIO+1, thd_spi3, NULL);

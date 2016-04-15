@@ -35,15 +35,15 @@
 
 #include "mcu_periph/i2c.h"
 
-#ifdef USE_I2C1
+#if USE_I2C1
 extern void i2c1_hw_init(void);
 #endif /* USE_I2C1 */
 
-#ifdef USE_I2C2
+#if USE_I2C2
 extern void i2c2_hw_init(void);
 #endif /* USE_I2C2 */
 
-#if defined USE_I2C3
+#if USE_I2C3
 extern void i2c3_hw_init(void);
 #endif /* USE_I2C3 */
 

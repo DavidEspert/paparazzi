@@ -35,8 +35,8 @@
  * tation.
  */
 #include "mcu_periph/uart_arch.h"
-#include "ch.h"
-#include "hal.h"
+#include <ch.h>
+#include <hal.h>
 
 struct SerialInit {
   semaphore_t *rx_sem;
@@ -63,7 +63,7 @@ static void handle_uart_rx(struct uart_periph *p)
     p->rx_insert_idx = temp;  // update insert index
   }
   chMtxUnlock(init_struct->rx_mtx);
-  chSemSignal (init_struct->rx_sem);
+  chSemSignal(init_struct->rx_sem);
 }
 
 /**
@@ -559,7 +559,6 @@ void uart6_init(void)
 #endif
 
 
-// TODO move it back to common driver
 uint8_t uart_getch(struct uart_periph *p)
 {
   //to keep compatibility with loop oriented paparazzi architecture, read is not blocking

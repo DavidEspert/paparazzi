@@ -58,7 +58,7 @@ static void handle_i2c_thd(struct i2c_periph *p)
 {
   // wait for a transaction to be pushed in the queue
   chSemWait ((semaphore_t *) p->init_struct);
-  
+
   if (p->trans_insert_idx == p->trans_extract_idx) {
     p->status = I2CIdle;
     // no transaction pending
@@ -308,8 +308,8 @@ bool i2c_submit(struct i2c_periph *p, struct i2c_transaction *t)
   p->trans[p->trans_insert_idx] = t;
   p->trans_insert_idx = temp;
 
-   chSysUnlock();
-   chSemSignal ((semaphore_t *) p->init_struct);
+  chSysUnlock();
+  chSemSignal ((semaphore_t *) p->init_struct);
   // transaction submitted
   return TRUE;
 #else

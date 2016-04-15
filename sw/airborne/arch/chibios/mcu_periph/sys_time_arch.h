@@ -38,7 +38,7 @@
 /*
  * Chibios includes
  */
-#include "ch.h"
+#include <ch.h>
 
 /*
  * Extra defines for ChibiOS CPU monitoring

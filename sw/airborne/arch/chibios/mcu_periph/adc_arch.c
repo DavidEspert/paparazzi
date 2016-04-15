@@ -230,17 +230,17 @@ void adc1callback(ADCDriver *adcp, adcsample_t *buffer, size_t n)
         adc1_buffers[channel]->av_nb_sample = adc1_samples_tmp[channel];
       }
     }
-#ifdef USE_ADC_WATCHDOG
+#if USE_ADC_WATCHDOG
     if ((adc_watchdog.adc == adcp) &&
-	(adc_watchdog.channel < ADC_NUM_CHANNELS) &&
-	(adc_watchdog.cb != NULL)) {
+        (adc_watchdog.channel < ADC_NUM_CHANNELS) &&
+        (adc_watchdog.cb != NULL)) {
       if (adc1_buffers[adc_watchdog.channel]->sum <
-	  (adc1_buffers[adc_watchdog.channel]->av_nb_sample * adc_watchdog.vmin)) {
-	adc_watchdog.cb ();
+          (adc1_buffers[adc_watchdog.channel]->av_nb_sample * adc_watchdog.vmin)) {
+        adc_watchdog.cb ();
       }
     }
-#endif // USE_ADC_WATCHDOG	
-    
+#endif // USE_ADC_WATCHDOG
+
     chSysUnlockFromISR();
 #endif
   }
@@ -348,7 +348,6 @@ void adc_init(void)
   adc_watchdog.vmin = (1<<12)-1; // max adc
 #endif
 
-  
   adcgrpcfg.circular = TRUE;
   adcgrpcfg.num_channels = ADC_NUM_CHANNELS;
   adcgrpcfg.end_cb = adc1callback;
