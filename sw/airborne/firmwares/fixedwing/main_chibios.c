@@ -49,11 +49,17 @@
 
 #include "led.h"
 
+#define SEND_SYS_INFO 1
+
+#if SEND_SYS_INFO
+#include "subsystems/datalink/downlink.h"
+#endif
+
 /*
- * Heartbeat thread
+ * System info thread
  */
-/* static void thd_heartbeat(void *arg); */
-/* static THD_WORKING_AREA(wa_thd_heartbeat, 512); */
+static void thd_sys_info(void *arg);
+static THD_WORKING_AREA(wa_thd_sys_info, 128);
 
 /*
  * PPRZ thread
@@ -72,8 +78,8 @@ int main(void)
   Ap(init);
 
   // Create threads
-  /* chThdCreateStatic(wa_thd_heartbeat, sizeof(wa_thd_heartbeat), */
-  /*     NORMALPRIO, thd_heartbeat, NULL); */
+  chThdCreateStatic(wa_thd_sys_info, sizeof(wa_thd_sys_info),
+      LOWPRIO, thd_sys_info, NULL);
 
   chThdSleepMilliseconds(100);
 
@@ -88,39 +94,65 @@ int main(void)
 }
 
 
-/*
- * Heartbeat thread
+/**
+ * System Info
+ *
+ * Logs the cpu usage and other system info
  */
-/* static void thd_heartbeat(void *arg) */
-/* { */
-/*   (void) arg; */
-/*   chRegSetThreadName("pprz heartbeat"); */
+void thd_sys_info(void *arg)
+{
+  chRegSetThreadName("sys_info");
+  (void) arg;
+  systime_t time = chVTGetSystemTime();
+  static uint32_t last_idle_counter = 0;
+  //static uint32_t last_nb_sec = 0;
 
-/*   //chThdSleepSeconds (SDLOG_START_DELAY); */
-/*   //if (usbStorageIsItRunning ()) */
-/*   //  chThdSleepSeconds (20000); // stuck here for hours */
-/*   //else */
-/*   //  sdOk = chibios_logInit(); */
+  while (TRUE) {
+    time += S2ST(1);
 
-/*   while (TRUE) { */
-/*     //palTogglePad (GPIOC, GPIOC_LED3); */
-/*     //chThdSleepMilliseconds (sdOk == TRUE ? 1000 : 200); */
-/*     //static uint32_t timestamp = 0; */
+    core_free_memory = chCoreGetStatusX();
+    thread_counter = 0;
 
-/*     thread_t *tp = chRegFirstThread(); */
-/*     do { */
-/*       tp = chRegNextThread(tp); */
-/*     } while (tp != NULL); */
-/*     // we sync gps time to rtc every 5 seconds */
-/*     //if (chVTGetSystemTime() - timestamp > 5000) { */
-/*     //  timestamp = chVTGetSystemTime(); */
-/*     //  if (getGpsTimeOfWeek() != 0) { */
-/*     //    setRtcFromGps (getGpsWeek(), getGpsTimeOfWeek()); */
-/*     //  } */
-/*     //} */
+    // loop threads to find idle thread
+    thread_t *tp;
+    tp = chRegFirstThread();
+    do {
+      thread_counter++;
+      if (tp == chSysGetIdleThreadX()) {
+#if CH_DBG_THREADS_PROFILING
+        idle_counter = (uint32_t)tp->p_time;
+#endif
+      }
+      tp = chRegNextThread(tp);
+    } while (tp != NULL);
 
-/*   } */
-/* } */
+    // assume we call the counter once a second
+    // so the difference in seconds is always one
+    // NOTE: not perfectly precise due to low heartbeat priority -> +-5% margins
+    // FIXME: add finer resolution than seconds?
+    cpu_counter = (idle_counter - last_idle_counter);// / ((nb_sec - last_nb_sec)/CH_CFG_ST_FREQUENCY);
+        // / (sys_time.nb_sec - last_nb_sec);
+    cpu_frequency = (1 - (float) cpu_counter / CH_CFG_ST_FREQUENCY) * 100;
+
+    last_idle_counter = idle_counter;
+    //last_nb_sec = sys_time.nb_sec;
+    //last_nb_sec = nb_sec;
+
+#if SEND_SYS_INFO
+    uint16_t tc = thread_counter;
+    uint16_t cfh = (core_free_memory >> 16) & 0xFFFF;
+    uint16_t cfl = core_free_memory & 0xFFFF;
+    uint16_t foo = 0;
+    DOWNLINK_SEND_SYS_MON(DefaultChannel, DefaultDevice,
+        &tc, &cfh, &cfl,
+        &foo, &foo, &foo, &foo,
+        &cpu_frequency);
+
+#endif
+
+    chThdSleepUntil(time);
+  }
+}
 
 /*
  * PPRZ thread
