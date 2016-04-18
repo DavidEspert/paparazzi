@@ -59,7 +59,11 @@
  * System info thread
  */
 static void thd_sys_info(void *arg);
-static THD_WORKING_AREA(wa_thd_sys_info, 128);
+static THD_WORKING_AREA(wa_thd_sys_info, 256);
+
+char thread_names[20][32];
+uint32_t thread_p_time[20];
+float thread_load[20];
 
 /*
  * PPRZ thread
@@ -101,11 +105,10 @@ int main(void)
  */
 void thd_sys_info(void *arg)
 {
-  chRegSetThreadName("sys_info");
+  chRegSetThreadName("sys info");
   (void) arg;
   systime_t time = chVTGetSystemTime();
   static uint32_t last_idle_counter = 0;
-  //static uint32_t last_nb_sec = 0;
 
   while (TRUE) {
     time += S2ST(1);
@@ -115,8 +118,12 @@ void thd_sys_info(void *arg)
 
     // loop threads to find idle thread
     thread_t *tp;
+    float sum = 0.f;
     tp = chRegFirstThread();
     do {
+      strncpy(thread_names[thread_counter], tp->p_name, 31);
+      thread_p_time[thread_counter] = tp->p_time;
+      sum += (float)(tp->p_time);
       thread_counter++;
       if (tp == chSysGetIdleThreadX()) {
 #if CH_DBG_THREADS_PROFILING
@@ -125,18 +132,18 @@ void thd_sys_info(void *arg)
       }
       tp = chRegNextThread(tp);
     } while (tp != NULL);
+    int i;
+    for (i = 0; i < thread_counter; i ++) {
+      thread_load[i] = 100.f * (float)thread_p_time[i] / sum;
+    }
 
     // assume we call the counter once a second
     // so the difference in seconds is always one
     // NOTE: not perfectly precise due to low heartbeat priority -> +-5% margins
     // FIXME: add finer resolution than seconds?
-    cpu_counter = (idle_counter - last_idle_counter);// / ((nb_sec - last_nb_sec)/CH_CFG_ST_FREQUENCY);
-        // / (sys_time.nb_sec - last_nb_sec);
+    cpu_counter = (idle_counter - last_idle_counter);
     cpu_frequency = (1 - (float) cpu_counter / CH_CFG_ST_FREQUENCY) * 100;
-
     last_idle_counter = idle_counter;
-    //last_nb_sec = sys_time.nb_sec;
-    //last_nb_sec = nb_sec;
 
 #if SEND_SYS_INFO
     uint16_t tc = thread_counter;
@@ -175,7 +182,8 @@ static void thd_pprz(void *arg)
     Ap(handle_periodic_tasks);
     Fbw(event_task);
     Ap(event_task);
-    chThdYield();
+    chThdSleepMicroseconds(500);
+    //chThdYield();
   }
 
 }
