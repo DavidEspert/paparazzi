@@ -79,7 +79,7 @@ int main(void)
 
   // Create threads
   chThdCreateStatic(wa_thd_sys_info, sizeof(wa_thd_sys_info),
-      LOWPRIO, thd_sys_info, NULL);
+      NORMALPRIO, thd_sys_info, NULL);
 
   chThdSleepMilliseconds(100);
 
