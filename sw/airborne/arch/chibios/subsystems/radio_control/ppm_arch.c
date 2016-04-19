@@ -47,13 +47,11 @@ static uint32_t timer_rollover_cnt;
 
 
 /**
- * PPM Pulse width callback
+ * PPM Pulse period callback
  */
-static void icuwidthcb(ICUDriver *icup)
+static void icuperiodcb(ICUDriver *icup)
 {
-  static uint32_t now;
-  now = (uint32_t)(icuGetWidthX(icup) + timer_rollover_cnt);
-  ppm_decode_frame(now);
+  ppm_decode_frame_width(icuGetPeriodX(icup));
 }
 
 /**
@@ -62,7 +60,7 @@ static void icuwidthcb(ICUDriver *icup)
 static void icuoverflowcb(ICUDriver *icup)
 {
   (void)icup;
-  timer_rollover_cnt += (1 << 16);
+  // TODO do something with this ?
 }
 
 /**
@@ -81,8 +79,8 @@ static ICUConfig ppm_icucfg = {
 #error "Unknown PPM_PULSE_TYPE"
 #endif
   PPM_TIMER_FREQUENCY,
-  icuwidthcb,
   NULL,
+  icuperiodcb,
   icuoverflowcb,
   PPM_CHANNEL,
   0
@@ -95,5 +93,6 @@ void ppm_arch_init(void)
   timer_rollover_cnt = 0;
 
   icuStart(&PPM_TIMER, &ppm_icucfg);
+  icuStartCapture(&PPM_TIMER);
   icuEnableNotifications(&PPM_TIMER);
 }
