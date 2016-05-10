@@ -72,14 +72,23 @@ void sys_time_arch_init(void)
 
 }
 
+/**
+ * Get the time in microseconds since startup.
+ * WARNING: overflows after 70min!
+ * @return microseconds since startup as uint32_t
+ */
 uint32_t get_sys_time_usec(void)
 {
-  return (uint32_t)(chVTGetSystemTime() / CH_CFG_ST_FREQUENCY * 1000000);
+  return sys_time.nb_sec * 1000000 +
+         usec_of_sys_time_ticks(sys_time.nb_sec_rem) +
+         usec_of_sys_time_ticks(chVTGetSystemTime() - sys_time.nb_tick);
 }
 
 uint32_t get_sys_time_msec(void)
 {
-  return (uint32_t)(chVTGetSystemTime() / CH_CFG_ST_FREQUENCY * 1000);
+  return sys_time.nb_sec * 1000 +
+         msec_of_sys_time_ticks(sys_time.nb_sec_rem) +
+         msec_of_sys_time_ticks(chVTGetSystemTime() - sys_time.nb_tick);
 }
 
 /**
@@ -121,6 +130,7 @@ static void sys_tick_handler(void)
 {
   /* current time in sys_ticks */
   sys_time.nb_tick = chVTGetSystemTime();
+  /* max time is 2^32 / CH_CFG_ST_FREQUENCY, i.e. around 10 days at 10kHz */
   uint32_t sec = sys_time.nb_tick / CH_CFG_ST_FREQUENCY;
 #ifdef SYS_TIME_LED
   if (sec > sys_time.nb_sec) {
