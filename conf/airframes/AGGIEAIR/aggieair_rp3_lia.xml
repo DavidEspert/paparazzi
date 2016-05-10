@@ -13,37 +13,39 @@ RP3 Lisa MX
     <!--target name="ap" board="lisa_mx_2.0"-->
     <!--target name="ap" board="lisa_mx_rt"-->
     <target name="ap" board="lisa_mx_2.0_chibios">
-      <subsystem name="radio_control" type="sbus">
+      <module name="radio_control" type="sbus">
         <configure name="SBUS_PORT" value="UART5"/>
-      </subsystem>
+      </module>
     </target>
 
     <target name="nps" board="pc">
-      <subsystem name="fdm" type="jsbsim"/>
-      <subsystem name="radio_control" type="ppm"/>
+      <module name="fdm" type="jsbsim"/>
+      <module name="radio_control" type="ppm"/>
     </target>
 
-    <subsystem name="control"/>
-    <subsystem name="navigation"/>
+    <module name="control"/>
+    <module name="navigation"/>
 
-    <subsystem name="telemetry"   type="transparent">
+    <module name="telemetry"   type="transparent">
       <configure name="MODEM_PORT"        value="UART3"/>
       <configure name="MODEM_BAUD"        value="B57600"/>
-    </subsystem>
+    </module>
 
-    <subsystem name="ins"       type="vectornav">
+    <module name="ins"       type="vectornav">
       <configure name="VN_PORT" value="UART2"/>
       <configure name="VN_BAUD" value="B921600"/>
-    </subsystem>
+    </module>
 
     <define name="AGR_CLIMB" />
     
     <configure name="RTOS_DEBUG" value="1"/>
+    <define name="POLY_OSAM_HALF_SWEEP_ENABLED" value="FALSE"/>
   </firmware>
 
   <modules>
-    <load name="nav_line.xml"/>
-    <load name="sys_mon.xml"/>
+    <module name="nav" type="line"/>
+    <module name="nav" type="survey_poly_osam"/>
+    <module name="sys_mon"/>
   </modules>
 
   <!-- commands section -->

@@ -272,7 +272,7 @@ CPPWARN = -Wall -Wextra
 #
 
 # List all user C define here, like -D_DEBUG=1
-UDEFS = $($(TARGET).CFLAGS)
+UDEFS = $($(TARGET).CFLAGS) $(USER_CFLAGS) $(BOARD_CFLAGS)
 
 # Define ASM defines here
 UADEFS =
@@ -285,7 +285,7 @@ UINCDIR = $(patsubst -I%,%,$(INCLUDES))
 ULIBDIR =
 
 # List all user libraries here
-ULIBS = -lm
+ULIBS = -lm $(BOARD_LDFLAGS)
 
 #
 # End of user defines
