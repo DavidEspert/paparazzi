@@ -97,9 +97,18 @@ uint32_t get_sys_time_msec(void)
  * e.g. if CH_CFG_ST_FREQUENCY=10000 use max for 420000 us
  * or 420ms, otherwise overflow happens
  */
+#define USLEEP_WRAP (0xFFFFFFFF / CH_CFG_ST_FREQUENCY)
 void sys_time_usleep(uint32_t us)
 {
-  chThdSleep(US2ST(us));
+  uint32_t msec = 0;
+  if (us > USLEEP_WRAP) {
+    msec = us / 1000;
+    chThdSleep(msec * CH_CFG_ST_FREQUENCY / 1000);
+    us = us - msec * 1000;
+  }
+  if (us > 0) { // if 0, will do an infinite wait
+    chThdSleep(US2ST(us));
+  }
 }
 
 void sys_time_msleep(uint16_t ms)
