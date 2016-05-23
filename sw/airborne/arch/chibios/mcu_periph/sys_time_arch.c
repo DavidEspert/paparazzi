@@ -93,27 +93,21 @@ uint32_t get_sys_time_msec(void)
 
 /**
  * sys_time_usleep(uint32_t us)
- * Use only for up to 2^32/CH_CFG_ST_FREQUENCY-1 usec
- * e.g. if CH_CFG_ST_FREQUENCY=10000 use max for 420000 us
- * or 420ms, otherwise overflow happens
+ *
+ * using intermediate 64 bits variable to avoid wrapping
+ *
+ * max sleep time is around 10 days (2^32 / CH_CFG_ST_FREQUENCY) at 10kHz
  */
-#define USLEEP_WRAP (0xFFFFFFFF / CH_CFG_ST_FREQUENCY)
 void sys_time_usleep(uint32_t us)
 {
-  uint32_t msec = 0;
-  if (us > USLEEP_WRAP) {
-    msec = us / 1000;
-    chThdSleep(msec * CH_CFG_ST_FREQUENCY / 1000);
-    us = us - msec * 1000;
-  }
-  if (us > 0) { // if 0, will do an infinite wait
-    chThdSleep(US2ST(us));
-  }
+  uint64_t wait_st = ((uint64_t)us * CH_CFG_ST_FREQUENCY) / 1000000UL;
+  chThdSleep((systime_t)wait_st);
 }
 
 void sys_time_msleep(uint16_t ms)
 {
-  chThdSleep(MS2ST(ms));
+  uint64_t wait_st = ((uint64_t)ms * CH_CFG_ST_FREQUENCY) / 1000UL;
+  chThdSleep((systime_t)wait_st);
 }
 
 void sys_time_ssleep(uint8_t s)
