@@ -186,4 +186,6 @@ static void thd_pprz(void *arg)
     //chThdYield();
   }
 
+  chThdExit(0);
+
 }

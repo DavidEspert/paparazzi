@@ -116,7 +116,7 @@ void chibios_sdlog_init(struct chibios_sdlog *sdlog, FileDes *file)
 void sdlog_chibios_init(void)
 {
   // Start polling on USB
-  usbStorageStartPolling (pprzThdPtr);
+  usbStorageStartPolling (&pprzThdPtr);
 
   // Start log thread
   chThdCreateStatic (wa_thd_startlog, sizeof(wa_thd_startlog),

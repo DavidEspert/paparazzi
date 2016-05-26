@@ -239,7 +239,7 @@ static USBMassStorageConfig msdConfig = {
 
 
 static THD_WORKING_AREA(waThdUsbStorage, 1024);
-void usbStorageStartPolling(thread_t *ap_thd)
+void usbStorageStartPolling(thread_t **ap_thd)
 {
   populateSerialNumberDescriptorData();
   usbStorageThreadPtr = chThdCreateStatic(waThdUsbStorage, sizeof(waThdUsbStorage),
@@ -269,7 +269,7 @@ void usbStorageStop(void)
 static void thdUsbStorage(void *arg)
 {
   // Autopilot threat from arg
-  thread_t *ap_thd = (thread_t *)arg;
+  thread_t **ap_thd = (thread_t **)arg;
 
   chRegSetThreadName("UsbStorage:polling");
   uint antiBounce = 5;
@@ -319,10 +319,10 @@ static void thdUsbStorage(void *arg)
   chEvtWaitOne(EVENT_MASK(1));
 
   /* stop autopilot */
-  if (ap_thd != NULL) {
-    chThdTerminate(ap_thd);
-    chThdWait(ap_thd);
-    ap_thd = NULL;
+  if (*ap_thd != NULL) {
+    chThdTerminate(*ap_thd);
+    chThdWait(*ap_thd);
+    *ap_thd = NULL;
   }
 
   /* wait until usb-storage is unmount and usb cable is unplugged*/
