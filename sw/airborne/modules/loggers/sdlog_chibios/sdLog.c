@@ -707,9 +707,13 @@ static msg_t thdSdLog(void *arg)
   } ;
 
   UINT bw;
-  static struct PerfBuffer perfBuffers[SDLOG_NUM_BUFFER] __attribute__ ((section(DMA_SECTION),
-									 aligned(8))) =
-  {[0 ... SDLOG_NUM_BUFFER - 1] = {.buffer = {0}, .size = 0}};
+  static struct PerfBuffer perfBuffers[SDLOG_NUM_BUFFER] __attribute__((section(DMA_SECTION), aligned(8))) = {
+    [0 ... SDLOG_NUM_BUFFER - 1] = {.buffer = {0}, .size = 0}
+  };
+
+  // FIXME above initialization doesn't seem to work for all GCC version
+  // for now, also doing the good old way.
+  memset(perfBuffers, 0, SDLOG_NUM_BUFFER * sizeof(struct PerfBuffer));
 
   chRegSetThreadName("thdSdLog");
   while (!chThdShouldTerminateX()) {
