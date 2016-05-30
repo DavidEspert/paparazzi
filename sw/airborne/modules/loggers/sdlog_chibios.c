@@ -71,7 +71,7 @@ static void systemDeepSleep (void);
 event_source_t powerOutageSource;
 event_listener_t powerOutageListener;
 
-bool sdOk = FALSE;
+bool sdOk = false;
 
 FileDes pprzLogFile = -1;
 
@@ -157,19 +157,19 @@ static void thd_startlog(void *arg)
   chibios_sdlog_init(&chibios_sdlog, &pprzLogFile);
 
   // Check for init errors
-  sdOk = TRUE;
+  sdOk = true;
 
   if (sdLogInit (NULL) != SDLOG_OK)
-    sdOk = FALSE;
+    sdOk = false;
 
   removeEmptyLogs (PPRZ_LOG_DIR, PPRZ_LOG_NAME, 50);
-  if (sdLogOpenLog (&pprzLogFile, PPRZ_LOG_DIR, PPRZ_LOG_NAME, TRUE) != SDLOG_OK)
-    sdOk = FALSE;
+  if (sdLogOpenLog (&pprzLogFile, PPRZ_LOG_DIR, PPRZ_LOG_NAME, true) != SDLOG_OK)
+    sdOk = false;
 
 #if FLIGHTRECORDER_SDLOG
   removeEmptyLogs (FR_LOG_DIR, FLIGHTRECORDER_LOG_NAME, 50);
-  if (sdLogOpenLog (&flightRecorderLogFile, FR_LOG_DIR, FLIGHTRECORDER_LOG_NAME, FALSE) != SDLOG_OK)
-    sdOk = FALSE;
+  if (sdLogOpenLog (&flightRecorderLogFile, FR_LOG_DIR, FLIGHTRECORDER_LOG_NAME, false) != SDLOG_OK)
+    sdOk = false;
 #endif
 
   // Create Battery Survey Thread with event
@@ -177,12 +177,12 @@ static void thd_startlog(void *arg)
   chThdCreateStatic (wa_thd_bat_survey, sizeof(wa_thd_bat_survey),
       NORMALPRIO+2, thd_bat_survey, NULL);
 
-  while (TRUE) {
+  while (true) {
 #ifdef LED_SDLOG
     LED_TOGGLE(LED_SDLOG);
 #endif
     // Blink faster if init has errors
-    chThdSleepMilliseconds (sdOk == TRUE ? 1000 : 200);
+    chThdSleepMilliseconds (sdOk == true ? 1000 : 200);
     static uint32_t timestamp = 0;
 
     // FIXME what is this doing ? -> ask Alex

@@ -151,7 +151,7 @@ void chvprintf(BaseSequentialStream *chp, const char *fmt, va_list ap)
   char tmpbuf[MAX_FILLER + 1];
 #endif
 
-  while (TRUE) {
+  while (true) {
     c = *fmt++;
     if (c == 0) {
       return;
@@ -176,7 +176,7 @@ void chvprintf(BaseSequentialStream *chp, const char *fmt, va_list ap)
 #endif
     }
     width = 0;
-    while (TRUE) {
+    while (true) {
       c = *fmt++;
       if (c >= '0' && c <= '9') {
         c -= '0';
@@ -189,7 +189,7 @@ void chvprintf(BaseSequentialStream *chp, const char *fmt, va_list ap)
     }
     precision = 0;
     if (c == '.') {
-      while (TRUE) {
+      while (true) {
         c = *fmt++;
         if (c >= '0' && c <= '9') {
           c -= '0';
@@ -282,7 +282,7 @@ unsigned_common:
     if ((width -= i) < 0) {
       width = 0;
     }
-    if (left_align == FALSE) {
+    if (left_align == false) {
       width = -width;
     }
     if (width < 0) {
@@ -320,7 +320,7 @@ void chvsnprintf(char *buffer, size_t size, const char *fmt, va_list ap)
   char tmpbuf[MAX_FILLER + 1];
 #endif
 
-  while (TRUE) {
+  while (true) {
     c = *fmt++;
     if (c == 0) {
       writeBufferWithinSize(&buffer, 0, &size);
@@ -346,7 +346,7 @@ void chvsnprintf(char *buffer, size_t size, const char *fmt, va_list ap)
 #endif
     }
     width = 0;
-    while (TRUE) {
+    while (true) {
       c = *fmt++;
       if (c >= '0' && c <= '9') {
         c -= '0';
@@ -359,7 +359,7 @@ void chvsnprintf(char *buffer, size_t size, const char *fmt, va_list ap)
     }
     precision = 0;
     if (c == '.') {
-      while (TRUE) {
+      while (true) {
         c = *fmt++;
         if (c >= '0' && c <= '9') {
           c -= '0';
@@ -452,7 +452,7 @@ unsigned_common:
     if ((width -= i) < 0) {
       width = 0;
     }
-    if (left_align == FALSE) {
+    if (left_align == false) {
       width = -width;
     }
     if (width < 0) {

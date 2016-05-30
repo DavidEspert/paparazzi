@@ -182,8 +182,8 @@ void msdConfigureHookI(USBMassStorageDriver *msdp)
  *
  * @param[in] usbp      pointer to the @p USBDriver object
  * @return              The hook status.
- * @retval TRUE         Message handled internally.
- * @retval FALSE        Message not handled.
+ * @retval true         Message handled internally.
+ * @retval false        Message not handled.
  */
 bool msdRequestsHook(USBDriver *usbp)
 {
@@ -646,11 +646,11 @@ bool msd_read_command_block(USBMassStorageDriver *msdp)
     case SCSI_CMD_READ_10:
     case SCSI_CMD_WRITE_10:
       if (msdp->config->rw_activity_callback) {
-        msdp->config->rw_activity_callback(TRUE);
+        msdp->config->rw_activity_callback(true);
       }
       sleep = msd_scsi_process_start_read_write_10(msdp);
       if (msdp->config->rw_activity_callback) {
-        msdp->config->rw_activity_callback(FALSE);
+        msdp->config->rw_activity_callback(false);
       }
       break;
     case SCSI_CMD_SEND_DIAGNOSTIC:
@@ -793,7 +793,7 @@ void msdInit(USBMassStorageDriver *msdp)
   chEvtObjectInit(&msdp->evt_ejected);
 
   /* initialise the binary semaphore as taken */
-  chBSemObjectInit(&msdp->bsem, TRUE);
+  chBSemObjectInit(&msdp->bsem, true);
 
   /* initialise the sense data structure */
   size_t i;

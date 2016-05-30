@@ -120,8 +120,8 @@ typedef struct {
   /**
    * @brief Optional callback that will be called whenever there is
    *        read/write activity
-   * @note  The callback is called with argument TRUE when activity starts,
-   *        and FALSE when activity stops.
+   * @note  The callback is called with argument true when activity starts,
+   *        and false when activity stops.
    */
   void (*rw_activity_callback)(bool);
 
@@ -209,8 +209,8 @@ void msdConfigureHookI(USBMassStorageDriver *msdp);
  *
  * @param[in] usbp      pointer to the @p USBDriver object
  * @return              The hook status.
- * @retval TRUE         Message handled internally.
- * @retval FALSE        Message not handled.
+ * @retval true         Message handled internally.
+ * @retval false        Message not handled.
  */
 bool msdRequestsHook(USBDriver *usbp);
 
