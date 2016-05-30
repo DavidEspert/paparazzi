@@ -49,21 +49,21 @@
 
 #include "led.h"
 
-#define SEND_SYS_INFO 1
-
-#if SEND_SYS_INFO
-#include "subsystems/datalink/downlink.h"
-#endif
 
 /*
  * System info thread
  */
+#if SEND_SYS_INFO
+
+#include "subsystems/datalink/downlink.h"
+
 static void thd_sys_info(void *arg);
 static THD_WORKING_AREA(wa_thd_sys_info, 256);
 
 char thread_names[20][32];
 uint32_t thread_p_time[20];
 float thread_load[20];
+#endif
 
 /*
  * PPRZ thread
@@ -82,8 +82,10 @@ int main(void)
   Ap(init);
 
   // Create threads
+#if SEND_SYS_INFO
   chThdCreateStatic(wa_thd_sys_info, sizeof(wa_thd_sys_info),
       NORMALPRIO, thd_sys_info, NULL);
+#endif
 
   chThdSleepMilliseconds(100);
 
@@ -98,6 +100,7 @@ int main(void)
 }
 
 
+#if SEND_SYS_INFO
 /**
  * System Info
  *
@@ -145,7 +148,6 @@ void thd_sys_info(void *arg)
     cpu_frequency = (1 - (float) cpu_counter / CH_CFG_ST_FREQUENCY) * 100;
     last_idle_counter = idle_counter;
 
-#if SEND_SYS_INFO
     uint16_t tc = thread_counter;
     uint16_t cfh = (core_free_memory >> 16) & 0xFFFF;
     uint16_t cfl = core_free_memory & 0xFFFF;
@@ -155,11 +157,11 @@ void thd_sys_info(void *arg)
         &foo, &foo, &foo, &foo,
         &cpu_frequency);
 
-#endif
-
     chThdSleepUntil(time);
   }
 }
+#endif
+
 
 /*
  * PPRZ thread
