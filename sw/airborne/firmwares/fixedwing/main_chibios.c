@@ -24,6 +24,7 @@
  */
 
 #include "mcu_periph/sys_time.h"
+#include <ch.h>
 
 #ifndef  SYS_TIME_FREQUENCY
 #error SYS_TIME_FREQUENCY should be defined in Makefile.chibios or airframe.xml and be equal to CH_CFG_ST_FREQUENCY
@@ -47,23 +48,6 @@
 #define Ap(f)
 #endif
 
-#include "led.h"
-
-
-/*
- * System info thread
- */
-#if SEND_SYS_INFO
-
-#include "subsystems/datalink/downlink.h"
-
-static void thd_sys_info(void *arg);
-static THD_WORKING_AREA(wa_thd_sys_info, 256);
-
-char thread_names[20][32];
-uint32_t thread_p_time[20];
-float thread_load[20];
-#endif
 
 /*
  * PPRZ thread
@@ -81,14 +65,9 @@ int main(void)
   Fbw(init);
   Ap(init);
 
-  // Create threads
-#if SEND_SYS_INFO
-  chThdCreateStatic(wa_thd_sys_info, sizeof(wa_thd_sys_info),
-      NORMALPRIO, thd_sys_info, NULL);
-#endif
-
   chThdSleepMilliseconds(100);
 
+  // Create threads
   pprzThdPtr = chThdCreateStatic(wa_thd_pprz, sizeof(wa_thd_pprz),
       NORMALPRIO, thd_pprz, NULL);
 
@@ -99,76 +78,11 @@ int main(void)
   return 0;
 }
 
-
-#if SEND_SYS_INFO
-/**
- * System Info
- *
- * Logs the cpu usage and other system info
- */
-void thd_sys_info(void *arg)
-{
-  chRegSetThreadName("sys info");
-  (void) arg;
-  systime_t time = chVTGetSystemTime();
-  static uint32_t last_idle_counter = 0;
-
-  while (TRUE) {
-    time += S2ST(1);
-
-    core_free_memory = chCoreGetStatusX();
-    thread_counter = 0;
-
-    // loop threads to find idle thread
-    thread_t *tp;
-    float sum = 0.f;
-    tp = chRegFirstThread();
-    do {
-      strncpy(thread_names[thread_counter], tp->p_name, 31);
-      thread_p_time[thread_counter] = tp->p_time;
-      sum += (float)(tp->p_time);
-      thread_counter++;
-      if (tp == chSysGetIdleThreadX()) {
-#if CH_DBG_THREADS_PROFILING
-        idle_counter = (uint32_t)tp->p_time;
-#endif
-      }
-      tp = chRegNextThread(tp);
-    } while (tp != NULL);
-    int i;
-    for (i = 0; i < thread_counter; i ++) {
-      thread_load[i] = 100.f * (float)thread_p_time[i] / sum;
-    }
-
-    // assume we call the counter once a second
-    // so the difference in seconds is always one
-    // NOTE: not perfectly precise due to low heartbeat priority -> +-5% margins
-    // FIXME: add finer resolution than seconds?
-    cpu_counter = (idle_counter - last_idle_counter);
-    cpu_frequency = (1 - (float) cpu_counter / CH_CFG_ST_FREQUENCY) * 100;
-    last_idle_counter = idle_counter;
-
-    uint16_t tc = thread_counter;
-    uint16_t cfh = (core_free_memory >> 16) & 0xFFFF;
-    uint16_t cfl = core_free_memory & 0xFFFF;
-    uint16_t foo = 0;
-    DOWNLINK_SEND_SYS_MON(DefaultChannel, DefaultDevice,
-        &tc, &cfh, &cfl,
-        &foo, &foo, &foo, &foo,
-        &cpu_frequency);
-
-    chThdSleepUntil(time);
-  }
-}
-#endif
-
-
 /*
  * PPRZ thread
  *
  * Call PPRZ periodic and event functions
  */
-
 static void thd_pprz(void *arg)
 {
   /*

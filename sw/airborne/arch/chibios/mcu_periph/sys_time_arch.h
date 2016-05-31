@@ -34,20 +34,7 @@
 #define SYS_TIME_ARCH_H
 
 #include "mcu_periph/sys_time.h"
-
-/*
- * Chibios includes
- */
 #include <ch.h>
-
-/*
- * Extra defines for ChibiOS CPU monitoring
- */
-extern uint32_t core_free_memory;
-extern uint8_t thread_counter;
-extern uint32_t cpu_counter;
-extern uint32_t idle_counter;
-extern uint8_t cpu_frequency;
 
 extern uint32_t get_sys_time_usec(void);
 extern uint32_t get_sys_time_msec(void);

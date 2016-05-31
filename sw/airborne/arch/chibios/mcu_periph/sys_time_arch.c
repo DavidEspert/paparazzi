@@ -38,15 +38,6 @@
 #include "led.h"
 
 /*
- * Extra defines for ChibiOS CPU monitoring
- */
-uint32_t core_free_memory;
-uint8_t thread_counter;
-uint32_t cpu_counter;
-uint32_t idle_counter;
-uint8_t cpu_frequency;
-
-/*
  * Sys_tick handler thread
  */
 static void thd_sys_tick(void *arg);
@@ -55,11 +46,6 @@ static void sys_tick_handler(void);
 
 void sys_time_arch_init(void)
 {
-  core_free_memory = 0;
-  thread_counter = 0;
-  cpu_counter = 0;
-  idle_counter = 0;
-  cpu_frequency = 0;
 
   sys_time.cpu_ticks_per_sec = STM32_SYSCLK;
 
