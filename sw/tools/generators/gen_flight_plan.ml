@@ -983,6 +983,31 @@ let () =
       Xml2h.define "SECURITY_ALT" (sof (!security_height +. !ground_alt));
       Xml2h.define "HOME_MODE_HEIGHT" (sof home_mode_height);
       Xml2h.define "MAX_DIST_FROM_HOME" (sof mdfh);
+      begin
+        try
+          let geofence_max_alt = get_float "geofence_max_alt" in
+          if geofence_max_alt < !ground_alt then
+            begin
+              fprintf stderr "\nError: Geofence max altitude below ground alt (%.0f < %.0f)\n" geofence_max_alt !ground_alt;
+              exit 1;
+            end
+          else if geofence_max_alt < (!ground_alt +. !security_height) then
+            begin
+              fprintf stderr "\nError: Geofence max altitude below security height (%.0f < (%.0f+%.0f))\n" geofence_max_alt !ground_alt !security_height;
+              exit 1;
+            end
+          else if geofence_max_alt < (!ground_alt +. home_mode_height) then
+            begin
+              fprintf stderr "\nError: Geofence max altitude below ground alt + home mode height (%.0f < (%.0f+%.0f))\n" geofence_max_alt !ground_alt home_mode_height;
+              exit 1;
+            end
+          else if geofence_max_alt < (float_of_string alt) then
+            fprintf stderr "\nWarning: Geofence max altitude below default waypoint alt (%.0f < %.0f)\n" geofence_max_alt (float_of_string alt);
+          Xml2h.define "GEOFENCE_MAX_ALTITUDE" (sof geofence_max_alt)
+        with
+          _ -> ()
+      end;
+
 
       (* output settings file if needed *)
       begin
@@ -1027,8 +1052,8 @@ let () =
 
       begin
         try
-          let airspace = Xml.attrib xml "airspace" in
-          lprintf "#define InAirspace(_x, _y) %s(_x, _y)\n" (inside_function airspace)
+          let geofence_sector = Xml.attrib xml "geofence_sector" in
+          lprintf "#define InGeofenceSector(_x, _y) %s(_x, _y)\n" (inside_function geofence_sector)
         with
             _ -> ()
       end;
