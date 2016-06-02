@@ -26,8 +26,9 @@
     <!-- Communication -->
     <module name="telemetry" type="xbee_api"/>
     <module name="tlsf"/>
-    <module name="logger" type="sd_chibios"/>
     <module name="sdlog"/>
+    <module name="logger" type="sd_chibios"/>
+    <module name="flight_recorder"/>
 
     <!-- Actuators are automatically chosen according to board-->
     <module name="imu"     type="apogee"/>
@@ -38,7 +39,7 @@
     <!-- Sensors -->
     <module name="gps" type="ublox"/>
 
-    <!--module name="sys_mon"/-->
+    <!--module name="rtos_mon"/-->
 
     <!--module name="spi_master"/-->
     <!-- <module name="mcp355x"> -->
@@ -49,7 +50,6 @@
       <configure name="EXTRA_DL_BAUD" value="B57600"/>
     </module>
     <module name="meteo_france_DAQ"/-->
-    <module name="flight_recorder"/>
   </firmware>
 
   <firmware name="test_chibios">
