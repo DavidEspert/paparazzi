@@ -51,11 +51,7 @@ void rtos_mon_periodic(void)
       &rtos_mon.thread_counter,
       &rtos_mon.cpu_load,
       &rtos_mon.core_free_memory,
-      &rtos_mon.heap_free_memory,
-      rtos_mon.thread_load,
-      rtos_mon.thread_free_stack,
-      rtos_mon.thread_name_idx,
-      rtos_mon.thread_names);
+      &rtos_mon.heap_free_memory);
 
 }
 
