@@ -27,6 +27,7 @@ open Latlong
 module LL = Latlong
 open Printf
 
+
 module Tele_Pprz = PprzLink.Messages(struct let name = "telemetry" end)
 module Ground_Pprz = PprzLink.Messages(struct let name = "ground" end)
 module Alert_Pprz = PprzLink.Messages(struct let name = "alert" end)
@@ -167,7 +168,7 @@ let select_ac = fun acs_notebook ac_id ->
     if !active_ac <> "" then begin
       let ac' = find_ac !active_ac in
       ac'.strip#hide_buttons ();
-      ac'.notebook_label#set_width_chars (String.length ac'.notebook_label#text);
+      ac'.notebook_label#set_width_chars (Compat.bytes_length ac'.notebook_label#text);
       if !_auto_hide_fp then hide_fp ac'
     end;
 
@@ -339,12 +340,12 @@ let mark = fun (geomap:G.widget) ac_id track plugin_frame ->
 let attributes_pretty_printer = fun attribs ->
   (* Remove the optional attributes *)
   let valid = fun a ->
-    let a = String.lowercase a in
+    let a = Compat.bytes_lowercase a in
     a <> "no" && a <> "strip_icon" && a <> "strip_button" && a <> "pre_call"
     && a <> "post_call" && a <> "key" && a <> "group" in
 
   let sprint_opt = fun b s ->
-    if String.length b > 0 then
+    if Compat.bytes_length b > 0 then
       sprintf " %s%s%s" s b s
     else
       ""
@@ -631,7 +632,7 @@ let create_ac = fun ?(confirm_kill=true) alert (geomap:G.widget) (acs_notebook:G
   let settings_file = Http.file_of_url settings_url in
   let settings_xml =
     try
-      if String.compare "replay" settings_file <> 0 then
+      if Compat.bytes_compare "replay" settings_file <> 0 then
         ExtXml.parse_file ~noprovedtd:true settings_file
       else
         Xml.Element("empty", [], [])
@@ -730,8 +731,9 @@ let create_ac = fun ?(confirm_kill=true) alert (geomap:G.widget) (acs_notebook:G
         and wind_north = sprintf "%.1f" (-. sin a *. w)
         and airspeed = sprintf "%.1f" ac.airspeed in
 
-        let msg_items = ["WIND_INFO"; ac_id; "42"; wind_east; wind_north;airspeed] in
-        let value = String.concat ";" msg_items in
+        (* only horizontal wind and airspeed are updated, so bitmask is 0b0000101 = 5 *)
+        let msg_items = ["WIND_INFO"; ac_id; "5"; wind_east; wind_north; "0.0"; airspeed] in
+        let value = Compat.bytes_concat ";" msg_items in
         let vs = ["ac_id", PprzLink.String ac_id; "message", PprzLink.String value] in
         Ground_Pprz.message_send "dl" "RAW_DATALINK" vs;
       with
@@ -1476,6 +1478,29 @@ let get_intruders = fun (geomap:G.widget) _sender vs ->
 let listen_intruders = fun (geomap:G.widget) ->
   safe_bind "INTRUDER" (get_intruders geomap)
 
+open Shapes
+
+let get_shapes = fun (geomap:G.widget)_sender vs ->
+  let f = fun s -> PprzLink.float_assoc s vs in
+  let i = fun s -> PprzLink.int_assoc s vs in
+  let st = fun s -> PprzLink.string_assoc s vs in
+  let string_to_scaled_float = fun v -> (float (int_of_string v))/. 1e7 in
+  let floatarr = fun s -> Array.map string_to_scaled_float (Array.of_list (Str.split list_separator (st s))) in
+  let data =  {
+    shid = i "id";
+    shlinecolor = st "linecolor";
+    shfillcolor = st "fillcolor";
+    shopacity = i "opacity";
+    shtype = int2shtype (i "shape");
+    shstatus = int2shstatus (i "status");
+    shlatarr = floatarr "latarr";
+    shlonarr = floatarr "lonarr";
+    shradius = f "radius";
+    shtext = st "text"} in
+  new_shmsg data geomap
+
+let listen_shapes = fun (geomap:G.widget) ->
+  safe_bind "SHAPE" (get_shapes geomap)
 
 let listen_acs_and_msgs = fun geomap ac_notebook strips confirm_kill my_alert auto_center_new_ac alt_graph timestamp ->
   (** Probe live A/Cs *)
@@ -1502,6 +1527,7 @@ let listen_acs_and_msgs = fun geomap ac_notebook strips confirm_kill my_alert au
   listen_tcas my_alert timestamp;
   listen_dcshot geomap timestamp;
   listen_intruders geomap;
+  listen_shapes geomap;
 
   (** Select the active aircraft on notebook page selection *)
   let callback = fun i ->

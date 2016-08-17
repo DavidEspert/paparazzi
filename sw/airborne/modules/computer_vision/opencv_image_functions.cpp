@@ -34,31 +34,73 @@ using namespace std;
 #include <opencv2/imgproc/imgproc.hpp>
 using namespace cv;
 
-void color_opencv_to_yuv422(Mat image, char *img, int width, int height)
+void coloryuv_opencv_to_yuv422(Mat image, char *img, int width, int height)
 {
+  CV_Assert(image.depth() == CV_8U);
+  CV_Assert(image.channels() == 3);
 
-//Turn the opencv RGB colored image back in a YUV colored image for the drone
-  for (int row = 0; row < height; row++) {
-    for (int col = 0; col < width; col++) {
-      cv::Vec3b pixelHere = image.at<cv::Vec3b>(row, col);
-      img[(row * width + col) * 2 + 1] = 0.299 * pixelHere[0] + 0.587 * pixelHere[1] + 0.114 * pixelHere[2];
-      if (col % 2 == 0) { // U
-        img[(row * width + col) * 2] = 0.492 * (pixelHere[2] - img[(row * width + col) * 2 + 1] + 127);
-      } else { // V
-        img[(row * width + col) * 2] = 0.877 * (pixelHere[0] - img[(row * width + col) * 2 + 1] + 127);
-      }
+  int nRows = image.rows;
+  int nCols = image.cols;
+
+  // If the image is one block in memory we can iterate over it all at once!
+  if (image.isContinuous()) {
+    nCols *= nRows;
+    nRows = 1;
+  }
+
+  // Iterate over the image, setting only the Y value
+  // and setting U and V to 127
+  int i, j;
+  uchar *p;
+  int index_img = 0;
+  for (i = 0; i < nRows; ++i) {
+    p = image.ptr<uchar>(i);
+    for (j = 0; j < nCols; j += 6) {
+      img[index_img++] = p[j + 1]; //U
+      img[index_img++] = p[j];//Y
+      img[index_img++] = p[j + 2]; //V
+      img[index_img++] = p[j + 3]; //Y
+
+
     }
   }
+}
+
+void colorrgb_opencv_to_yuv422(Mat image, char *img, int width, int height)
+{
+  // Convert to YUV color space
+  cvtColor(image, image, COLOR_BGR2YUV);
+  // then call the to color function
+  coloryuv_opencv_to_yuv422(image, img, width, height);
 }
 
 
 void grayscale_opencv_to_yuv422(Mat image, char *img, int width, int height)
 {
-  for (int row = 0; row < height; row++) {
-    for (int col = 0; col < width; col++) {
+  CV_Assert(image.depth() == CV_8U);
+  CV_Assert(image.channels() == 1);
 
-      img[(row * width + col) * 2 + 1] =   image.at<uint8_t>(row, col);
-      img[(row * width + col) * 2 ] = 127;
+  int n_rows = image.rows;
+  int n_cols = image.cols;
+
+  // If the image is one block in memory we can iterate over it all at once!
+  if (image.isContinuous()) {
+    n_cols *= n_rows;
+    n_rows = 1;
+  }
+
+  // Iterate over the image, setting only the Y value
+  // and setting U and V to 127
+  int i, j;
+  uchar *p;
+  int index_img = 0;
+  for (i = 0; i < n_rows; ++i) {
+    p = image.ptr<uchar>(i);
+    for (j = 0; j < n_cols; j++) {
+      img[index_img++] = 127;
+      img[index_img++] = p[j];
+
+
     }
   }
 }

@@ -82,6 +82,7 @@ bool nav_survey_active;
 
 int32_t nav_roll, nav_pitch;
 int32_t nav_heading;
+int32_t nav_cmd_roll, nav_cmd_pitch, nav_cmd_yaw;
 float nav_radius;
 float nav_climb_vspeed, nav_descend_vspeed;
 
@@ -116,7 +117,8 @@ static inline void nav_set_altitude(void);
 #if PERIODIC_TELEMETRY
 #include "subsystems/datalink/telemetry.h"
 
-void set_exception_flag(uint8_t flag_num) {
+void set_exception_flag(uint8_t flag_num)
+{
   exception_flag[flag_num] = 1;
 }
 
@@ -174,6 +176,9 @@ void nav_init(void)
   nav_roll = 0;
   nav_pitch = 0;
   nav_heading = 0;
+  nav_cmd_roll = 0;
+  nav_cmd_pitch = 0;
+  nav_cmd_yaw = 0;
   nav_radius = DEFAULT_CIRCLE_RADIUS;
   nav_climb_vspeed = NAV_CLIMB_VSPEED;
   nav_descend_vspeed = NAV_DESCEND_VSPEED;
@@ -446,9 +451,9 @@ void navigation_update_wp_from_speed(uint8_t wp, struct Int16Vect3 speed_sp, int
 
   INT32_COURSE_NORMALIZE(nav_heading);
   RunOnceEvery(10, DOWNLINK_SEND_WP_MOVED_ENU(DefaultChannel, DefaultDevice, &wp,
-                                              &(waypoints[wp].enu_i.x),
-                                              &(waypoints[wp].enu_i.y),
-                                              &(waypoints[wp].enu_i.z)));
+               &(waypoints[wp].enu_i.x),
+               &(waypoints[wp].enu_i.y),
+               &(waypoints[wp].enu_i.z)));
 }
 
 bool nav_detect_ground(void)
@@ -481,16 +486,20 @@ void nav_home(void)
 
 /** Set manual roll, pitch and yaw without stabilization
  *
- * @param[in] roll The angle in radians (float)
- * @param[in] pitch The angle in radians (float)
- * @param[in] yaw The angle in radians (float)
+ * @param[in] roll command in pprz scale (int32_t)
+ * @param[in] pitch command in pprz scale (int32_t)
+ * @param[in] yaw command in pprz scale (int32_t)
+ *
+ * This function allows to directly set commands from the flight plan,
+ * if in nav_manual mode.
+ * This is for instance useful for helicopters during the spinup
  */
-void nav_set_manual(float roll, float pitch, float yaw)
+void nav_set_manual(int32_t roll, int32_t pitch, int32_t yaw)
 {
   horizontal_mode = HORIZONTAL_MODE_MANUAL;
-  nav_roll = ANGLE_BFP_OF_REAL(roll);
-  nav_pitch = ANGLE_BFP_OF_REAL(pitch);
-  nav_heading = ANGLE_BFP_OF_REAL(yaw);
+  nav_cmd_roll = roll;
+  nav_cmd_pitch = pitch;
+  nav_cmd_yaw = yaw;
 }
 
 /** Returns squared horizontal distance to given point */
@@ -675,3 +684,24 @@ void nav_oval(uint8_t p1, uint8_t p2, float radius)
       return;
   }
 }
+/*
+#ifdef TRAFFIC_INFO
+#include "modules/multi/traffic_info.h"
+
+void nav_follow(uint8_t ac_id, uint32_t distance, uint32_t height)
+{
+    struct EnuCoor_i* target = acInfoGetPositionEnu_i(ac_id);
+
+
+    float alpha = M_PI / 2 - acInfoGetCourse(ac_id);
+    float ca = cosf(alpha), sa = sinf(alpha);
+    target->x += - distance * ca;
+    target->y += - distance * sa;
+    target->z = (Max(target->z + height, SECURITY_HEIGHT)); // todo add ground height to check
+
+    ENU_OF_TO_NED(navigation_target, *target);
+}
+#else*/
+void nav_follow(uint8_t  __attribute__((unused)) _ac_id, uint32_t  __attribute__((unused)) distance,
+                uint32_t  __attribute__((unused)) height) {}
+//#endif
