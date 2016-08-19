@@ -26,6 +26,10 @@
  *  2D Ellipse trajectory
  */
 
+
+#include "subsystems/navigation/common_nav.h"
+#include "gvf_ellipse.h"
+
 #ifndef GVF_ELLIPSE_A
 #define GVF_ELLIPSE_A 80
 #endif
@@ -41,3 +45,33 @@
 float gvf_ellipse_a = GVF_ELLIPSE_A;
 float gvf_ellipse_b = GVF_ELLIPSE_B;
 float gvf_ellipse_alpha = GVF_ELLIPSE_ALPHA;
+
+void gvf_ellipse_info(float *phi, struct gvf_grad *grad, 
+        struct gvf_Hess *hess){
+
+    struct EnuCoor_f *p = stateGetPositionEnu_f();
+    float px = p->x;
+    float py = p->y;
+    float wx = gvf_param.p1;
+    float wy = gvf_param.p2;
+    float a = gvf_param.p3;
+    float b = gvf_param.p4;
+    float alpha = gvf_param.p5;
+
+    // Phi(x,y)
+    float xel = (px-wx)*cosf(alpha) - (py-wy)*sinf(alpha);
+    float yel = (px-wx)*sinf(alpha) + (py-wy)*cosf(alpha);
+    *phi = (xel/a)*(xel/a) + (yel/b)*(yel/b) - 1;
+
+    // grad Phi
+    grad->nx = (2*xel/(a*a))*cosf(alpha) + (2*yel/(b*b))*sinf(alpha);
+    grad->ny = (2*yel/(b*b))*cosf(alpha) - (2*xel/(a*a))*sinf(alpha);
+
+    // Hessian Phi
+    hess->H11 = 2*(cosf(alpha)*cosf(alpha)/(a*a)
+            + sinf(alpha)*sinf(alpha)/(b*b));
+    hess->H12 = 2*sinf(alpha)*cosf(alpha)*(1/(b*b) - 1/(a*a));
+    hess->H21 = hess->H12;
+    hess->H22 = 2*(sinf(alpha)*sinf(alpha)/(a*a)
+            + cosf(alpha)*cosf(alpha)/(b*b));
+}

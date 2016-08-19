@@ -39,17 +39,42 @@ extern float gvf_kn;
 extern float gvf_kd;
 
 // Trajectory
+// 0 - Straight line
+// 1 - Ellipse
 extern uint8_t gvf_traj_type;
-extern float gvf_p1;
-extern float gvf_p2;
-extern float gvf_p3;
-extern float gvf_p4;
-extern float gvf_p5;
-extern float gvf_p6;
-extern float gvf_p7;
+extern struct gvf_p{
+    float p1;
+    float p2;
+    float p3;
+    float p4;
+    float p5;
+    float p6;
+    float p7;
+} gvf_param;
+
+struct gvf_grad{
+    float nx;
+    float ny;
+    float nz;
+};
+
+struct gvf_Hess{
+    float H11;
+    float H12;
+    float H13;
+    float H21;
+    float H22;
+    float H23;
+    float H31;
+    float H32;
+    float H33;
+};
 
 extern void gvf_init(void);
-extern bool gvf_ellipse(uint8_t, float, float, float);
-extern bool gvf_ellipse_set(uint8_t);
+extern void gvf_control_2D(float ke, float kn, float kd, 
+        float e, struct gvf_grad *, struct gvf_Hess *);
+
+extern bool gvf_ellipse(uint8_t wp, float a, float b, float alpha);
+extern bool gvf_ellipse_set(uint8_t wp);
 
 #endif // GVF_H

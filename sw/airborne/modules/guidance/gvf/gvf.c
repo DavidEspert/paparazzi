@@ -38,20 +38,15 @@ float gvf_kn;
 
 // Trajectory
 uint8_t gvf_traj_type;
-float gvf_p1;
-float gvf_p2;
-float gvf_p3;
-float gvf_p4;
-float gvf_p5;
-float gvf_p6;
-float gvf_p7;
+struct gvf_p gvf_param;
 
 #if PERIODIC_TELEMETRY
 #include "subsystems/datalink/telemetry.h"
 static void send_gvf(struct transport_tx *trans, struct link_device *dev)
 {
     pprz_msg_send_GVF(trans, dev, AC_ID, &gvf_error, &gvf_traj_type,
-            &gvf_p1, &gvf_p2, &gvf_p3, &gvf_p4, &gvf_p5, &gvf_p6, &gvf_p7);
+            &gvf_param.p1, &gvf_param.p2, &gvf_param.p3, &gvf_param.p4,
+            &gvf_param.p5, &gvf_param.p6, &gvf_param.p7);
 }
 
 #endif
@@ -62,75 +57,41 @@ void gvf_init(void)
     gvf_kn = 1;
     gvf_kd = 1;
     gvf_traj_type = 0;
-    gvf_p1 = 0;
-    gvf_p2 = 0;
-    gvf_p3 = 0;
-    gvf_p4 = 0;
-    gvf_p5 = 0;
-    gvf_p6 = 0;
-    gvf_p7 = 0;
+    gvf_param.p1 = 0;
+    gvf_param.p2 = 0;
+    gvf_param.p3 = 0;
+    gvf_param.p4 = 0;
+    gvf_param.p5 = 0;
+    gvf_param.p6 = 0;
+    gvf_param.p7 = 0;
 
 #if PERIODIC_TELEMETRY
     register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_GVF, send_gvf);
 #endif
 }
 
-bool gvf_ellipse(uint8_t wp, float a, float b, float alpha)
+void gvf_control_2D(float ke, float kn, float kd,
+        float e, struct gvf_grad *grad, struct gvf_Hess *hess)
 {
-
-    alpha = alpha*M_PI/180;
-
-    gvf_traj_type = 1;
-    gvf_p1 = waypoints[wp].x;
-    gvf_p2 = waypoints[wp].y;
-    gvf_p3 = a;
-    gvf_p4 = b;
-    gvf_p5 = alpha;
-
-    // SAFE MODE (TODO)
-    if(a == 0 || b == 0){
-        a = 60;
-        b = 60;
-    }
-
-    float ke = gvf_ke;
-    float kn = gvf_kn;
-    float kd = gvf_kd;
-
-    // State
-    struct EnuCoor_f *p = stateGetPositionEnu_f();
-    float px = p->x;
-    float py = p->y;
-    float wx = waypoints[wp].x;
-    float wy = waypoints[wp].y;
+    struct FloatEulers *att = stateGetNedToBodyEulers_f();
     float ground_speed = stateGetHorizontalSpeedNorm_f();
     float course = stateGetHorizontalSpeedDir_f();
     float px_dot = ground_speed*sinf(course);
     float py_dot = ground_speed*cosf(course);
-    struct FloatEulers *att = stateGetNedToBodyEulers_f();
-    float psi = att->psi;
-    float air_speed = stateGetAirspeed_f();
-
-    // Phi(x,y)
-    float xel = (px-wx)*cosf(alpha) - (py-wy)*sinf(alpha);
-    float yel = (px-wx)*sinf(alpha) + (py-wy)*cosf(alpha);
-    float e = (xel/a)*(xel/a) + (yel/b)*(yel/b) - 1;
-
-    // grad Phi
-    float nx = (2*xel/(a*a))*cosf(alpha) + (2*yel/(b*b))*sinf(alpha);
-    float ny = (2*yel/(b*b))*cosf(alpha) - (2*xel/(a*a))*sinf(alpha);
-
-    // Hessian Phi
-    float H11 = 2*(cosf(alpha)*cosf(alpha)/(a*a)
-            + sinf(alpha)*sinf(alpha)/(b*b));
-    float H12 = 2*sinf(alpha)*cosf(alpha)*(1/(b*b) - 1/(a*a));
-    float H21 = H12;
-    float H22 = 2*(sinf(alpha)*sinf(alpha)/(a*a)
-            + cosf(alpha)*cosf(alpha)/(b*b));
+    
+    // gradient Phi
+    float nx = grad->nx;
+    float ny = grad->ny;
 
     // tangent to Phi
-    float tx = ny;
-    float ty = -nx;
+    float tx = grad->ny;
+    float ty = -grad->nx;
+
+    // Hessian
+    float H11 = hess->H11;
+    float H12 = hess->H12;
+    float H21 = hess->H21;
+    float H22 = hess->H22;
 
     // Calculation of the desired angular velocity in the vector field
     float pdx_dot = tx - ke*e*nx;
@@ -158,11 +119,6 @@ bool gvf_ellipse(uint8_t wp, float a, float b, float alpha)
     float mr_x = sinf(course);
     float mr_y = cosf(course);
 
-    // Calculation of the setting point of omega
-    // float omega = ground_speed/(air_speed*(cosf(course)*cosf(psi) +
-    //            sinf(course)*sinf(psi))) * (omega_d + kn*mr_x*md_y 
-    //        -kn*mr_y*md_x);
-
     float omega = omega_d + kn*mr_x*md_y -kn*mr_y*md_x;
     
     // Coordinated turn, it is minus since in NED the positive is clockwise
@@ -171,10 +127,34 @@ bool gvf_ellipse(uint8_t wp, float a, float b, float alpha)
     BoundAbs(h_ctl_roll_setpoint, h_ctl_roll_max_setpoint);
 
     lateral_mode = LATERAL_MODE_ROLL;
+}
+
+bool gvf_ellipse(uint8_t wp, float a, float b, float alpha)
+{
+    float e;
+    struct gvf_grad grad_ellipse;
+    struct gvf_Hess Hess_ellipse;
+
+    alpha = alpha*M_PI/180;
+
+    gvf_traj_type = 1;
+    gvf_param.p1 = waypoints[wp].x;
+    gvf_param.p2 = waypoints[wp].y;
+    gvf_param.p3 = a;
+    gvf_param.p4 = b;
+    gvf_param.p5 = alpha;
+
+    // SAFE MODE
+    if(a == 0 || b == 0){
+        gvf_param.p3 = 60;
+        gvf_param.p4 = 60;
+    }
+
+    gvf_ellipse_info(&e, &grad_ellipse, &Hess_ellipse);
+    gvf_control_2D(gvf_ke, gvf_kn, gvf_kd, e, &grad_ellipse, &Hess_ellipse);
 
     gvf_error = e;
 
-    gvf_p6 = H12;
     return true;
 }
 

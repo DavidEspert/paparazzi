@@ -29,8 +29,12 @@
 #ifndef GVF_ELLIPSE_H
 #define GVF_ELLIPSE
 
+#include "../gvf.h"
+
 extern float gvf_ellipse_a;
 extern float gvf_ellipse_b;
 extern float gvf_ellipse_alpha;
+
+extern void gvf_ellipse_info(float *phi, struct gvf_grad *, struct gvf_Hess *);
 
 #endif // GVF_ELLIPSE_H
