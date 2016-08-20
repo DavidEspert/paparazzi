@@ -41,7 +41,7 @@ void gvf_line_info(float *phi, struct gvf_grad *grad,
     float c = gvf_param.p3;
 
     // Phi(x,y)
-    *phi = a*px + b*py - c;
+    *phi = (a*px + b*py - c);
 
     // grad Phi
     grad->nx = a;

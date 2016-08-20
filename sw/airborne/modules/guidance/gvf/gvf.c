@@ -24,8 +24,9 @@
 #include "std.h"
 
 #include "gvf.h"
-
 #include "./trajectories/gvf_ellipse.h"
+#include "./trajectories/gvf_line.h"
+
 #include "subsystems/navigation/common_nav.h"
 #include "firmwares/fixedwing/stabilization/stabilization_attitude.h"
 #include "firmwares/fixedwing/autopilot.h"
@@ -33,7 +34,6 @@
 // Control
 float gvf_error;
 float gvf_ke;
-float gvf_kd;
 float gvf_kn;
 int8_t gvf_s;
 
@@ -56,9 +56,8 @@ void gvf_init(void)
 {
     gvf_ke = 1;
     gvf_kn = 1;
-    gvf_kd = 1;
     gvf_s = 1;
-    gvf_traj_type = 0;
+    gvf_traj_type = 255;
     gvf_param.p1 = 0;
     gvf_param.p2 = 0;
     gvf_param.p3 = 0;
@@ -73,8 +72,8 @@ void gvf_init(void)
 }
 
 // GENERIC TRAJECTORY CONTROLLER
-void gvf_control_2D(float ke, float kn, float kd,
-        float e, struct gvf_grad *grad, struct gvf_Hess *hess)
+void gvf_control_2D(float ke, float kn, float e, 
+        struct gvf_grad *grad, struct gvf_Hess *hess)
 {
     struct FloatEulers *att = stateGetNedToBodyEulers_f();
     float ground_speed = stateGetHorizontalSpeedNorm_f();
@@ -105,8 +104,8 @@ void gvf_control_2D(float ke, float kn, float kd,
     float md_x = pdx_dot / norm_pd_dot;
     float md_y = pdy_dot / norm_pd_dot;
 
-    float Apd_dot_dot_x = -ke*e*(nx*px_dot + ny*py_dot)*nx;
-    float Apd_dot_dot_y = -ke*e*(nx*px_dot + ny*py_dot)*ny;
+    float Apd_dot_dot_x = -ke*(nx*px_dot + ny*py_dot)*nx;
+    float Apd_dot_dot_y = -ke*(nx*px_dot + ny*py_dot)*ny;
 
     float Bpd_dot_dot_x = ((-ke*e*H11)+s*H21)*px_dot 
         + ((-ke*e*H12)+s*H22)*py_dot;
@@ -117,9 +116,9 @@ void gvf_control_2D(float ke, float kn, float kd,
     float pd_dot_dot_y = Apd_dot_dot_y + Bpd_dot_dot_y;
 
     float md_dot_const = -(md_x*pd_dot_dot_y - md_y*pd_dot_dot_x)/norm_pd_dot;
-    float md_dot_x = md_y * md_dot_const;
+    float md_dot_x =  md_y * md_dot_const;
     float md_dot_y = -md_x * md_dot_const;
-
+    
     float omega_d = -(md_dot_x*md_y - md_dot_y*md_x);
 
     float mr_x = sinf(course);
@@ -127,9 +126,9 @@ void gvf_control_2D(float ke, float kn, float kd,
 
     float omega = omega_d + kn*(mr_x*md_y - mr_y*md_x);
     
-    // Coordinated turn, it is minus since in NED the positive is clockwise
+    // Coordinated turn
     h_ctl_roll_setpoint =
-        -atanf(kd*omega*ground_speed/GVF_GRAVITY/cosf(att->theta));
+        -atanf(omega*ground_speed/GVF_GRAVITY/cosf(att->theta));
     BoundAbs(h_ctl_roll_setpoint, h_ctl_roll_max_setpoint);
 
     lateral_mode = LATERAL_MODE_ROLL;
@@ -143,9 +142,9 @@ void gvf_line_p1_p2(float x1, float y1, float x2, float y2)
     struct gvf_grad grad_line;
     struct gvf_Hess Hess_line;
 
-    float a = x2-x1;
-    float b = y2-y1;
-    float c = -((x2-x1)*y1 + (y2-y1)*x1);
+    float a = y1-y2;
+    float b = x2-x1;
+    float c = x2*y1 - y2*x1;
 
     gvf_traj_type = 0;
     gvf_param.p1 = a;
@@ -153,7 +152,7 @@ void gvf_line_p1_p2(float x1, float y1, float x2, float y2)
     gvf_param.p3 = c;
 
     gvf_line_info(&e, &grad_line, &Hess_line);
-    gvf_control_2D(gvf_ke, gvf_kn, gvf_kd, e, &grad_line, &Hess_line);
+    gvf_control_2D(1e-1*gvf_ke, gvf_kn, e, &grad_line, &Hess_line);
 
     gvf_error = e;
 }
@@ -165,7 +164,7 @@ bool gvf_line_wp1_wp2(uint8_t wp1, uint8_t wp2)
     float x2 = waypoints[wp2].x;
     float y2 = waypoints[wp2].y;
 
-    gvf_line_p1_p2(x1, x2, y1, y2);
+    gvf_line_p1_p2(x1, y1, x2, y2);
 
     return true;
 }
@@ -176,27 +175,10 @@ bool gvf_line_wp_heading(uint8_t wp, float alpha)
 
     float x1 = waypoints[wp].x;
     float y1 = waypoints[wp].y;
-    float x2 = waypoints[wp].x -10*sinf(alpha);
-    float y2 = waypoints[wp].y +10*cosf(alpha);
+    float x2 = waypoints[wp].x - sinf(alpha);
+    float y2 = waypoints[wp].y + cosf(alpha);
 
-    gvf_line_p1_p2(x1, x2, y1, y2);
-
-    return true;
-}
-
-bool gvf_segment_wp1_wp2(uint8_t wp1, uint8_t wp2)
-{
-    return true;
-}
-
-bool gvf_segment_wp_heading(uint8_t wp, float alpha, float length)
-{
-    alpha = alpha*M_PI/180;
-
-    float x1 = waypoints[wp].x;
-    float y1 = waypoints[wp].y;
-    float x2 = waypoints[wp].x -10*sinf(alpha);
-    float y2 = waypoints[wp].y +10*cosf(alpha);
+    gvf_line_p1_p2(x1, y1, x2, y2);
 
     return true;
 }
@@ -224,7 +206,7 @@ bool gvf_ellipse(uint8_t wp, float a, float b, float alpha)
     }
 
     gvf_ellipse_info(&e, &grad_ellipse, &Hess_ellipse);
-    gvf_control_2D(gvf_ke, gvf_kn, gvf_kd, e, &grad_ellipse, &Hess_ellipse);
+    gvf_control_2D(gvf_ke, gvf_kn, e, &grad_ellipse, &Hess_ellipse);
 
     gvf_error = e;
 

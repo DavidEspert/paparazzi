@@ -6,7 +6,6 @@
 	  <dl_settings NAME="Control">
 		  <dl_setting MAX = "5" MIN="0.0" STEP="0.01" VAR="gvf_ke" shortname="gvf_ke" param="GVF_KE"/>
 		  <dl_setting MAX = "5" MIN="0.0" STEP="0.01" VAR="gvf_kn" shortname="gvf_kn" param="GVF_KN"/>
-		  <dl_setting MAX = "5.0" MIN="0.0" STEP="0.01" VAR="gvf_kd" shortname="gvf_kd" param="GVF_KD"/>
 		  <dl_setting MAX="1" MIN="-1" STEP="2" VAR="gvf_s" shortname="direction"/>
 	  </dl_settings>
 	  <dl_settings NAME="Ellipse">

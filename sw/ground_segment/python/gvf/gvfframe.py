@@ -98,6 +98,18 @@ class GVFFrame(wx.Frame):
 
         if msg.name == 'GVF':
             self.gvf_error = float(msg.get_field(0))
+            # Straight line
+            if int(msg.get_field(1)) == 0 \
+                    and self.timer_traj == self.timer_traj_lim:
+                self.s = int(msg.get_field(2))
+                a = float(msg.get_field(3))
+                b = float(msg.get_field(4))
+                c = float(msg.get_field(5))
+
+                self.traj = traj_line(np.array([-100,100]), a, b, c)
+                self.traj.vector_field(self.traj.XYoff, self.map_gvf.area, \
+                        self.s, self.kn, self.ke)
+
             # Ellipse
             if int(msg.get_field(1)) == 1 \
                     and self.timer_traj == self.timer_traj_lim:
@@ -180,18 +192,69 @@ class map2d:
                 h*np.sin(course), h*np.cos(course),\
                 head_width=5, head_length=10, fc='k', ec='k')
         self.ax.annotate('HOME', xy = (0, 0))
-        self.ax.annotate('ELLIPSE', xy = (traj.XYoff[0], traj.XYoff[1]))
-        self.ax.plot(0, 0, 'kx', ms=10, mew=2)
-        self.ax.plot(traj.XYoff[0], traj.XYoff[1], 'kx', ms=10, mew=2)
+        if isinstance(traj, traj_ellipse):
+            self.ax.annotate('ELLIPSE', xy = (traj.XYoff[0], traj.XYoff[1]))
+            self.ax.plot(0, 0, 'kx', ms=10, mew=2)
+            self.ax.plot(traj.XYoff[0], traj.XYoff[1], 'kx', ms=10, mew=2)
         self.ax.set_xlabel('South [m]')
         self.ax.set_ylabel('West [m]')
         self.ax.set_title('2D Map')
         self.ax.set_xlim(self.XYoff[0]-0.5*np.sqrt(self.area), \
                 self.XYoff[0]+0.5*np.sqrt(self.area))
-        self.ax.set_ylim(traj.XYoff[1]-0.5*np.sqrt(self.area), \
+        self.ax.set_ylim(self.XYoff[1]-0.5*np.sqrt(self.area), \
                 self.XYoff[1]+0.5*np.sqrt(self.area))
         self.ax.axis('equal')
         self.ax.grid()
+
+class traj_line:
+    def float_range(self, start, end, step):
+        while start <= end:
+            yield start
+            start += step
+
+    def __init__(self, Xminmax, a, b, c):
+        self.XYoff = np.array([0, 0])
+        self.Xminmax = Xminmax
+        self.a, self.b, self.c = a, b, c
+        self.traj_points = np.zeros((2, 200))
+        self.mapgrad_X = []
+        self.mapgrad_Y = []
+        self.mapgrad_U = []
+        self.mapgrad_V = []
+
+        i = 0
+        for t in self.float_range(0, 1, 0.005):
+            x = (self.Xminmax[1]-self.Xminmax[0])*t + self.Xminmax[0]
+            self.traj_points[:, i] = self.param_point(x)
+            i = i + 1
+
+    def param_point(self, t):
+        if self.b <= 1e-4:
+            return np.array([t, 0])
+        else:
+            return np.array([t, (self.c - self.a*t)/self.b])
+
+    def vector_field(self, XYoff, area, s, kn, ke):
+        self.mapgrad_X, self.mapgrad_Y = np.mgrid[XYoff[0]-0.5*np.sqrt(area):\
+                XYoff[0]+0.5*np.sqrt(area):30j, \
+                XYoff[1]-0.5*np.sqrt(area):\
+                XYoff[1]+0.5*np.sqrt(area):30j]
+
+        nx = self.a
+        ny = self.b
+        tx = s*ny
+        ty = -s*nx
+
+        e = (self.mapgrad_X*self.a + self.mapgrad_Y*self.b - self.c)/1e3
+                
+        
+        self.mapgrad_U = tx -ke*e*nx
+        self.mapgrad_V = ty -ke*e*ny
+        
+        norm = np.sqrt(self.mapgrad_U**2 + self.mapgrad_V**2)
+
+        self.mapgrad_U = self.mapgrad_U/norm
+        self.mapgrad_V = self.mapgrad_V/norm
 
 class traj_ellipse:
     def float_range(self, start, end, step):
