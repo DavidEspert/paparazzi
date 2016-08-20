@@ -35,6 +35,7 @@ float gvf_error;
 float gvf_ke;
 float gvf_kd;
 float gvf_kn;
+int8_t gvf_s;
 
 // Trajectory
 uint8_t gvf_traj_type;
@@ -45,8 +46,8 @@ struct gvf_p gvf_param;
 static void send_gvf(struct transport_tx *trans, struct link_device *dev)
 {
     pprz_msg_send_GVF(trans, dev, AC_ID, &gvf_error, &gvf_traj_type,
-            &gvf_param.p1, &gvf_param.p2, &gvf_param.p3, &gvf_param.p4,
-            &gvf_param.p5, &gvf_param.p6, &gvf_param.p7);
+            &gvf_s, &gvf_param.p1, &gvf_param.p2, &gvf_param.p3,
+            &gvf_param.p4, &gvf_param.p5, &gvf_param.p6, &gvf_param.p7);
 }
 
 #endif
@@ -56,6 +57,7 @@ void gvf_init(void)
     gvf_ke = 1;
     gvf_kn = 1;
     gvf_kd = 1;
+    gvf_s = 1;
     gvf_traj_type = 0;
     gvf_param.p1 = 0;
     gvf_param.p2 = 0;
@@ -70,6 +72,7 @@ void gvf_init(void)
 #endif
 }
 
+// GENERIC TRAJECTORY CONTROLLER
 void gvf_control_2D(float ke, float kn, float kd,
         float e, struct gvf_grad *grad, struct gvf_Hess *hess)
 {
@@ -78,14 +81,15 @@ void gvf_control_2D(float ke, float kn, float kd,
     float course = stateGetHorizontalSpeedDir_f();
     float px_dot = ground_speed*sinf(course);
     float py_dot = ground_speed*cosf(course);
+    int s = gvf_s;
     
     // gradient Phi
     float nx = grad->nx;
     float ny = grad->ny;
 
     // tangent to Phi
-    float tx = grad->ny;
-    float ty = -grad->nx;
+    float tx = s*grad->ny;
+    float ty = -s*grad->nx;
 
     // Hessian
     float H11 = hess->H11;
@@ -104,8 +108,10 @@ void gvf_control_2D(float ke, float kn, float kd,
     float Apd_dot_dot_x = -ke*e*(nx*px_dot + ny*py_dot)*nx;
     float Apd_dot_dot_y = -ke*e*(nx*px_dot + ny*py_dot)*ny;
 
-    float Bpd_dot_dot_x = ((-ke*e*H11)+H21)*px_dot + ((-ke*e*H12)+H22)*py_dot;
-    float Bpd_dot_dot_y = -(H11+(ke*e*H21))*px_dot - (H12+(ke*e*H22))*py_dot;
+    float Bpd_dot_dot_x = ((-ke*e*H11)+s*H21)*px_dot 
+        + ((-ke*e*H12)+s*H22)*py_dot;
+    float Bpd_dot_dot_y = -(s*H11+(ke*e*H21))*px_dot
+        - (s*H12+(ke*e*H22))*py_dot;
 
     float pd_dot_dot_x = Apd_dot_dot_x + Bpd_dot_dot_x;
     float pd_dot_dot_y = Apd_dot_dot_y + Bpd_dot_dot_y;
@@ -119,7 +125,7 @@ void gvf_control_2D(float ke, float kn, float kd,
     float mr_x = sinf(course);
     float mr_y = cosf(course);
 
-    float omega = omega_d + kn*mr_x*md_y -kn*mr_y*md_x;
+    float omega = omega_d + kn*(mr_x*md_y - mr_y*md_x);
     
     // Coordinated turn, it is minus since in NED the positive is clockwise
     h_ctl_roll_setpoint =
@@ -129,6 +135,73 @@ void gvf_control_2D(float ke, float kn, float kd,
     lateral_mode = LATERAL_MODE_ROLL;
 }
 
+// STRAIGHT LINE
+
+void gvf_line_p1_p2(float x1, float y1, float x2, float y2)
+{
+    float e;
+    struct gvf_grad grad_line;
+    struct gvf_Hess Hess_line;
+
+    float a = x2-x1;
+    float b = y2-y1;
+    float c = -((x2-x1)*y1 + (y2-y1)*x1);
+
+    gvf_traj_type = 0;
+    gvf_param.p1 = a;
+    gvf_param.p2 = b;
+    gvf_param.p3 = c;
+
+    gvf_line_info(&e, &grad_line, &Hess_line);
+    gvf_control_2D(gvf_ke, gvf_kn, gvf_kd, e, &grad_line, &Hess_line);
+
+    gvf_error = e;
+}
+
+bool gvf_line_wp1_wp2(uint8_t wp1, uint8_t wp2)
+{
+    float x1 = waypoints[wp1].x;
+    float y1 = waypoints[wp1].y;
+    float x2 = waypoints[wp2].x;
+    float y2 = waypoints[wp2].y;
+
+    gvf_line_p1_p2(x1, x2, y1, y2);
+
+    return true;
+}
+
+bool gvf_line_wp_heading(uint8_t wp, float alpha)
+{
+    alpha = alpha*M_PI/180;
+
+    float x1 = waypoints[wp].x;
+    float y1 = waypoints[wp].y;
+    float x2 = waypoints[wp].x -10*sinf(alpha);
+    float y2 = waypoints[wp].y +10*cosf(alpha);
+
+    gvf_line_p1_p2(x1, x2, y1, y2);
+
+    return true;
+}
+
+bool gvf_segment_wp1_wp2(uint8_t wp1, uint8_t wp2)
+{
+    return true;
+}
+
+bool gvf_segment_wp_heading(uint8_t wp, float alpha, float length)
+{
+    alpha = alpha*M_PI/180;
+
+    float x1 = waypoints[wp].x;
+    float y1 = waypoints[wp].y;
+    float x2 = waypoints[wp].x -10*sinf(alpha);
+    float y2 = waypoints[wp].y +10*cosf(alpha);
+
+    return true;
+}
+
+// ELLIPSE
 bool gvf_ellipse(uint8_t wp, float a, float b, float alpha)
 {
     float e;

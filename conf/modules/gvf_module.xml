@@ -7,6 +7,7 @@
 
   <header>
     <file name="gvf.h"/>
+	<file name="trajectories/gvf_line.h"/>
 	<file name="trajectories/gvf_ellipse.h"/>
   </header>
 
@@ -14,6 +15,7 @@
   
   <makefile>
     <file name="gvf.c"/>
+	<file name="trajectories/gvf_line.c"/>
 	<file name="trajectories/gvf_ellipse.c"/>
   </makefile>
 </module>

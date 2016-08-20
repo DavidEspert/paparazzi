@@ -37,6 +37,7 @@ extern float gvf_error;
 extern float gvf_ke;
 extern float gvf_kn;
 extern float gvf_kd;
+extern int8_t gvf_s;
 
 // Trajectory
 // 0 - Straight line
@@ -74,6 +75,14 @@ extern void gvf_init(void);
 extern void gvf_control_2D(float ke, float kn, float kd, 
         float e, struct gvf_grad *, struct gvf_Hess *);
 
+// Straigh line
+void gvf_line_p1_p2(float x1, float y1, float x2, float y2);
+extern bool gvf_line_wp1_wp2(uint8_t wp1, uint8_t wp2);
+extern bool gvf_line_wp_heading(uint8_t wp, float alpha);
+extern bool gvf_segment_wp1_wp2(uint8_t wp1, uint8_t wp2);
+extern bool gvf_segment_wp_heading(uint8_t wp, float alpha, float length);
+
+// Ellipse
 extern bool gvf_ellipse(uint8_t wp, float a, float b, float alpha);
 extern bool gvf_ellipse_set(uint8_t wp);
 

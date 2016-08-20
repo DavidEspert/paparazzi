@@ -625,6 +625,7 @@
   <message name="GVF" id="71">
 	<field name="error" type="float"/>
 	<field name="traj" type="uint8"/>
+	<field name="s" type="int8"/>
 	<field name="p1" type="float"/>
 	<field name="p2" type="float"/>
 	<field name="p3" type="float"/>

@@ -36,6 +36,7 @@ class GVFFrame(wx.Frame):
         # Desired trajectory
         self.timer_traj = 0 # We do not update the traj every time we receive a msg
         self.timer_traj_lim = 7 # (7+1) * 0.25secs
+        self.s = 0
         self.kn = 0
         self.ke = 0
         self.map_gvf = map2d(np.array([0, 0]), 150000)
@@ -88,26 +89,27 @@ class GVFFrame(wx.Frame):
                 self.ke = float(msg.get_field(1))
                 if self.traj is not None:
                     self.traj.vector_field(self.traj.XYoff, \
-                            self.map_gvf.area, self.kn, self.ke)
+                            self.map_gvf.area, self.s, self.kn, self.ke)
             if int(msg.get_field(0)) == int(self.kn_index):
                 self.kn = float(msg.get_field(1))
                 if self.traj is not None:
                     self.traj.vector_field(self.traj.XYoff, \
-                            self.map_gvf.area, self.kn, self.ke)
+                            self.map_gvf.area, self.s, self.kn, self.ke)
 
         if msg.name == 'GVF':
             self.gvf_error = float(msg.get_field(0))
             # Ellipse
             if int(msg.get_field(1)) == 1 \
                     and self.timer_traj == self.timer_traj_lim:
-                ex = float(msg.get_field(2))
-                ey = float(msg.get_field(3))
-                ea = float(msg.get_field(4))
-                eb = float(msg.get_field(5))
-                ealpha = float(msg.get_field(6))
+                self.s = int(msg.get_field(2))
+                ex = float(msg.get_field(3))
+                ey = float(msg.get_field(4))
+                ea = float(msg.get_field(5))
+                eb = float(msg.get_field(6))
+                ealpha = float(msg.get_field(7))
                 self.traj = traj_ellipse(np.array([ex, ey]), ealpha, ea, eb)
                 self.traj.vector_field(self.traj.XYoff, \
-                        self.map_gvf.area, self.kn, self.ke)
+                        self.map_gvf.area, self.s, self.kn, self.ke)
 
             self.timer_traj = self.timer_traj + 1
             if self.timer_traj > self.timer_traj_lim:
@@ -169,7 +171,7 @@ class map2d:
         self.ax.plot(traj.traj_points[0, :], traj.traj_points[1, :])
         self.ax.quiver(traj.mapgrad_X, traj.mapgrad_Y, \
                 traj.mapgrad_U, traj.mapgrad_V, color='Teal', \
-                pivot='tip', width=0.002)
+                pivot='mid', width=0.002)
         self.ax.add_patch(self.vehicle_patch(XY, yaw)) # In radians
         apex = 45*np.pi/180 # 30 degrees apex angle
         b = np.sqrt(2*(self.area/2000) / np.sin(apex))
@@ -220,7 +222,7 @@ class traj_ellipse:
                 self.a*np.cos(angle)*np.sin(-self.rot) + \
                 self.b*np.sin(angle)*np.cos(-self.rot)])
 
-    def vector_field(self, XYoff, area, kn, ke):
+    def vector_field(self, XYoff, area, s, kn, ke):
         self.mapgrad_X, self.mapgrad_Y = np.mgrid[XYoff[0]-0.5*np.sqrt(area):\
                 XYoff[0]+0.5*np.sqrt(area):30j, \
                 XYoff[1]-0.5*np.sqrt(area):\
@@ -237,8 +239,8 @@ class traj_ellipse:
         ny = -2*Xel*np.sin(self.rot)/self.a**2 \
                 + 2*Yel*np.cos(self.rot)/self.b**2
 
-        tx = ny
-        ty = -nx
+        tx = s*ny
+        ty = -s*nx
 
         e = (Xel/self.a)**2 + (Yel/self.b)**2 - 1
         
