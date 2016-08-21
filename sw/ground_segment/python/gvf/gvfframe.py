@@ -225,14 +225,10 @@ class traj_line:
         i = 0
         for t in self.float_range(0, 1, 0.005):
             x = (self.Xminmax[1]-self.Xminmax[0])*t + self.Xminmax[0]
-            self.traj_points[:, i] = self.param_point(x)
             i = i + 1
 
     def param_point(self, t):
-        if self.b <= 1e-4:
-            return np.array([t, 0])
-        else:
-            return np.array([t, (self.c - self.a*t)/self.b])
+        #TODO
 
     def vector_field(self, XYoff, area, s, kn, ke):
         self.mapgrad_X, self.mapgrad_Y = np.mgrid[XYoff[0]-0.5*np.sqrt(area):\
