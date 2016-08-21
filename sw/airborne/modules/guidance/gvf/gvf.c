@@ -152,7 +152,7 @@ void gvf_line_p1_p2(float x1, float y1, float x2, float y2)
     gvf_param.p3 = c;
 
     gvf_line_info(&e, &grad_line, &Hess_line);
-    gvf_control_2D(1e-1*gvf_ke, gvf_kn, e, &grad_line, &Hess_line);
+    gvf_control_2D(5e-4*gvf_ke, gvf_kn, e, &grad_line, &Hess_line);
 
     gvf_error = e;
 }
@@ -164,7 +164,12 @@ bool gvf_line_wp1_wp2(uint8_t wp1, uint8_t wp2)
     float x2 = waypoints[wp2].x;
     float y2 = waypoints[wp2].y;
 
-    gvf_line_p1_p2(x1, y1, x2, y2);
+    float norm = sqrtf((x1-x2)*(x1-x2) + (y1-y2)*(y1-y2));
+
+    zx = 10*(x1-x2)/norm;
+    zy = 10*(y1-y2)/norm;
+
+    gvf_line_p1_p2(x1, y1, zx, zy);
 
     return true;
 }
@@ -175,8 +180,8 @@ bool gvf_line_wp_heading(uint8_t wp, float alpha)
 
     float x1 = waypoints[wp].x;
     float y1 = waypoints[wp].y;
-    float x2 = waypoints[wp].x - sinf(alpha);
-    float y2 = waypoints[wp].y + cosf(alpha);
+    float x2 = waypoints[wp].x - 10*sinf(alpha);
+    float y2 = waypoints[wp].y + 10*cosf(alpha);
 
     gvf_line_p1_p2(x1, y1, x2, y2);
 

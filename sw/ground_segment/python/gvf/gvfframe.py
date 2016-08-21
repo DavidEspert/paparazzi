@@ -240,14 +240,16 @@ class traj_line:
                 XYoff[1]-0.5*np.sqrt(area):\
                 XYoff[1]+0.5*np.sqrt(area):30j]
 
+        auxnorm = np.sqrt(self.a**2 + self.b**2 + self.c**2)
+
         nx = self.a
         ny = self.b
         tx = s*ny
         ty = -s*nx
 
-        e = (self.mapgrad_X*self.a + self.mapgrad_Y*self.b - self.c)/1e3
-                
+        e = (self.mapgrad_X*self.a + self.mapgrad_Y*self.b - self.c)
         
+        ke = ke*5e-4
         self.mapgrad_U = tx -ke*e*nx
         self.mapgrad_V = ty -ke*e*ny
         
