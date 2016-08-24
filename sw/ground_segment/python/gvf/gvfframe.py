@@ -228,7 +228,7 @@ class traj_line:
             i = i + 1
 
     def param_point(self, t):
-        #TODO
+        i = 0
 
     def vector_field(self, XYoff, area, s, kn, ke):
         self.mapgrad_X, self.mapgrad_Y = np.mgrid[XYoff[0]-0.5*np.sqrt(area):\
