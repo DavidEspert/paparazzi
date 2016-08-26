@@ -47,7 +47,7 @@
       <call fun="gvf_ellipse(WP_ELLIPSE, gvf_ellipse_a, gvf_ellipse_b, gvf_ellipse_alpha)"/>
     </block>
 	<block name="Line">
-		<call fun="gvf_line_wp_heading(WP_HOME, 0)"/>
+		<call fun="gvf_line_wp_heading(WP_CIRCLE, 45)"/>
 	</block>
     <block group="land" name="Land Right AF-TD" strip_button="Land right (wp AF-TD)" strip_icon="land-right.png">
       <set value="DEFAULT_CIRCLE_RADIUS" var="nav_radius"/>

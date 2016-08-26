@@ -38,14 +38,14 @@ void gvf_line_info(float *phi, struct gvf_grad *grad,
     float py = p->y;
     float a = gvf_param.p1;
     float b = gvf_param.p2;
-    float c = gvf_param.p3;
+    float alpha = gvf_param.p3;
 
     // Phi(x,y)
-    *phi = (a*px + b*py - c);
+    *phi = -(px-a)*cosf(alpha) + (py-b)*sinf(alpha);
 
     // grad Phi
-    grad->nx = a;
-    grad->ny = b;
+    grad->nx =  -cosf(alpha);
+    grad->ny =   sinf(alpha);
 
     // Hessian Phi
     hess->H11 = 0;

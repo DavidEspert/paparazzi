@@ -71,11 +71,12 @@ struct gvf_Hess{
 };
 
 extern void gvf_init(void);
-extern void gvf_control_2D(float ke, float kn, float e,
+void gvf_control_2D(float ke, float kn, float e,
         struct gvf_grad *, struct gvf_Hess *);
+extern void gvf_set_gains(float ke, float kd);
 
 // Straigh line
-void gvf_line_p1_p2(float x1, float y1, float x2, float y2);
+void gvf_line(float x, float y, float alpha);
 extern bool gvf_line_wp1_wp2(uint8_t wp1, uint8_t wp2);
 extern bool gvf_line_wp_heading(uint8_t wp, float alpha);
 

@@ -212,10 +212,10 @@ class traj_line:
             yield start
             start += step
 
-    def __init__(self, Xminmax, a, b, c):
+    def __init__(self, Xminmax, a, b, alpha):
         self.XYoff = np.array([0, 0])
         self.Xminmax = Xminmax
-        self.a, self.b, self.c = a, b, c
+        self.a, self.b, self.alpha = a, b, alpha
         self.traj_points = np.zeros((2, 200))
         self.mapgrad_X = []
         self.mapgrad_Y = []
@@ -227,25 +227,24 @@ class traj_line:
             x = (self.Xminmax[1]-self.Xminmax[0])*t + self.Xminmax[0]
             i = i + 1
 
-    def param_point(self, t):
+    #def param_point(self, t):
         #TODO
-
+        
     def vector_field(self, XYoff, area, s, kn, ke):
         self.mapgrad_X, self.mapgrad_Y = np.mgrid[XYoff[0]-0.5*np.sqrt(area):\
                 XYoff[0]+0.5*np.sqrt(area):30j, \
                 XYoff[1]-0.5*np.sqrt(area):\
                 XYoff[1]+0.5*np.sqrt(area):30j]
 
-        auxnorm = np.sqrt(self.a**2 + self.b**2 + self.c**2)
-
-        nx = self.a
-        ny = self.b
+        nx = -np.cos(self.alpha)
+        ny =  np.sin(self.alpha)
         tx = s*ny
         ty = -s*nx
 
-        e = (self.mapgrad_X*self.a + self.mapgrad_Y*self.b - self.c)
+        ke = 1e-2*ke
+
+        e = (self.mapgrad_X-self.a)*nx + (self.mapgrad_Y-self.b)*ny
         
-        ke = ke*5e-4
         self.mapgrad_U = tx -ke*e*nx
         self.mapgrad_V = ty -ke*e*ny
         
