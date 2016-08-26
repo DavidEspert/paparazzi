@@ -26,6 +26,7 @@
 #include "gvf.h"
 #include "./trajectories/gvf_ellipse.h"
 #include "./trajectories/gvf_line.h"
+#include "./trajectories/gvf_sin.h"
 
 #include "subsystems/navigation/common_nav.h"
 #include "firmwares/fixedwing/stabilization/stabilization_attitude.h"
@@ -195,8 +196,6 @@ bool gvf_ellipse(uint8_t wp, float a, float b, float alpha)
     struct gvf_grad grad_ellipse;
     struct gvf_Hess Hess_ellipse;
 
-    alpha = alpha*M_PI/180;
-
     gvf_traj_type = 1;
     gvf_param.p1 = waypoints[wp].x;
     gvf_param.p2 = waypoints[wp].y;
@@ -225,6 +224,60 @@ bool gvf_ellipse_set(uint8_t wp)
     float alpha = gvf_ellipse_alpha*M_PI/180;
 
     gvf_ellipse(wp, a, b, alpha);
+
+    return true;
+}
+
+// SINUSOIDAL (if w = 0 and off = 0, then we just have the straight line case)
+
+void gvf_sin(float a, float b, float alpha, float w, float off, float A)
+{
+    float e;
+    struct gvf_grad grad_line;
+    struct gvf_Hess Hess_line;
+
+    gvf_traj_type = 2;
+    gvf_param.p1 = a;
+    gvf_param.p2 = b;
+    gvf_param.p3 = alpha;
+    gvf_param.p4 = w;
+    gvf_param.p5 = off;
+    gvf_param.p6 = A;
+
+    gvf_sin_info(&e, &grad_line, &Hess_line);
+    gvf_control_2D(1e-2*gvf_ke, gvf_kn, e, &grad_line, &Hess_line);
+
+    gvf_error = e;
+}
+
+bool gvf_sin_wp1_wp2(uint8_t wp1, uint8_t wp2, float w, float off, float A)
+{
+    w = 2*M_PI*w;
+
+    float x1 = waypoints[wp1].x;
+    float y1 = waypoints[wp1].y;
+    float x2 = waypoints[wp2].x;
+    float y2 = waypoints[wp2].y;
+
+    float zx = x1-x2;
+    float zy = y1-y2;
+
+    float alpha = atanf(zy/zx);
+
+    gvf_sin(x1, y1, alpha, w, off, A);
+
+    return true;
+}
+
+bool gvf_sin_wp_heading(uint8_t wp, float alpha, float w, float off, float A)
+{
+    w = 2*M_PI*w;
+    alpha = alpha*M_PI/180;
+
+    float x = waypoints[wp].x;
+    float y = waypoints[wp].y;
+
+    gvf_sin(x, y, alpha, w, off, A);
 
     return true;
 }
