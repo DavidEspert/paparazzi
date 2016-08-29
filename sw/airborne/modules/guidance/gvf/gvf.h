@@ -38,9 +38,11 @@ extern float gvf_ke;
 extern float gvf_kn;
 extern int8_t gvf_s;
 
-// Trajectory
+// Trajectories
 // 0 - Straight line
 // 1 - Ellipse
+// 2 - Sin
+
 extern uint8_t gvf_traj_type;
 extern struct gvf_p{
     float p1;
@@ -71,16 +73,25 @@ struct gvf_Hess{
 };
 
 extern void gvf_init(void);
-extern void gvf_control_2D(float ke, float kn, float e,
+void gvf_control_2D(float ke, float kn, float e,
         struct gvf_grad *, struct gvf_Hess *);
+extern void gvf_set_gains(float ke, float kd);
 
 // Straigh line
-void gvf_line_p1_p2(float x1, float y1, float x2, float y2);
+void gvf_line(float x, float y, float alpha);
 extern bool gvf_line_wp1_wp2(uint8_t wp1, uint8_t wp2);
 extern bool gvf_line_wp_heading(uint8_t wp, float alpha);
 
 // Ellipse
 extern bool gvf_ellipse(uint8_t wp, float a, float b, float alpha);
 extern bool gvf_ellipse_set(uint8_t wp);
+
+// Sinusoidal
+void gvf_sin(float x, float y, float alpha, float w, float off, float A);
+extern bool gvf_sin_wp1_wp2(uint8_t wp1, uint8_t wp2, float w, float off,
+        float A);
+extern bool gvf_sin_wp_heading(uint8_t wp, float alpha, float w, float off,
+        float A);
+
 
 #endif // GVF_H

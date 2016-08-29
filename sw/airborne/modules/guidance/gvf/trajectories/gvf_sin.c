@@ -20,17 +20,17 @@
  *
  */
 
-/** \file gvf_line.c
+/** \file gvf_sin.c
  *
  *  Guidance algorithm based on vector fields
- *  2D straight line trajectory
+ *  2D sinusoidal trajectory
  */
 
 
 #include "subsystems/navigation/common_nav.h"
-#include "gvf_line.h"
+#include "gvf_sin.h"
 
-void gvf_line_info(float *phi, struct gvf_grad *grad,
+void gvf_sin_info(float *phi, struct gvf_grad *grad,
         struct gvf_Hess *hess){
 
     struct EnuCoor_f *p = stateGetPositionEnu_f();
@@ -39,17 +39,26 @@ void gvf_line_info(float *phi, struct gvf_grad *grad,
     float a = gvf_param.p1;
     float b = gvf_param.p2;
     float alpha = gvf_param.p3;
+    float w = gvf_param.p4;
+    float off = gvf_param.p5;
+    float A = gvf_param.p6;
+
+    float Xel = -(px-a)*sinf(alpha) - (py-b)*cosf(alpha);
+    float Yel = -(px-a)*cosf(alpha) + (py-b)*sinf(alpha);
+
+    // TODO Make it always in (-pi, pi] in an efficient way
+    float ang = (w*Xel + off);
 
     // Phi(x,y)
-    *phi = -(px-a)*cosf(alpha) + (py-b)*sinf(alpha);
+    *phi = Yel - A*sinf(ang);
 
     // grad Phi
-    grad->nx =  -cosf(alpha);
-    grad->ny =   sinf(alpha);
+    grad->nx = -w*A*sinf(alpha)*cosf(ang) - cosf(alpha);
+    grad->ny = -w*A*cosf(alpha)*cosf(ang) + sinf(alpha);
 
     // Hessian Phi
-    hess->H11 = 0;
-    hess->H12 = 0;
-    hess->H21 = 0;
-    hess->H22 = 0;
+    hess->H11 = (A*w*w*sinf(alpha)*sinf(alpha))*sinf(ang);
+    hess->H12 = (A*w*w*sinf(alpha)*cosf(alpha))*sinf(ang);
+    hess->H21 = (A*w*w*sinf(alpha)*cosf(alpha))*sinf(ang);
+    hess->H22 = (A*w*w*cosf(alpha)*cosf(alpha))*sinf(ang);
 }

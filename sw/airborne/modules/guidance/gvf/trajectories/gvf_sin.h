@@ -20,36 +20,17 @@
  *
  */
 
-/** \file gvf_line.c
+/** \file gvf_sin.h
  *
  *  Guidance algorithm based on vector fields
- *  2D straight line trajectory
+ *  2D sinusoidal trajectory
  */
 
+#ifndef GVF_SIN_H
+#define GVF_SIN
 
-#include "subsystems/navigation/common_nav.h"
-#include "gvf_line.h"
+#include "../gvf.h"
 
-void gvf_line_info(float *phi, struct gvf_grad *grad,
-        struct gvf_Hess *hess){
+extern void gvf_sin_info(float *phi, struct gvf_grad *, struct gvf_Hess *);
 
-    struct EnuCoor_f *p = stateGetPositionEnu_f();
-    float px = p->x;
-    float py = p->y;
-    float a = gvf_param.p1;
-    float b = gvf_param.p2;
-    float alpha = gvf_param.p3;
-
-    // Phi(x,y)
-    *phi = -(px-a)*cosf(alpha) + (py-b)*sinf(alpha);
-
-    // grad Phi
-    grad->nx =  -cosf(alpha);
-    grad->ny =   sinf(alpha);
-
-    // Hessian Phi
-    hess->H11 = 0;
-    hess->H12 = 0;
-    hess->H21 = 0;
-    hess->H22 = 0;
-}
+#endif // GVF_SIN_H
