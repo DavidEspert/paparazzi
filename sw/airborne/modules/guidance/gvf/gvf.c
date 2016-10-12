@@ -51,6 +51,14 @@ static void send_gvf(struct transport_tx *trans, struct link_device *dev)
             &gvf_param.p4, &gvf_param.p5, &gvf_param.p6, &gvf_param.p7);
 }
 
+static void send_circle(struct transport_tx *trans, struct link_device *dev)
+{
+  if (gvf_traj_type == 1 && (gvf_param.p3 == gvf_param.p4)) {
+    pprz_msg_send_CIRCLE(trans, dev, AC_ID,
+                         &gvf_param.p1, &gvf_param.p2, &gvf_param.p3);
+  }
+}
+
 #endif
 
 void gvf_init(void)
@@ -69,6 +77,8 @@ void gvf_init(void)
 
 #if PERIODIC_TELEMETRY
     register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_GVF, send_gvf);
+    register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_CIRCLE,
+            send_circle);
 #endif
 }
 
