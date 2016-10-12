@@ -94,7 +94,7 @@ class GVFFrame(wx.Frame):
                     , self.XY[0]-self.traj.XYoff[0])
 
             sigma = sigma_mako - sigma_jumper
-            e_sigma = sigma - 0.68
+            e_sigma = sigma - 0
 
             if e_sigma > np.pi:
                 e_sigma = e_sigma - 2*np.pi
@@ -127,19 +127,31 @@ class GVFFrame(wx.Frame):
                 self.XY_mako[1] = float(msg.get_field(3))
                 self.formation()
 
-            if msg.name == 'CIRCLE':
-                self.WP_mako[0] = float(msg.get_field(0))
-                self.WP_mako[1] = float(msg.get_field(1))
-                self.radius_mako = float(msg.get_field(2))
+            if msg.name == 'GVF':
+                if int(msg.get_field(1)) == 1:
+                    self.WP_mako[0] = float(msg.get_field(3))
+                    self.WP_mako[1] = float(msg.get_field(4))
+                    self.radius_mako = float(msg.get_field(5))
 
-        if ac_id == 3:
+            #if msg.name == 'WP_MOVED':
+            #    if int(msg.get_field(0)) == 7:
+            #            msg = PprzMessage("ground", "MOVE_WAYPOINT")
+            #            msg['ac_id'] = self.ac_id
+            #            msg['wp_id'] = 7
+            #            msg['lat'] = msg.get_field(1)
+            #            msg['long'] = msg.get_field(2)
+            #            msg['alt'] = msg.get_field(3)
+            #            self.interface.send(msg)
+
+
+        if ac_id == self.ac_id:
             if msg.name == 'GPS':
                 self.course = int(msg.get_field(3))*np.pi/1800
         
             if msg.name == 'NAVIGATION':
                 self.XY[0] = float(msg.get_field(2))
                 self.XY[1] = float(msg.get_field(3))
-                self.formation()
+                #self.formation()
         
             if msg.name == 'ATTITUDE':
                 self.yaw = float(msg.get_field(1))

@@ -43,22 +43,23 @@ void gvf_sin_info(float *phi, struct gvf_grad *grad,
     float off = gvf_param.p5;
     float A = gvf_param.p6;
 
-    float Xel = -(px-a)*sinf(alpha) - (py-b)*cosf(alpha);
-    float Yel = -(px-a)*cosf(alpha) + (py-b)*sinf(alpha);
+    // Phi(x,y)
+    float xel = -(px-a)*sinf(alpha) - (py-b)*cosf(alpha);
+    float yel =  (px-a)*cosf(alpha) - (py-b)*sinf(alpha);
 
     // TODO Make it always in (-pi, pi] in an efficient way
-    float ang = (w*Xel + off);
+    float ang = (w*xel + off);
 
     // Phi(x,y)
-    *phi = Yel - A*sinf(ang);
+    *phi = yel - A*sinf(ang);
 
     // grad Phi
-    grad->nx = -w*A*sinf(alpha)*cosf(ang) - cosf(alpha);
-    grad->ny = -w*A*cosf(alpha)*cosf(ang) + sinf(alpha);
+    grad->nx =  cosf(alpha) + A*w*sinf(alpha)*cosf(ang);
+    grad->ny = -sinf(alpha) + A*w*cosf(alpha)*cosf(ang);
 
     // Hessian Phi
-    hess->H11 = (A*w*w*sinf(alpha)*sinf(alpha))*sinf(ang);
-    hess->H12 = (A*w*w*sinf(alpha)*cosf(alpha))*sinf(ang);
-    hess->H21 = (A*w*w*sinf(alpha)*cosf(alpha))*sinf(ang);
-    hess->H22 = (A*w*w*cosf(alpha)*cosf(alpha))*sinf(ang);
+    hess->H11 = -A*A*w*w*sinf(alpha)*sinf(alpha)*sinf(ang);
+    hess->H12 = -A*A*w*w*sinf(alpha)*cosf(alpha)*sinf(ang);
+    hess->H21 = -A*A*w*w*cosf(alpha)*sinf(alpha)*sinf(ang);
+    hess->H22 = -A*A*w*w*cosf(alpha)*cosf(alpha)*sinf(ang);
 }

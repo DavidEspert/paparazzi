@@ -76,6 +76,7 @@ extern void gvf_init(void);
 void gvf_control_2D(float ke, float kn, float e,
         struct gvf_grad *, struct gvf_Hess *);
 extern void gvf_set_gains(float ke, float kd);
+extern void gvf_set_direction(int8_t s);
 
 // Straigh line
 void gvf_line(float x, float y, float alpha);

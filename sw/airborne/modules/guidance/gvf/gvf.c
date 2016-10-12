@@ -141,6 +141,11 @@ void gvf_set_gains(float ke, float kd)
     gvf_ke = kd;
 }
 
+void gvf_set_direction(int8_t s)
+{
+    gvf_s = s;
+}
+
 // STRAIGHT LINE
 
 void gvf_line(float a, float b, float alpha)
@@ -181,10 +186,10 @@ bool gvf_line_wp_heading(uint8_t wp, float alpha)
 {
     alpha = alpha*M_PI/180;
 
-    float x = waypoints[wp].x;
-    float y = waypoints[wp].y;
+    float a = waypoints[wp].x;
+    float b = waypoints[wp].y;
 
-    gvf_line(x, y, alpha);
+    gvf_line(a, b, alpha);
 
     return true;
 }

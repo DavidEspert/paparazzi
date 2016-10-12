@@ -123,6 +123,21 @@ class GVFFrame(wx.Frame):
                 self.traj.vector_field(self.traj.XYoff, \
                         self.map_gvf.area, self.s, self.kn, self.ke)
 
+            # Sin
+            if int(msg.get_field(1)) == 2 \
+                    and self.timer_traj == self.timer_traj_lim:
+                self.s = int(msg.get_field(2))
+                a = float(msg.get_field(3))
+                b = float(msg.get_field(4))
+                alpha = float(msg.get_field(5))
+                w = float(msg.get_field(6))
+                off = float(msg.get_field(7))
+                A = float(msg.get_field(8))
+                self.traj = traj_sin(np.array([-100, 100]), a, b, alpha, \
+                        w, off, A)
+                self.traj.vector_field(self.traj.XYoff, \
+                        self.map_gvf.area, self.s, self.kn, self.ke)
+
             self.timer_traj = self.timer_traj + 1
             if self.timer_traj > self.timer_traj_lim:
                 self.timer_traj = 0
@@ -303,6 +318,72 @@ class traj_ellipse:
         ty = -s*nx
 
         e = (Xel/self.a)**2 + (Yel/self.b)**2 - 1
+        
+        self.mapgrad_U = tx -ke*e*nx
+        self.mapgrad_V = ty -ke*e*ny
+        
+        norm = np.sqrt(self.mapgrad_U**2 + self.mapgrad_V**2)
+
+        self.mapgrad_U = self.mapgrad_U/norm
+        self.mapgrad_V = self.mapgrad_V/norm
+
+class traj_sin:
+    def float_range(self, start, end, step):
+        while start <= end:
+            yield start
+            start += step
+
+    def __init__(self, Xminmax, a, b, alpha, w, off, A):
+        self.XYoff = np.array([0, 0])
+        self.Xminmax = Xminmax
+        self.a, self.b, self.alpha, self.w, self.off, self.A = \
+                a, b, alpha, w, off, A
+        self.traj_points = np.zeros((2, 200))
+        self.mapgrad_X = []
+        self.mapgrad_Y = []
+        self.mapgrad_U = []
+        self.mapgrad_V = []
+
+        i = 0
+        for t in self.float_range(0, 1, 0.005):
+            x = (self.Xminmax[1]-self.Xminmax[0])*t + self.Xminmax[0]
+            i = i + 1
+
+        xtr = np.linspace(-200, 200, 400)
+        ytr = self.A*np.sin(self.w*xtr + self.off)
+
+        xel = -(xtr-a)*np.cos(self.alpha) - (ytr-b)*np.sin(self.alpha)
+        yel = -(xtr-a)*np.sin(self.alpha) - (ytr-b)*np.cos(self.alpha)
+
+        self.traj_points = np.vstack((xel, yel)).T
+
+    def param_point(self, t):
+        i = 0
+
+    def vector_field(self, XYoff, area, s, kn, ke):
+        self.mapgrad_X, self.mapgrad_Y = np.mgrid[XYoff[0]-0.5*np.sqrt(area):\
+                XYoff[0]+0.5*np.sqrt(area):30j, \
+                XYoff[1]-0.5*np.sqrt(area):\
+                XYoff[1]+0.5*np.sqrt(area):30j]
+
+        xel = -(self.mapgrad_X-self.XYoff[0])*np.cos(self.alpha) \
+                - (self.mapgrad_Y-self.XYoff[1])*np.sin(self.alpha)
+
+        yel = -(self.mapgrad_X-self.XYoff[0])*np.sin(self.alpha) \
+                + (self.mapgrad_Y-self.XYoff[1])*np.cos(self.alpha)
+
+        ang = self.w*xel + self.off
+
+        nx =  np.cos(self.alpha) + \
+                self.A*self.w*np.sin(self.alpha)*np.cos(ang)
+        ny = -np.sin(self.alpha) + \
+                self.A*self.w*np.cos(self.alpha)*np.cos(ang)
+        tx = s*ny
+        ty = -s*nx
+
+        ke = 1e-2*ke
+
+        e = yel - self.A*np.sin(ang)
         
         self.mapgrad_U = tx -ke*e*nx
         self.mapgrad_V = ty -ke*e*ny
