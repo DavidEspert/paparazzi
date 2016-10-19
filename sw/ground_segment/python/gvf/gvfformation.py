@@ -21,11 +21,11 @@ WIDTH = 800
 HEIGHT = 800
 
 class GVFFrame(wx.Frame):
-    def __init__(self, ac_id=3):
+    def __init__(self, ac_id, ac_id_leader, desired_sigma):
 
         wx.Frame.__init__(self, id=-1, parent=None, \
-                name=u'MessagesFrame', size=wx.Size(WIDTH, HEIGHT), \
-                style=wx.DEFAULT_FRAME_STYLE, title=u'Messages')
+                name=u'Leader-Follower', size=wx.Size(WIDTH, HEIGHT), \
+                style=wx.DEFAULT_FRAME_STYLE, title=u'Leader-Follower')
 
         # Vehicle variables
         self.ac_id = ac_id
@@ -42,11 +42,14 @@ class GVFFrame(wx.Frame):
         self.map_gvf = map2d(np.array([0, 0]), 150000)
         self.traj = None
 
-        # Mako
-        self.ac_id_mako = 7
-        self.XY_mako = np.array([-999, -999])
-        self.radius_mako = 0
-        self.WP_mako = np.array([-999, -999])
+        # Leader
+        self.ac_id_leader = ac_id_leader
+        self.XY_leader = np.array([-999, -999])
+        self.radius_leader = 0
+        self.WP_leader = np.array([-999, -999])
+
+        # Formation
+        self.desired_sigma = desired_sigma
 
         # Frame
         self.canvas = FigureCanvas(self, -1, self.map_gvf.fig)
@@ -87,21 +90,21 @@ class GVFFrame(wx.Frame):
                         have you forgotten gvf.xml in your settings?")
 
     def formation(self):
-        if self.XY[0] != -999 and self.XY_mako[0] != -999 and self.traj != None:
-            sigma_mako = np.arctan2(self.XY_mako[1]-self.WP_mako[1] \
-                    , self.XY_mako[0]-self.WP_mako[0])
-            sigma_jumper = np.arctan2(self.XY[1]-self.traj.XYoff[1] \
+        if self.XY[0] != -999 and self.XY_leader[0] != -999 and self.traj != None:
+            sigma_leader = np.arctan2(self.XY_leader[1]-self.WP_leader[1] \
+                    , self.XY_leader[0]-self.WP_leader[0])
+            sigma_follower = np.arctan2(self.XY[1]-self.traj.XYoff[1] \
                     , self.XY[0]-self.traj.XYoff[0])
 
-            sigma = sigma_mako - sigma_jumper
-            e_sigma = sigma - 0
+            sigma = sigma_leader - sigma_follower
+            e_sigma = sigma - self.desired_sigma
 
             if e_sigma > np.pi:
                 e_sigma = e_sigma - 2*np.pi
             elif e_sigma <= -np.pi:
                 e_sigma = e_sigma + 2*np.pi
 
-            u = self.radius_mako + 10*e_sigma
+            u = self.radius_leader + 10*e_sigma
             
             if (self.a_index is not None) and (self.b_index is not None) :
                 msga = PprzMessage("ground", "DL_SETTING")
@@ -121,17 +124,17 @@ class GVFFrame(wx.Frame):
                         
 
     def message_recv(self, ac_id, msg):
-        if ac_id == self.ac_id_mako:
+        if ac_id == self.ac_id_leader:
             if msg.name == 'NAVIGATION':
-                self.XY_mako[0] = float(msg.get_field(2))
-                self.XY_mako[1] = float(msg.get_field(3))
+                self.XY_leader[0] = float(msg.get_field(2))
+                self.XY_leader[1] = float(msg.get_field(3))
                 self.formation()
 
             if msg.name == 'GVF':
                 if int(msg.get_field(1)) == 1:
-                    self.WP_mako[0] = float(msg.get_field(3))
-                    self.WP_mako[1] = float(msg.get_field(4))
-                    self.radius_mako = float(msg.get_field(5))
+                    self.WP_leader[0] = float(msg.get_field(3))
+                    self.WP_leader[1] = float(msg.get_field(4))
+                    self.radius_leader = float(msg.get_field(5))
 
             #if msg.name == 'WP_MOVED':
             #    if int(msg.get_field(0)) == 7:
@@ -200,16 +203,16 @@ class GVFFrame(wx.Frame):
                 if self.timer_traj > self.timer_traj_lim:
                     self.timer_traj = 0
 
-    def draw_gvf(self, XY, yaw, course):
+    def draw_gvf(self, XY, yaw, course, XY_leader):
         if self.traj is not None:
-            self.map_gvf.draw(XY, yaw, course, self.traj)
+            self.map_gvf.draw(XY, yaw, course, self.traj, XY_leader)
 
     def OnClose(self, event):
         self.interface.shutdown()
         self.Destroy()
 
     def OnRedrawTimer(self, event):
-        self.draw_gvf(self.XY, self.yaw, self.course)
+        self.draw_gvf(self.XY, self.yaw, self.course, self.XY_leader)
         self.canvas.draw()
 
 class map2d:
@@ -251,9 +254,10 @@ class map2d:
 
         return patches.PathPatch(path, facecolor='red', lw=2)
 
-    def draw(self, XY, yaw, course, traj):
+    def draw(self, XY, yaw, course, traj, XY_leader):
         self.ax.clear()
         self.ax.plot(traj.traj_points[0, :], traj.traj_points[1, :])
+        self.ax.plot(XY_leader[0], XY_leader[1], 'ob')
         self.ax.quiver(traj.mapgrad_X, traj.mapgrad_Y, \
                 traj.mapgrad_U, traj.mapgrad_V, color='Teal', \
                 pivot='mid', width=0.002)
