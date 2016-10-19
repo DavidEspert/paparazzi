@@ -91,7 +91,7 @@
 
     <!-- Sensors -->
     <module name="gps" type="ublox">
-      <configure name="GPS_BAUD" value="B115200"/>
+      <configure name="GPS_BAUD" value="B57600"/>
       <!--define name="GPS_UBX_UCENTER_RATE" value="200"/-->
     </module>
 
