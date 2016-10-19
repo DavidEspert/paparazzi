@@ -24,8 +24,8 @@ class GVFFrame(wx.Frame):
     def __init__(self, ac_id=3):
 
         wx.Frame.__init__(self, id=-1, parent=None, \
-                name=u'MessagesFrame', size=wx.Size(WIDTH, HEIGHT), \
-                style=wx.DEFAULT_FRAME_STYLE, title=u'Messages')
+                name=u'GVF', size=wx.Size(WIDTH, HEIGHT), \
+                style=wx.DEFAULT_FRAME_STYLE, title=u'Guidance Vector Field')
 
         # Vehicle variables
         self.ac_id = ac_id
