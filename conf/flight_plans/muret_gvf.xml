@@ -50,7 +50,7 @@
 	<call fun="gvf_line_wp_heading(WP_CIRCLE, 45)"/>
      </block>
      <block name="Sinusoidal">
-	<call fun="gvf_sin_wp_heading(WP_CIRCLE, 0, 0.025, 0, 70)"/>
+	<call fun="gvf_sin_wp_heading(WP_CIRCLE, 0, 0.0025, 0, 70)"/>
      </block>
 
     <block group="land" name="Land Right AF-TD" strip_button="Land right (wp AF-TD)" strip_icon="land-right.png">
