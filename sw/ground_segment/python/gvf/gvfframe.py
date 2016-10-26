@@ -382,17 +382,17 @@ class traj_sin:
                 XYoff[1]-0.5*np.sqrt(area):\
                 XYoff[1]+0.5*np.sqrt(area):30j]
 
-        xs = -(self.mapgrad_X-self.XYoff[0])*np.sin(self.alpha) \
-                + (self.mapgrad_Y-self.XYoff[1])*np.cos(self.alpha)
+        xs =  (self.mapgrad_X-self.XYoff[0])*np.sin(self.alpha) \
+                - (self.mapgrad_Y-self.XYoff[1])*np.cos(self.alpha)
 
-        ys =  (self.mapgrad_X-self.XYoff[0])*np.cos(self.alpha) \
-                + (self.mapgrad_Y-self.XYoff[1])*np.sin(self.alpha)
+        ys =  -(self.mapgrad_X-self.XYoff[0])*np.cos(self.alpha) \
+                - (self.mapgrad_Y-self.XYoff[1])*np.sin(self.alpha)
 
         ang = self.w*xs + self.off
 
-        nx =  np.cos(self.alpha) + \
+        nx =  -np.cos(self.alpha) - \
                 self.A*self.w*np.cos(ang)*np.sin(self.alpha)
-        ny =  np.sin(self.alpha) - \
+        ny =  -np.sin(self.alpha) + \
                 self.A*self.w*np.cos(ang)*np.cos(self.alpha)
         tx = s*ny
         ty = -s*nx
