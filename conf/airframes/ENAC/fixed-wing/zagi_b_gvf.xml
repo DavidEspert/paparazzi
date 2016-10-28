@@ -52,7 +52,7 @@
 
   </modules>
 
-  	<modules main_freq = "60">
+  	<modules main_freq="60">
 		<load name="gvf_module.xml"/>
 	</modules>
 
@@ -104,7 +104,7 @@
 
     <!-- Sensors -->
     <module name="gps" type="ublox">
-      <configure name="GPS_BAUD" value="B57600"/>
+      <configure name="GPS_BAUD" value="B115200"/>
       <!--define name="GPS_UBX_UCENTER_RATE" value="200"/-->
     </module>
 
@@ -306,7 +306,7 @@
 
     <define name="PITCH_OF_ROLL" value="1." unit="deg"/>
     <define name="AILERON_OF_THROTTLE" value="0.0"/>
-    <define name="ELEVATOR_OF_ROLL" value="1400"/>
+    <define name="ELEVATOR_OF_ROLL" value="0"/>
   </section>
 
   <section name="NAV">
