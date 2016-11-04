@@ -211,6 +211,15 @@ class map2d:
             self.ax.annotate('ELLIPSE', xy = (traj.XYoff[0], traj.XYoff[1]))
             self.ax.plot(0, 0, 'kx', ms=10, mew=2)
             self.ax.plot(traj.XYoff[0], traj.XYoff[1], 'kx', ms=10, mew=2)
+        elif isinstance(traj, traj_sin):
+            self.ax.annotate('SIN', xy = (traj.XYoff[0], traj.XYoff[1]))
+            self.ax.plot(0, 0, 'kx', ms=10, mew=2)
+            self.ax.plot(traj.XYoff[0], traj.XYoff[1], 'kx', ms=10, mew=2)
+        elif isinstance(traj, traj_line):
+            self.ax.annotate('LINE', xy = (traj.XYoff[0], traj.XYoff[1]))
+            self.ax.plot(0, 0, 'kx', ms=10, mew=2)
+            self.ax.plot(traj.XYoff[0], traj.XYoff[1], 'kx', ms=10, mew=2)
+
         self.ax.set_xlabel('South [m]')
         self.ax.set_ylabel('West [m]')
         self.ax.set_title('2D Map')
@@ -228,7 +237,7 @@ class traj_line:
             start += step
 
     def __init__(self, Xminmax, a, b, alpha):
-        self.XYoff = np.array([0, 0])
+        self.XYoff = np.array([a, b])
         self.Xminmax = Xminmax
         self.a, self.b, self.alpha = a, b, alpha
         self.traj_points = np.zeros((2, 200))
@@ -241,6 +250,13 @@ class traj_line:
         for t in self.float_range(0, 1, 0.005):
             x = (self.Xminmax[1]-self.Xminmax[0])*t + self.Xminmax[0]
             i = i + 1
+
+        xtr = np.linspace(-200, 200, 400)
+
+        xl =  xtr*np.sin(self.alpha) + a 
+        yl =  xtr*np.cos(self.alpha) + b
+
+        self.traj_points = np.vstack((xl, yl))
 
     def param_point(self, t):
         i = 0
@@ -334,7 +350,7 @@ class traj_sin:
             start += step
 
     def __init__(self, Xminmax, a, b, alpha, w, off, A):
-        self.XYoff = np.array([0, 0])
+        self.XYoff = np.array([a, b])
         self.Xminmax = Xminmax
         self.a, self.b, self.alpha, self.w, self.off, self.A = \
                 a, b, alpha, w, off, A
@@ -352,10 +368,10 @@ class traj_sin:
         xtr = np.linspace(-200, 200, 400)
         ytr = self.A*np.sin(self.w*xtr + self.off)
 
-        xel = -(xtr-a)*np.cos(self.alpha) - (ytr-b)*np.sin(self.alpha)
-        yel = -(xtr-a)*np.sin(self.alpha) - (ytr-b)*np.cos(self.alpha)
+        xsin =  -(xtr-a)*np.sin(self.alpha) + (ytr-b)*np.cos(self.alpha)
+        ysin =   (xtr-a)*np.cos(self.alpha) + (ytr-b)*np.sin(self.alpha)
 
-        self.traj_points = np.vstack((xel, yel)).T
+        self.traj_points = np.vstack((xsin, ysin))
 
     def param_point(self, t):
         i = 0
@@ -366,24 +382,24 @@ class traj_sin:
                 XYoff[1]-0.5*np.sqrt(area):\
                 XYoff[1]+0.5*np.sqrt(area):30j]
 
-        xel = -(self.mapgrad_X-self.XYoff[0])*np.cos(self.alpha) \
+        xs =  (self.mapgrad_X-self.XYoff[0])*np.sin(self.alpha) \
+                - (self.mapgrad_Y-self.XYoff[1])*np.cos(self.alpha)
+
+        ys =  -(self.mapgrad_X-self.XYoff[0])*np.cos(self.alpha) \
                 - (self.mapgrad_Y-self.XYoff[1])*np.sin(self.alpha)
 
-        yel = -(self.mapgrad_X-self.XYoff[0])*np.sin(self.alpha) \
-                + (self.mapgrad_Y-self.XYoff[1])*np.cos(self.alpha)
+        ang = self.w*xs + self.off
 
-        ang = self.w*xel + self.off
-
-        nx =  np.cos(self.alpha) + \
-                self.A*self.w*np.sin(self.alpha)*np.cos(ang)
-        ny = -np.sin(self.alpha) + \
-                self.A*self.w*np.cos(self.alpha)*np.cos(ang)
+        nx =  -np.cos(self.alpha) - \
+                self.A*self.w*np.cos(ang)*np.sin(self.alpha)
+        ny =  -np.sin(self.alpha) + \
+                self.A*self.w*np.cos(ang)*np.cos(self.alpha)
         tx = s*ny
         ty = -s*nx
 
         ke = 1e-2*ke
 
-        e = yel - self.A*np.sin(ang)
+        e = ys - self.A*np.sin(ang)
         
         self.mapgrad_U = tx -ke*e*nx
         self.mapgrad_V = ty -ke*e*ny
