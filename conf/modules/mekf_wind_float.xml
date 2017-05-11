@@ -1,0 +1,40 @@
+<!DOCTYPE module SYSTEM "module.dtd">
+
+<module name="mekf_wind_float" dir="mekf_wind">
+  <doc>
+    <description>
+      MEKF-Wind (in float).
+      Estimates attitude, velocity, position, (gyro, accel, baro) biases and wind velocity.
+    </description>
+    <configure name="USE_MAGNETOMETER" value="TRUE|FALSE" description="use magnetometer"/>
+    <configure name="AHRS_ALIGNER_LED" value="2" description="LED number to indicate if AHRS/INS is aligned"/>
+  </doc>
+  <header>
+    <file name="mekf_wind_float_wrapper.h"/>
+  </header>
+  <init fun="mekf_wind_float_wrapper_init()"/>
+  <makefile target="ap|nps">
+    <configure name="USE_MAGNETOMETER" default="TRUE"/>
+    <define name="USE_MAGNETOMETER" cond="ifeq (,$(findstring $(USE_MAGNETOMETER),0 FALSE))"/>
+
+    <!--file name="ahrs_aligner.c" dir="subsystems/ahrs"/>
+    <file name="ins.c" dir="subsystems"/-->
+    <file name="mekf_wind_float.c"/>
+    <file name="mekf_wind_wrapper.c"/>
+
+    <define name="USE_AHRS_ALIGNER"/>
+    <!--define name="INS_TYPE_H" value="subsystems/mekf_wind/mekf_wind_float_wrapper.h" type="string"/-->
+  </makefile>
+  
+  <header>
+      <file name="aoa_pwm.h"/>
+      </header>
+      <init fun="aoa_pwm_init()"/>
+      <periodic fun="mekf_wind_aoa_pwm_update()" freq="20"/>
+      <makefile target="ap">
+          <file name="aoa_pwm.c"/>
+          <define name="AOA_PWM_CHANNEL" value="$(AOA_PWM_CHANNEL)" cond="ifdef AOA_PWM_CHANNEL"/>
+          <define name="$(AOA_PWM_CHANNEL)_TICKS_PER_USEC" value="1"/>
+          <define name="USE_$(AOA_PWM_CHANNEL)" value="PWM_PULSE_TYPE_ACTIVE_LOW"/>
+      </makefile>
+</module>
