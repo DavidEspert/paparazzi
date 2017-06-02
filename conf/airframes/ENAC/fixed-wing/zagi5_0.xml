@@ -47,6 +47,7 @@
     <module name="navigation"/>
     <module name="nav" type="survey_polygon"/>
     <module name="nav" type="catapult"/>
+    <module name="takeoff_detect"/>
 
     <module name="tlsf"/>
     <module name="pprzlog"/>
@@ -58,12 +59,12 @@
     </module>
     <!--DGPS-->
     <define name="USE_GPS_UBX_RTCM" value="TRUE"/>
-
-    <module name="mag" type="hmc58xx">
+   
+    <!--module name="mag" type="hmc58xx">
       <define name="MODULE_HMC58XX_UPDATE_AHRS"/>
       <configure name="USE_MAGNETOMETER" value="FALSE"/>
       <configure name="MAG_HMC58XX_I2C_DEV" value="i2c2"/>
-    </module>
+    </module-->
 
     <module name="pwm_meas">
       <define name="USE_PWM1" value="FALSE"/>
@@ -106,8 +107,8 @@
     <axis name="THROTTLE" failsafe_value="0"/>
     <axis name="ROLL" failsafe_value="0"/>
     <axis name="PITCH" failsafe_value="0"/>
-    <axis name="FAULT1" failsafe_value="0"/>
-    <axis name="FAULT2" failsafe_value="0"/>
+    <!--axis name="FAULT1" failsafe_value="0"/>
+    <axis name="FAULT2" failsafe_value="0"/i-->
   </commands>
 
   <rc_commands>
@@ -116,10 +117,10 @@
     <set command="PITCH" value="@PITCH"/>
   </rc_commands>
 
-  <auto_rc_commands>
+  <!--auto_rc_commands>
     <set command="FAULT1" value="@GAIN1"/>
     <set command="FAULT2" value="@GAIN2"/>
-  </auto_rc_commands>
+  </auto_rc_commands-->
 
   <section name="MIXER">
     <define name="AILEVON_AILERON_RATE" value="0.75"/>
@@ -289,7 +290,7 @@
 
     <define name="PITCH_OF_ROLL" value="1." unit="deg"/>
     <define name="AILERON_OF_THROTTLE" value="0.0"/>
-    <define name="ELEVATOR_OF_ROLL" value="0"/>
+    <define name="ELEVATOR_OF_ROLL" value="1400"/>
   </section>
 
   <!--XPA NOT USED />

@@ -43,6 +43,7 @@
     <module name="navigation"/>
     <module name="nav" type="survey_polygon"/>
     <module name="nav" type="catapult"/>
+    <module name="takeoff_detect"/>
 
     <module name="tlsf"/>
     <module name="pprzlog"/>
@@ -51,8 +52,8 @@
     <module name="gps" type="ublox">
       <configure name="GPS_BAUD" value="B115200"/>
     </module>
-    <define name="USE_GPS_UBX_RTCM" value="TRUE"/>
-    <define name="LOG_RAW_GPS"      value="TRUE"/>
+    <!--define name="USE_GPS_UBX_RTCM" value="TRUE"/>
+    <define name="LOG_RAW_GPS"      value="TRUE"/-->
 
     <module name="current_sensor">
       <configure name="ADC_CURRENT_SENSOR" value="ADC_1"/>
