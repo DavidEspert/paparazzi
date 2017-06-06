@@ -68,7 +68,7 @@ float DCM_Matrix[3][3]       = {{1, 0, 0}, {0, 1, 0}, {0, 0, 1}};
 float Update_Matrix[3][3]    = {{0, 1, 2}, {3, 4, 5}, {6, 7, 8}}; //Gyros here
 float Temporary_Matrix[3][3] = {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}};
 
-#if USE_MAGNETOMETER
+#if USE_MAGNETOMETERS
 float MAG_Heading_X = 1;
 float MAG_Heading_Y = 0;
 #endif
@@ -220,7 +220,7 @@ void ahrs_dcm_update_accel(struct FloatVect3 *accel)
 
 void ahrs_dcm_update_mag(struct FloatVect3 *mag)
 {
-#if USE_MAGNETOMETER
+#if USE_MAGNETOMETERS
 MESSAGE("MAGNETOMETER FEEDBACK NOT TESTED YET")
 
   float cos_roll;
@@ -271,7 +271,7 @@ MESSAGE("MAGNETOMETER FEEDBACK NOT TESTED YET")
   // Magnetic Heading
   // MAG_Heading = atan2(mag->y, -mag->x);
 
-#else // !USE_MAGNETOMETER
+#else // !USE_MAGNETOMETERS
   // get rid of unused param warning...
   mag = mag;
 #endif
@@ -399,7 +399,7 @@ void Drift_correction()
 
   //*****YAW***************
 
-#if USE_MAGNETOMETER
+#if USE_MAGNETOMETERS
   // We make the gyro YAW drift correction based on compass magnetic heading
 //  float mag_heading_x = cos(MAG_Heading);
 //  float mag_heading_y = sin(MAG_Heading);

@@ -86,15 +86,6 @@ bool mekf_wind_gps_fix_once;
 //static inline void mekf_wind_model(float *o, const float *x, const int n, const float *u, const int m);
 
 
-void imu_scale_mag(struct Imu *_imu)
-{
-  _imu->mag.x = ((_imu->mag_unscaled.x - _imu->mag_neutral.x) * IMU_MAG_X_SIGN *
-                 IMU_MAG_X_SENS_NUM) / IMU_MAG_X_SENS_DEN;
-  _imu->mag.y = ((_imu->mag_unscaled.y - _imu->mag_neutral.y) * IMU_MAG_Y_SIGN *
-                 IMU_MAG_Y_SENS_NUM) / IMU_MAG_Y_SENS_DEN;
-  _imu->mag.z = ((_imu->mag_unscaled.z - _imu->mag_neutral.z) * IMU_MAG_Z_SIGN *
-                 IMU_MAG_Z_SENS_NUM) / IMU_MAG_Z_SENS_DEN;
-}
 
 
 /* init  measurements */
@@ -130,17 +121,17 @@ void mekf_wind_float_init(void)
 	stateSetLocalUtmOrigin_f(&utm0);
 	stateSetPositionUtm_f(&utm0);
 #else
-	struct LlaCoor_i llh_nav0; /* Height above the ellipsoid */
+	struct LlaCoor_i llh_nav0; 
 	llh_nav0.lat = NAV_LAT0;
 	llh_nav0.lon = NAV_LON0;
-	/* NAV_ALT0 = ground alt above msl, NAV_MSL0 = geoid-height (msl) over ellipsoid */
+	
 	llh_nav0.alt = NAV_ALT0 + NAV_MSL0;
 	struct EcefCoor_i ecef_nav0;
 	ecef_of_lla_i(&ecef_nav0, &llh_nav0);
 	struct LtpDef_i ltp_def;
 	ltp_def_from_ecef_i(&ltp_def, &ecef_nav0);
 	ltp_def.hmsl = NAV_ALT0;
-	stateSetLocalOrigin_i(&ltp_def);
+	//stateSetLocalOrigin_i(&ltp_def);
 #endif
 
 #if LOG_MEKFW_FILTER && SITL
