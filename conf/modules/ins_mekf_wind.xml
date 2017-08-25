@@ -1,0 +1,37 @@
+<!DOCTYPE module SYSTEM "module.dtd">
+
+<module name="ins_mekf_wind" dir="ins">
+  <doc>
+    <description>
+      MEKF-Wind INS estimator.
+      Estimates attitude, velocity, position, (gyro, accel, baro) biases and wind velocity.
+      Using Eigen for math operations.
+      Only for fixed-wing firmware.
+    </description>
+    <configure name="USE_MAGNETOMETER" value="TRUE|FALSE" description="use magnetometer"/>
+    <configure name="AHRS_ALIGNER_LED" value="2" description="LED number to indicate if AHRS/INS is aligned"/>
+    <define name="LOG_MEKF_WIND" value="FALSE|TRUE" description="enable logging on SD card (default: FALSE)"/>
+  </doc>
+  <header>
+    <file name="ins_mekf_wind_wrapper.h"/>
+  </header>
+  <init fun="ins_mekf_wind_wrapper_init()"/>
+  <periodic fun="ins_mekf_wind_aoa_periodic()" freq="20"/>
+  <makefile target="ap|nps" firmware="fixedwing">
+    <configure name="USE_MAGNETOMETER" default="TRUE"/>
+    <define name="USE_MAGNETOMETER" cond="ifeq (,$(findstring $(USE_MAGNETOMETER),0 FALSE))"/>
+    <include name="$(PAPARAZZI_SRC)/sw/ext/eigen"/>
+    <file name="ahrs_aligner.c" dir="subsystems/ahrs"/>
+    <file name="ins.c" dir="subsystems"/>
+    <file name="ins_mekf_wind.cpp"/>
+    <file name="ins_mekf_wind_wrapper.c"/>
+    <define name="USE_AHRS_ALIGNER"/>
+    <define name="INS_TYPE_H" value="modules/ins/mekf_wind_wrapper.h" type="string"/>
+  </makefile>
+  <makefile target="sim" firmware="fixedwing">
+    <define name="AHRS_TYPE_H" value="subsystems/ahrs/ahrs_sim.h" type="string"/>
+    <define name="USE_AHRS"/>
+    <file name="ahrs.c" dir="subsystems"/>
+    <file name="ahrs_sim.c" dir="subsystems/ahrs"/>
+  </makefile>
+</module>
