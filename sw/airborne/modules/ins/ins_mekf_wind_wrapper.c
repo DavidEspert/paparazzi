@@ -25,9 +25,18 @@
  */
 
 #include "modules/ins/ins_mekf_wind_wrapper.h"
+#include "modules/ins/ins_mekf_wind.h"
 #include "subsystems/abi.h"
 #include "math/pprz_isa.h"
 #include "state.h"
+
+#include "generated/airframe.h"
+#include "generated/flight_plan.h"
+
+#define MEKF_WIND_USE_UTM TRUE
+#if MEKF_WIND_USE_UTM
+#include "firmwares/fixedwing/nav.h"
+#endif
 
 #ifndef INS_MEKF_WIND_FILTER_ID
 #define INS_MEKF_WIND_FILTER_ID 3
@@ -35,8 +44,11 @@
 
 /** last accel measurement */
 static struct FloatVect3 ins_mekf_wind_accel;
+static uint32_t last_imu_stamp = 0;
 
 static void set_body_state_from_quat(void);
+
+#undef PERIODIC_TELEMETRY
 
 #if PERIODIC_TELEMETRY
 #include "subsystems/datalink/telemetry.h"
@@ -72,7 +84,7 @@ static void send_filter_status(struct transport_tx *trans, struct link_device *d
   uint8_t mde = 3;
   uint16_t val = 0;
   if (!ins_mekf_wind.is_aligned) { mde = 2; }
-  uint32_t t_diff = get_sys_time_usec() - ins_mekf_wind.last_imu_stamp;
+  uint32_t t_diff = get_sys_time_usec() - last_imu_stamp;
   /* set lost if no new gyro measurements for 50ms */
   if (t_diff > 50000) { mde = 5; }
   pprz_msg_send_STATE_FILTER_STATUS(trans, dev, AC_ID, &ins_mekf_wind.id, &mde, &val);
@@ -171,7 +183,7 @@ static void gyro_cb(uint8_t sender_id __attribute__((unused)),
   const float dt = 1. / (INS_PROPAGATE_FREQUENCY);
   ins_mekf_wind_propagate(&gyro_f, &ins_mekf_wind_accel, dt);
 #endif
-  ins_mekf_wind.last_imu_stamp = last_stamp;
+  last_imu_stamp = last_stamp;
 }
 
 static void accel_cb(uint8_t sender_id __attribute__((unused)),
@@ -188,7 +200,7 @@ static void mag_cb(uint8_t sender_id __attribute__((unused)),
   if (ins_mekf_wind.is_aligned) {
     struct FloatVect3 mag_f;
     MAGS_FLOAT_OF_BFP(mag_f, *mag);
-    ins__mekf_wind_update_mag(&mag_f);
+    ins_mekf_wind_update_mag(&mag_f);
     set_body_state_from_quat();
   }
 }
@@ -228,7 +240,38 @@ static void gps_cb(uint8_t sender_id __attribute__((unused)),
                    uint32_t stamp __attribute__((unused)),
                    struct GpsState *gps_s)
 {
-  ins_mekf_wind_update_gps(gps_s);
+	if (gps_s->fix >= GPS_FIX_3D) {
+    ins_mekf_wind.gps_fix_once = true;
+
+#if MEKF_WIND_USE_UTM
+		if (state.utm_initialized_f) {
+			struct UtmCoor_f utm = utm_float_from_gps(gps_s, nav_utm_zone0);
+      struct FloatVect3 pos, speed;
+			// position (local ned)
+			pos.x = utm.north - state.utm_origin_f.north;
+			pos.y = utm.east - state.utm_origin_f.east;
+			pos.z = state.utm_origin_f.alt - utm.alt;
+			// speed
+			speed.x = gps_s->ned_vel.x / 100.0f;
+			speed.y = gps_s->ned_vel.y / 100.0f;
+			speed.z = gps_s->ned_vel.z / 100.0f;
+      ins_mekf_wind_update_pos_speed(&pos, &speed);
+		}
+
+#else
+		if (state.ned_initialized_f) {
+      struct FloatVect3 pos, speed;
+			struct NedCoor_i gps_pos_cm_ned, ned_pos;
+			ned_of_ecef_point_i(&gps_pos_cm_ned, &state.ned_origin_i, &gps_s->ecef_pos);
+			INT32_VECT3_SCALE_2(ned_pos, gps_pos_cm_ned, INT32_POS_OF_CM_NUM, INT32_POS_OF_CM_DEN);
+			NED_FLOAT_OF_BFP(pos, ned_pos);
+			struct EcefCoor_f ecef_vel;
+			ECEF_FLOAT_OF_BFP(ecef_vel, gps_s->ecef_vel);
+			ned_of_ecef_vect_f(&speed, &state.ned_origin_f, &ecef_vel);
+      ins_mekf_wind_update_pos_speed(&pos, &speed);
+		}
+#endif
+	}
 }
 
 void ins_mekf_wind_aoa_periodic(void)
@@ -246,20 +289,20 @@ void ins_mekf_wind_aoa_periodic(void)
  */
 static void set_body_state_from_quat(void)
 {
-  struct FloatQuat *body_to_imu_quat = orientationGetQuat_f(&ins_mekf_wind.body_to_imu);
-  struct FloatRMat *body_to_imu_rmat = orientationGetRMat_f(&ins_mekf_wind.body_to_imu);
-
-  /* Compute LTP to BODY quaternion */
-  struct FloatQuat ltp_to_body_quat;
-  float_quat_comp_inv(&ltp_to_body_quat, &ins_mekf_wind.ltp_to_imu_quat, body_to_imu_quat);
-  /* Set in state interface */
-  stateSetNedToBodyQuat_f(&ltp_to_body_quat);
-
-  /* compute body rates */
-  struct FloatRates body_rate;
-  float_rmat_transp_ratemult(&body_rate, body_to_imu_rmat, &ins_mekf_wind.imu_rate);
-  /* Set state */
-  stateSetBodyRates_f(&body_rate);
+//  struct FloatQuat *body_to_imu_quat = orientationGetQuat_f(&ins_mekf_wind.body_to_imu);
+//  struct FloatRMat *body_to_imu_rmat = orientationGetRMat_f(&ins_mekf_wind.body_to_imu);
+//
+//  /* Compute LTP to BODY quaternion */
+//  struct FloatQuat ltp_to_body_quat;
+//  float_quat_comp_inv(&ltp_to_body_quat, &ins_mekf_wind.ltp_to_imu_quat, body_to_imu_quat);
+//  /* Set in state interface */
+//  stateSetNedToBodyQuat_f(&ltp_to_body_quat);
+//
+//  /* compute body rates */
+//  struct FloatRates body_rate;
+//  float_rmat_transp_ratemult(&body_rate, body_to_imu_rmat, &ins_mekf_wind.imu_rate);
+//  /* Set state */
+//  stateSetBodyRates_f(&body_rate);
 }
 
 /**
@@ -267,18 +310,41 @@ static void set_body_state_from_quat(void)
  */
 void ins_mekf_wind_wrapper_init(void)
 {
+  // init position
+#if MEKF_WIND_USE_UTM
+  struct UtmCoor_f utm0;
+  utm0.north = (float)nav_utm_north0;
+  utm0.east = (float)nav_utm_east0;
+  utm0.alt = GROUND_ALT;
+  utm0.zone = nav_utm_zone0;
+  stateSetLocalUtmOrigin_f(&utm0);
+  stateSetPositionUtm_f(&utm0);
+#else
+  struct LlaCoor_i llh_nav0;
+  llh_nav0.lat = NAV_LAT0;
+  llh_nav0.lon = NAV_LON0;
+  llh_nav0.alt = NAV_ALT0 + NAV_MSL0;
+  struct EcefCoor_i ecef_nav0;
+  ecef_of_lla_i(&ecef_nav0, &llh_nav0);
+  struct LtpDef_i ltp_def;
+  ltp_def_from_ecef_i(&ltp_def, &ecef_nav0);
+  ltp_def.hmsl = NAV_ALT0;
+  stateSetLocalOrigin_i(&ltp_def);
+#endif
+
+  // init filter
   ins_mekf_wind_init();
 
   // Bind to ABI messages
-  AbiBindMsgBARO_ABS(INS_MEKFW_BARO_ID, &baro_ev, baro_cb);
-  AbiBindMsgBARO_DIFF(INS_MEKFW_AIRSPEED_ID, &pressure_diff_ev, pressure_diff_cb);
-  AbiBindMsgIMU_MAG_INT32(INS_MEKFW_MAG_ID, &mag_ev, mag_cb);
-  AbiBindMsgIMU_GYRO_INT32(INS_MEKFW_IMU_ID, &gyro_ev, gyro_cb);
-  AbiBindMsgIMU_ACCEL_INT32(INS_MEKFW_IMU_ID, &accel_ev, accel_cb);
-  AbiBindMsgIMU_LOWPASSED(INS_MEKFW_IMU_ID, &aligner_ev, aligner_cb);
-  AbiBindMsgBODY_TO_IMU_QUAT(INS_MEKFW_IMU_ID, &body_to_imu_ev, body_to_imu_cb);
+  AbiBindMsgBARO_ABS(INS_MEKF_WIND_BARO_ID, &baro_ev, baro_cb);
+  AbiBindMsgBARO_DIFF(INS_MEKF_WIND_AIRSPEED_ID, &pressure_diff_ev, pressure_diff_cb);
+  AbiBindMsgIMU_MAG_INT32(INS_MEKF_WIND_MAG_ID, &mag_ev, mag_cb);
+  AbiBindMsgIMU_GYRO_INT32(INS_MEKF_WIND_IMU_ID, &gyro_ev, gyro_cb);
+  AbiBindMsgIMU_ACCEL_INT32(INS_MEKF_WIND_IMU_ID, &accel_ev, accel_cb);
+  AbiBindMsgIMU_LOWPASSED(INS_MEKF_WIND_IMU_ID, &aligner_ev, aligner_cb);
+  AbiBindMsgBODY_TO_IMU_QUAT(INS_MEKF_WIND_IMU_ID, &body_to_imu_ev, body_to_imu_cb);
   AbiBindMsgGEO_MAG(ABI_BROADCAST, &geo_mag_ev, geo_mag_cb);
-  AbiBindMsgGPS(INS_MEKFW_GPS_ID, &gps_ev, gps_cb);
+  AbiBindMsgGPS(INS_MEKF_WIND_GPS_ID, &gps_ev, gps_cb);
 
 #if PERIODIC_TELEMETRY
   register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_AHRS_EULER, send_euler);

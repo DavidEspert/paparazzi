@@ -30,30 +30,99 @@
  */
 
 
-#include "mekf/ins/ins_mekf_wind.h"
+#include "modules/ins/ins_mekf_wind.h"
 
 #include "generated/airframe.h"
 
-#include "subsystems/ins.h"
-#include "subsystems/gps.h"
-
-#include "generated/airframe.h"
-#include "generated/flight_plan.h"
-
-#define MEKF_WIND_USE_UTM TRUE
-#if MEKF_WIND_USE_UTM
-#include "firmwares/fixedwing/nav.h"
-#endif
+//#include "subsystems/ins.h"
 
 #include "math/pprz_algebra_float.h"
 #include "math/pprz_algebra_int.h"
 #include "math/pprz_isa.h"
 
+// Eigen headers
+#include <Eigen/Dense>
+#include <Eigen/Geometry>
+
+using namespace Eigen;
+
+#define MEKF_WIND_COV_SIZE        18
+#define MEKF_WIND_PROC_NOISE_SIZE 15
+#define MEKF_WIND_MEAS_NOISE_SIZE 13
+
+typedef Matrix<float, MEKF_WIND_COV_SIZE, MEKF_WIND_COV_SIZE> MEKFWCov;
+typedef DiagonalMatrix<float, MEKF_WIND_PROC_NOISE_SIZE> MEKFWPNoise;
+typedef DiagonalMatrix<float, MEKF_WIND_MEAS_NOISE_SIZE> MEKFWMNoise;
+
+/** filter state vector
+ */
+struct MekfWindState {
+	Quaternionf quat;
+	Vector3f speed;
+	Vector3f pos;
+	Vector3f rates_bias;
+	Vector3f accel_bias;
+	Vector3f wind;
+};
+
+/** filter command vector
+ */
+struct MekfWindInputs {
+	Vector3f rates;
+	Vector3f accel;
+};
+
+/** filter measurement vector
+ */
+struct MekfWindMeasurements {
+	Vector3f speed;
+	Vector3f pos;
+	Vector3f mag;
+	float baro_alt;
+	float airspeed;
+	float aoa;
+	float aos;
+};
+
+/** private filter structure
+ */
+struct InsMekfWindPrivate {
+  struct MekfWindState state;
+  struct MekfWindInputs inputs;
+  struct MekfWindMeasurements measurements;
+
+  MEKFWCov P;
+  MEKFWPNoise Q;
+  MEKFWMNoise R;
+};
+
+#define P0_QUAT       1.0f
+#define P0_SPEED      1.0f
+#define P0_POS        1.0f
+#define P0_RATES_BIAS 1.0f
+#define P0_ACCEL_BIAS 1.0f
+#define P0_WIND       1.0f
+
+#define Q_GYRO        1.0f
+#define Q_ACCEL       1.0f
+#define Q_RATES_BIAS  1.0f
+#define Q_ACCEL_BIAS  1.0f
+#define Q_WIND        1.0f
+
+#define R_SPEED       1.0f
+#define R_POS         1.0f
+#define R_MAG         1.0f
+#define R_BARO        1.0f
+#define R_AIRSPEED    1.0f
+#define R_AOA         1.0f
+#define R_AOS         1.0f
+
+
+#undef PERIODIC_TELEMETRY
 
 #if SEND_MEKF_WIND_FILTER || PERIODIC_TELEMETRY
 #include "subsystems/datalink/telemetry.h"
 #endif
-
 
 #if LOG_MEKF_WIND
 #ifndef SITL
@@ -68,150 +137,76 @@ static FILE* pprzLogFile = NULL;
 #endif
 #endif
 
-static const struct FloatMat33 id33 = {{1, 0 ,0},
-  {0, 1, 0},
-  {0, 0, 1}
-};
-
-static const struct FloatMat33 zero33 = {{0, 0 ,0},
-  {0, 0, 0},
-  {0, 0, 0}
-};
-
-static const float id1818[18][18] = {{ 1., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.},
-  {  0., 1., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0. },
-  {  0., 0., 1., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0. },
-  {  0., 0., 0., 1., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0. },
-  {  0., 0., 0., 0., 1., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0. },
-  {  0., 0., 0., 0., 0., 1., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0. },
-  {  0., 0., 0., 0., 0., 0., 1., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0. },
-  {  0., 0., 0., 0., 0., 0., 0., 1., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0. },
-  {  0., 0., 0., 0., 0., 0., 0., 0., 1., 0., 0., 0., 0., 0., 0., 0., 0., 0. },
-  {  0., 0., 0., 0., 0., 0., 0., 0., 0., 1., 0., 0., 0., 0., 0., 0., 0., 0. },
-  {  0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 1., 0., 0., 0., 0., 0., 0., 0. },
-  {  0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 1., 0., 0., 0., 0., 0., 0. },
-  {  0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 1., 0., 0., 0., 0., 0. },
-  {  0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 1., 0., 0., 0., 0. },
-  {  0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 1., 0., 0., 0. },
-  {  0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 1., 0., 0. },
-  {  0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 1., 0. },
-  {  0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 1. },
-};
-
-static const float id_u[3] = {1, 0, 0};
-static const float id_z[3] = {0, 0, 1};
 
 struct InsMekfWind ins_mekf_wind;
+static struct InsMekfWindPrivate mekf_wind_private;
+// short name
+#define mwp mekf_wind_private
 
 /* earth gravity model */
-static const struct FloatVect3 g = { 0.f, 0.f, -9.81f };
+static const Vector3f gravity( 0.f, 0.f, -9.81f);
 
 
 /* init state and measurements */
 static inline void init_mekf_state(void)
 {
   // init state
-  float_quat_identity(&ins_mekf_wind.state.quat);
-  FLOAT_VECT3_ZERO(ins_mekf_wind.state.speed);
-  FLOAT_VECT3_ZERO(ins_mekf_wind.state.pos);
-  FLOAT_RATES_ZERO(ins_mekf_wind.state.rates_bias);
-  FLOAT_VECT3_ZERO(ins_mekf_wind.state.accel_bias);
-  FLOAT_VECT3_ZERO(ins_mekf_wind.state.wind);
-  FLOAT_VECT3_ZERO(ins_mekf_wind.state.airspeed);
+  mekf_wind_private.state.quat.setIdentity();
+  mekf_wind_private.state.speed.setZero();
+  mekf_wind_private.state.pos.setZero();
+  mekf_wind_private.state.rates_bias.setZero();
+  mekf_wind_private.state.accel_bias.setZero();
+  mekf_wind_private.state.wind.setZero();
 
   // init measures
-  FLOAT_VECT3_ZERO(ins_mekf_wind.measurement.y_gpsspeed);
-  FLOAT_VECT3_ZERO(ins_mekf_wind.measurement.y_gpspos);
-  FLOAT_VECT3_ZERO(ins_mekf_wind.measurement.y_mag);
-  ins_mekf_wind.measurement.baro = 0.f;
-  ins_mekf_wind.measurement.airspeed = 0.f;
-  ins_mekf_wind.measurement.aoa = 0.f;
-  ins_mekf_wind.measurement.aos = 0.f;
+  mekf_wind_private.measurements.speed.setZero();
+  mekf_wind_private.measurements.pos.setZero();
+  mekf_wind_private.measurements.mag.setZero();
+  mekf_wind_private.measurements.baro_alt = 0.f;
+  mekf_wind_private.measurements.airspeed = 0.f;
+  mekf_wind_private.measurements.aoa = 0.f;
+  mekf_wind_private.measurements.aos = 0.f;
 
   // init input
-  FLOAT_RATES_ZERO(ins_mekf_wind.inputs.rates);
-  FLOAT_VECT3_ZERO(ins_mekf_wind.inputs.accel);
+  mekf_wind_private.inputs.rates.setZero();
+  mekf_wind_private.inputs.accel.setZero();
 
   // init state covariance
-  float P0[18][18] = {{P0diag[1],0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.},
-    {0.,P0diag[2].,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.},
-    {0.,0.,P0diag[3].,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.},
-    {0.,0.,0.,P0diag[4].,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.},
-    {0.,0.,0.,0.,P0diag[5],0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.},
-    {0.,0.,0.,0.,0.,P0diag[6].,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.},
-    {0.,0.,0.,0.,0.,0.,P0diag[7].,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.},
-    {0.,0.,0.,0.,0.,0.,0.,P0diag[8].,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.},
-    {0.,0.,0.,0.,0.,0.,0.,0.,P0diag[9].,0.,0.,0.,0.,0.,0.,0.,0.,0.},
-    {0.,0.,0.,0.,0.,0.,0.,0.,0.,P0diag[10].,0.,0.,0.,0.,0.,0.,0.,0.},
-    {0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,P0diag[11].,0.,0.,0.,0.,0.,0.,0.},
-    {0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,P0diag[12].,0.,0.,0.,0.,0.,0.},
-    {0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,P0diag[13].,0.,0.,0.,0.,0.},
-    {0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,P0diag[14],0.,0.,0.,0.},
-    {0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,P0diag[15],0.,0.,0.},
-    {0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,P0diag[16],0.,0.},
-    {0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,P0diag[17],0.},
-    {0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,P0diag[18]},
-  };
-  memcpy(ins_mekf_wind.P, P0, sizeof(P0));
+  mekf_wind_private.P.diagonal() <<
+    P0_QUAT, P0_QUAT, P0_QUAT, P0_QUAT,
+    P0_SPEED, P0_SPEED, P0_SPEED,
+    P0_POS, P0_POS, P0_POS,
+    P0_RATES_BIAS, P0_RATES_BIAS, P0_RATES_BIAS,
+    P0_ACCEL_BIAS, P0_ACCEL_BIAS, P0_ACCEL_BIAS,
+    P0_WIND, P0_WIND, P0_WIND;
 
-  float Q0[15][15] = {{Q0diag[1],0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.},
-    {0.,Q0diag[2].,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.},
-    {0.,0.,Q0diag[3].,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.},
-    {0.,0.,0.,Q0diag[4].,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.},
-    {0.,0.,0.,0.,Q0diag[5],0.,0.,0.,0.,0.,0.,0.,0.,0.,0.},
-    {0.,0.,0.,0.,0.,Q0diag[6].,0.,0.,0.,0.,0.,0.,0.,0.,0.},
-    {0.,0.,0.,0.,0.,0.,Q0diag[7].,0.,0.,0.,0.,0.,0.,0.,0.},
-    {0.,0.,0.,0.,0.,0.,0.,Q0diag[8].,0.,0.,0.,0.,0.,0.,0.},
-    {0.,0.,0.,0.,0.,0.,0.,0.,Q0diag[9].,0.,0.,0.,0.,0.,0.},
-    {0.,0.,0.,0.,0.,0.,0.,0.,0.,Q0diag[10].,0.,0.,0.,0.,0.},
-    {0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,Q0diag[11].,0.,0.,0.,0.},
-    {0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,Q0diag[12].,0.,0.,0.},
-    {0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,Q0diag[13].,0.,0.},
-    {0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,Q0diag[14],0.},
-    {0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,Q0diag[15]},
-  };
-  memcpy(ins_mekf_wind.Q, Q0, sizeof(Q0));
+  // init process noise
+  mekf_wind_private.Q.diagonal() <<
+    Q_GYRO, Q_GYRO, Q_GYRO,
+    Q_ACCEL, Q_ACCEL, Q_ACCEL,
+    Q_RATES_BIAS, Q_RATES_BIAS, Q_RATES_BIAS,
+    Q_ACCEL_BIAS, Q_ACCEL_BIAS, Q_ACCEL_BIAS,
+    Q_WIND, Q_WIND, Q_WIND;
 
-  ins_mekf_wind.R_diagonale = {NOISE_GPSSPEED_X, NOISE_GPSSPEED_Y, NOISE_GPSSPEED_Z,
-    NOISE_GPSPOS_X, NOISE_GPSPOS_Y, NOISE_GPSPOS_Z,
-    AHRS_MAG_NOISE_X, AHRS_MAG_NOISE_Y, AHRS_MAG_NOISE_Z,
-    NOISE_BARO,
-    NOISE_PITOT,
-    NOISE_AOA,
-    NOISE_AOS};
+  // init measurements noise
+  mekf_wind_private.R.diagonal() <<
+    R_SPEED, R_SPEED, R_SPEED,
+    R_POS, R_POS, R_POS,
+    R_MAG, R_MAG, R_MAG,
+    R_BARO,
+    R_AIRSPEED,
+    R_AOA,
+    R_AOS;
 
-  // init magnetometers
-  ins_mekf_wind.b.x = INS_H_X;
-  ins_mekf_wind.b.y = INS_H_Y;
-  ins_mekf_wind.b.z = INS_H_Z;
-
+  // reset flags
   ins_mekf_wind.is_aligned = false;
   ins_mekf_wind.reset = false;
+  ins_mekf_wind.baro_initialized = false;
+  ins_mekf_wind.gps_fix_once = false;
 }
 
 void ins_mekf_wind_init(void)
 {
-  // init position
-#if MEKF_WIND_USE_UTM
-  struct UtmCoor_f utm0;
-  utm0.north = (float)nav_utm_north0;
-  utm0.east = (float)nav_utm_east0;
-  utm0.alt = GROUND_ALT;
-  utm0.zone = nav_utm_zone0;
-  stateSetLocalUtmOrigin_f(&utm0);
-  stateSetPositionUtm_f(&utm0);
-#else
-  struct LlaCoor_i llh_nav0;
-  llh_nav0.lat = NAV_LAT0;
-  llh_nav0.lon = NAV_LON0;
-  llh_nav0.alt = NAV_ALT0 + NAV_MSL0;
-  struct EcefCoor_i ecef_nav0;
-  ecef_of_lla_i(&ecef_nav0, &llh_nav0);
-  struct LtpDef_i ltp_def;
-  ltp_def_from_ecef_i(&ltp_def, &ecef_nav0);
-  ltp_def.hmsl = NAV_ALT0;
-  stateSetLocalOrigin_i(&ltp_def);
-#endif
 
 #if LOG_MEKF_WIND && SITL
   // open log file for writing
@@ -234,13 +229,52 @@ void ins_mekf_wind_init(void)
 
   // init state and measurements
   init_mekf_state();
+
+  // init local earth magnetic field
+  ins_mekf_wind.mag_h.x = INS_H_X;
+  ins_mekf_wind.mag_h.y = INS_H_Y;
+  ins_mekf_wind.mag_h.z = INS_H_Z;
+
 }
 
 
 void ins_mekf_wind_propagate(struct FloatRates *gyro, struct FloatVect3 *acc, float dt)
 {
-  propagate_state(gyro, acc, dt);
-  propagate_covariance(gyro, acc, dt);
+  mekf_wind_private.inputs.rates << gyro->p, gyro->q, gyro->r;
+  mekf_wind_private.inputs.accel << acc->x, acc->y, acc->z;
+
+  const Vector3f gyro_unbiased = mwp.inputs.rates - mwp.state.rates_bias;
+  const Vector3f accel_unbiased = mwp.inputs.accel - mwp.state.accel_bias;
+  // propagate state
+  const Quaternionf q_d = 0.5f * (mwp.state.quat * gyro_unbiased);
+  const Vector3f s_d = mwp.state.quat * accel_unbiased * mwp.state.quat.inverse() + gravity;
+  const Vector3f p_d = mwp.state.speed;
+  mwp.state.quat = (mwp.state.quat + q_d * dt).normalize();
+  mwp.state.speed = mwp.state.speed + s_d * dt;
+  mwp.state.pos = mwp.state.pos + p_d * dt;
+
+  // propagate covariance
+  const Matrix3f Rq = mwp.state.quat.toRotationMatrix();
+
+  MEKFWCov A;
+  A.setZero();
+  A.block<3,3>(0,9) = Rq;
+  A.block<3,3>(3,0) = -(Rq * accel_unbiased);
+  A.block<3,3>(3,12) = -Rq;
+  A.block<3,3>(6,3) = Matrix3f::Identity();
+
+  MEKFWCov An;
+  An.setZero();
+  An.block<3,3>(0,0) = Rq;
+  An.block<3,3>(3,3) = Rq;
+  An.block<3,3>(9,6) = Matrix3f::Identity();
+  An.block<3,3>(12,9) = Matrix3f::Identity();
+  An.block<3,3>(15,12) = Matrix3f::Identity();
+
+  Matrix3f At, Ant;
+  At = A.transpose();
+  Ant = An.transpose();
+  mwp.P = mwp.P + (A * mwp.P * At + An * mwp.Q * Ant);
 
 #if LOG_MEKF_WIND
   if (LogFileIsOpen()) {
@@ -251,6 +285,8 @@ void ins_mekf_wind_propagate(struct FloatRates *gyro, struct FloatVect3 *acc, fl
         );
   }
 #endif
+
+  // TODO update state interface
 }
 
 
@@ -263,6 +299,9 @@ void ins_mekf_wind_align(struct FloatRates *lp_gyro,
 
   /* use average gyro as initial value for bias */
   ins_mekf_wind.state.gyro_bias = *lp_gyro;
+
+  // update private state
+  set_state_to_private(&init_mekf_state, &mekf_wind_private);
 
   // ins and ahrs are now running
   ins_mekf_wind.is_aligned = true;
@@ -330,48 +369,26 @@ void ins_mekf_wind_update_baro(float pressure)
 #endif
 }
 
-void ins_mekf_wind_update_gps(struct GpsState *gps_s)
+void ins_mekf_wind_update_pos_speed(struct FloatVect3 *pos, struct FloatVect3 *speed)
 {
-	if (gps_s->fix >= GPS_FIX_3D) {
-    ins_mekf_wind.gps_fix_once = true;
-
-#if MEKF_WIND_USE_UTM
-		if (state.utm_initialized_f) {
-			struct UtmCoor_f utm = utm_float_from_gps(gps_s, nav_utm_zone0);
-			// position (local ned)
-			ins_mekf_wind.measurements.pos.x = utm.north - state.utm_origin_f.north;
-			ins_mekf_wind.measurements.pos.y = utm.east - state.utm_origin_f.east;
-			ins_mekf_wind.measurements.pos.z = state.utm_origin_f.alt - utm.alt;
-			// speed
-			ins_mekf_wind.measurements.speed.x = gps_s->ned_vel.x / 100.0f;
-			ins_mekf_wind.measurements.speed.y = gps_s->ned_vel.y / 100.0f;
-			ins_mekf_wind.measurements.speed.z = gps_s->ned_vel.z / 100.0f;
-		}
-
-#else
-		if (state.ned_initialized_f) {
-			struct NedCoor_i gps_pos_cm_ned, ned_pos;
-			ned_of_ecef_point_i(&gps_pos_cm_ned, &state.ned_origin_i, &gps_s->ecef_pos);
-			INT32_VECT3_SCALE_2(ned_pos, gps_pos_cm_ned, INT32_POS_OF_CM_NUM, INT32_POS_OF_CM_DEN);
-			NED_FLOAT_OF_BFP(ins_mekf_wind.measurements.pos, ned_pos);
-			struct EcefCoor_f ecef_vel;
-			ECEF_FLOAT_OF_BFP(ecef_vel, gps_s->ecef_vel);
-			ned_of_ecef_vect_f(&ins_mekf_wind.measurements.speed, &state.ned_origin_f, &ecef_vel);
-		}
-#endif
-	}
+  mwp.measurements.pos(0) = pos->x;
+  mwp.measurements.pos(1) = pos->y;
+  mwp.measurements.pos(2) = pos->z;
+  mwp.measurements.speed(0) = speed->x;
+  mwp.measurements.speed(1) = speed->y;
+  mwp.measurements.speed(2) = speed->z;
 
 #if LOG_MEKFW_FILTER
 	if (LogFileIsOpen()) {
 		PrintLog(pprzLogFile,
 					"%.3f gps %.3f %.3f %.3f %.3f %.3f %.3f \n",
 					get_sys_time_float(),
-					ins_mekf_wind.measurements.pos.x,
-					ins_mekf_wind.measurements.pos.y,
-					ins_mekf_wind.measurements.pos.z,
-					ins_mekf_wind.measurements.speed.x,
-					ins_mekf_wind.measurements.speed.y,
-					ins_mekf_wind.measurements.speed.z
+					pos->x,
+					pos->y,
+					pos->z,
+					speed->x,
+					speed->y,
+					speed->z
 			);
 		}
 #endif
@@ -380,6 +397,8 @@ void ins_mekf_wind_update_gps(struct GpsState *gps_s)
 
 void ins_mekf_wind_update_airspeed(float airspeed)
 {
+  mwp.measurements.airspeed = airspeed;
+
 #if LOG_MEKF_WIND
   if (LogFileIsOpen()) {
     PrintLog(pprzLogFile,
@@ -390,6 +409,9 @@ void ins_mekf_wind_update_airspeed(float airspeed)
 
 void ins_mekf_wind_update_incidence(float aoa, float aos)
 {
+  mwp.measurements.aoa = aoa;
+  mwp.measurements.aos = aos;
+
 #if LOG_MEKF_WIND
   if (LogFileIsOpen()) {
     PrintLog(pprzLogFile,
@@ -403,7 +425,7 @@ void ins_mekf_wind_update_incidence(float aoa, float aos)
 
 
 
-
+#if 0
 
 static inline void propagate_state(struct FloatRates *omega, struct FloatVect3 *acc, float dt)
 {
@@ -586,4 +608,6 @@ static inline void update_state(void)
 	MAT_SUB(3, 3, ins_mekf_wind.state.w, ins_mekf_wind.state.w, tmp);
 	COMPUTE_VA(ins_mekf_wind.state.rot, ins_mekf_wind.state.v, ins_mekf_wind.state.x);
 }
+
+#endif
 

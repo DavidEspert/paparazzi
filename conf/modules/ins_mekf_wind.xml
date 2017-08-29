@@ -26,7 +26,7 @@
     <file name="ins_mekf_wind.cpp"/>
     <file name="ins_mekf_wind_wrapper.c"/>
     <define name="USE_AHRS_ALIGNER"/>
-    <define name="INS_TYPE_H" value="modules/ins/mekf_wind_wrapper.h" type="string"/>
+    <define name="INS_TYPE_H" value="modules/ins/ins_mekf_wind_wrapper.h" type="string"/>
   </makefile>
   <makefile target="sim" firmware="fixedwing">
     <define name="AHRS_TYPE_H" value="subsystems/ahrs/ahrs_sim.h" type="string"/>

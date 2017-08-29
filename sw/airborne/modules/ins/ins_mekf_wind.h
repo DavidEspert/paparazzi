@@ -43,50 +43,49 @@ enum MekfWindStatus {
   MEKF_WIND_RUNNING
 };
 
-/** filter state vector
- */
-struct MekfWindState {
-	struct FloatQuat quat;
-	struct FloatVect3 speed;
-	struct FloatVect3 pos;
-	struct FloatRates rates_bias;
-	struct FloatVect3 accel_bias;
-	struct FloatVect3 wind;
-	struct FloatVect3 airspeed;
-};
-
-/** filter command vector
- */
-struct MekfWindInputs {
-	struct FloatRates rates;
-	struct FloatVect3 accel;
-};
-
-/** filter measurement vector
- */
-struct MekfWindMeasurements {
-	struct FloatVect3 speed;
-	struct FloatVect3 pos;
-	struct FloatVect3 mag;
-	float baro_alt;
-	float airspeed;
-	float aoa;
-	float aos;
-	float y[13];
-	bool y_t[13];
-};
-
+///** filter state vector
+// */
+//struct MekfWindState {
+//	struct FloatQuat quat;
+//	struct FloatVect3 speed;
+//	struct FloatVect3 pos;
+//	struct FloatRates rates_bias;
+//	struct FloatVect3 accel_bias;
+//	struct FloatVect3 wind;
+//};
+//
+//#define MEKF_WIND_STATE_SIZE 19
+//
+///** filter command vector
+// */
+//struct MekfWindInputs {
+//	struct FloatRates rates;
+//	struct FloatVect3 accel;
+//};
+//
+//#define MEKF_WIND_CMD_SIZE 6
+//
+///** filter measurement vector
+// */
+//struct MekfWindMeasurements {
+//	struct FloatVect3 speed;
+//	struct FloatVect3 pos;
+//	struct FloatVect3 mag;
+//	float baro_alt;
+//	float airspeed;
+//	float aoa;
+//	float aos;
+//};
+//
+//#define MEKF_WIND_MEAS_SIZE 13
 
 /** filter structure
  */
 struct InsMekfWind {
-  struct MekfWindState state;
-  struct MekfWindInputs inputs;
-  struct MekfWindMeasurements measurements;
-  struct FloatVect3 b;
-  float Q[15][15];
-  float R_diagonale[13];
-  float P[18][18];
+  //struct MekfWindState state;
+  //struct MekfWindInputs inputs;
+  //struct MekfWindMeasurements measurements;
+  struct FloatVect3 mag_h;
   struct OrientationReps body_to_imu;
   enum MekfWindStatus status;
   bool is_aligned;
@@ -106,7 +105,8 @@ extern bool ins_mekf_wind_align(struct FloatRates *lp_gyro,
 extern void ins_mekf_wind_set_body_to_imu_quat(struct FloatQuat *quat);
 extern void ins_mekf_wind_update_mag(struct FloatVect3* mag);
 extern void ins_mekf_wind_update_baro(float pressure);
-extern void ins_mekf_wind_update_gps(struct GpsState *gps_s);
+extern void ins_mekf_wind_update_pos_speed(struct FloatVect3 *pos,
+                                           struct FloatVect3 *speed);
 extern void ins_mekf_wind_update_airspeed(float airspeed);
 extern void ins_mekf_wind_update_incidence(float aoa, float aos);
 

@@ -27,8 +27,6 @@
 #ifndef INS_MEKF_WIND_WRAPPER_H
 #define INS_MEKF_WIND_WRAPPER_H
 
-#include "modules/ins/ins_mekf_wind.h"
-
 extern void ins_mekf_wind_wrapper_init(void);
 extern void ins_mekf_wind_aoa_periodic(void);
 
