@@ -25,6 +25,8 @@
     <file name="ins.c" dir="subsystems"/>
     <file name="ins_mekf_wind.cpp"/>
     <file name="ins_mekf_wind_wrapper.c"/>
+    <flag name="LDFLAGS" value="lstdc++" />
+    <define name="EIGEN_NO_MALLOC"/>
     <define name="USE_AHRS_ALIGNER"/>
     <define name="INS_TYPE_H" value="modules/ins/ins_mekf_wind_wrapper.h" type="string"/>
   </makefile>

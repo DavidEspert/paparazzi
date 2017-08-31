@@ -26,6 +26,7 @@
 
 #include "modules/ins/ins_mekf_wind_wrapper.h"
 #include "modules/ins/ins_mekf_wind.h"
+#include "subsystems/ahrs/ahrs_float_utils.h"
 #include "subsystems/abi.h"
 #include "math/pprz_isa.h"
 #include "state.h"
@@ -46,7 +47,7 @@
 static struct FloatVect3 ins_mekf_wind_accel;
 static uint32_t last_imu_stamp = 0;
 
-static void set_body_state_from_quat(void);
+static void set_state_from_ins(void);
 
 #undef PERIODIC_TELEMETRY
 
@@ -96,10 +97,10 @@ static void send_filter_status(struct transport_tx *trans, struct link_device *d
  */
 
 /** airspeed (Pitot tube) */
-#ifndef INS_MEKF_IND_AIRSPEED_ID
-#define INS_MEKF_IND_AIRSPEED_ID ABI_BROADCAST
+#ifndef INS_MEKF_WIND_AIRSPEED_ID
+#define INS_MEKF_WIND_AIRSPEED_ID ABI_BROADCAST
 #endif
-PRINT_CONFIG_VAR(INS_MEKF_IND_AIRSPEED_ID)
+PRINT_CONFIG_VAR(INS_MEKF_WIND_AIRSPEED_ID)
 
 
 /** baro */
@@ -146,7 +147,36 @@ static abi_event gps_ev;
 
 static void baro_cb(uint8_t __attribute__((unused)) sender_id, float pressure)
 {
-  ins_mekf_wind_update_baro(pressure);
+  static float ins_qfe = PPRZ_ISA_SEA_LEVEL_PRESSURE;
+  static float alpha = 10.0f;
+  static int32_t i = 1;
+  static float baro_moy = 0.0f;
+  static float baro_prev = 0.0f;
+
+  if (!ins_mekf_wind.baro_initialized) {
+    // try to find a stable qfe
+    // TODO generic function in pprz_isa ?
+    if (i == 1) {
+      baro_moy = pressure;
+      baro_prev = pressure;
+    }
+    baro_moy = (baro_moy * (i - 1) + pressure) / i;
+    alpha = (10.*alpha + (baro_moy - baro_prev)) / (11.0f);
+    baro_prev = baro_moy;
+    // test stop condition
+    if (fabs(alpha) < 0.005f) {
+      ins_qfe = baro_moy;
+      ins_mekf_wind.baro_initialized = true;
+    }
+    if (i == 250) {
+      ins_qfe = pressure;
+      ins_mekf_wind.baro_initialized = true;
+    }
+    i++;
+  } else { /* normal update with baro measurement */
+    float baro_alt = -pprz_isa_height_of_pressure(pressure, ins_qfe); // Z down
+    ins_mekf_wind_update_baro(baro_alt);
+  }
 }
 
 static void pressure_diff_cb(uint8_t __attribute__((unused)) sender_id, float pdyn)
@@ -163,8 +193,11 @@ static void pressure_diff_cb(uint8_t __attribute__((unused)) sender_id, float pd
 static void gyro_cb(uint8_t sender_id __attribute__((unused)),
                     uint32_t stamp, struct Int32Rates *gyro)
 {
-  struct FloatRates gyro_f;
+  struct FloatRates gyro_f, gyro_body;
   RATES_FLOAT_OF_BFP(gyro_f, *gyro);
+  struct FloatRMat *body_to_imu_rmat = orientationGetRMat_f(&ins_mekf_wind.body_to_imu);
+  // new values in body frame
+  float_rmat_transp_ratemult(&gyro_body, body_to_imu_rmat, &gyro_f);
 
 #if USE_AUTO_INS_FREQ || !defined(INS_PROPAGATE_FREQUENCY)
   PRINT_CONFIG_MSG("Calculating dt for INS MEKF_WIND propagation.")
@@ -173,16 +206,18 @@ static void gyro_cb(uint8_t sender_id __attribute__((unused)),
 
   if (last_stamp > 0) {
     float dt = (float)(stamp - last_stamp) * 1e-6;
-    ins_mekf_wind_propagate(&gyro_f, &ins_mekf_wind_accel, dt);
-    set_body_state_from_quat();
+    ins_mekf_wind_propagate(&gyro_body, &ins_mekf_wind_accel, dt);
   }
   last_stamp = stamp;
 #else
   PRINT_CONFIG_MSG("Using fixed INS_PROPAGATE_FREQUENCY for INS MEKF_WIND propagation.")
   PRINT_CONFIG_VAR(INS_PROPAGATE_FREQUENCY)
   const float dt = 1. / (INS_PROPAGATE_FREQUENCY);
-  ins_mekf_wind_propagate(&gyro_f, &ins_mekf_wind_accel, dt);
+  ins_mekf_wind_propagate(&gyro_body, &ins_mekf_wind_accel, dt);
 #endif
+  // update state interface
+  set_state_from_ins();
+
   last_imu_stamp = last_stamp;
 }
 
@@ -190,7 +225,11 @@ static void accel_cb(uint8_t sender_id __attribute__((unused)),
                      uint32_t stamp __attribute__((unused)),
                      struct Int32Vect3 *accel)
 {
-  ACCELS_FLOAT_OF_BFP(ins_mekf_wind_accel, *accel);
+  struct FloatVect3 accel_f;
+  ACCELS_FLOAT_OF_BFP(accel_f, *accel);
+  struct FloatRMat *body_to_imu_rmat = orientationGetRMat_f(&ins_mekf_wind.body_to_imu);
+  // new values in body frame
+  float_rmat_transp_vmult(&ins_mekf_wind_accel, body_to_imu_rmat, &accel_f);
 }
 
 static void mag_cb(uint8_t sender_id __attribute__((unused)),
@@ -198,10 +237,14 @@ static void mag_cb(uint8_t sender_id __attribute__((unused)),
                    struct Int32Vect3 *mag)
 {
   if (ins_mekf_wind.is_aligned) {
-    struct FloatVect3 mag_f;
+    struct FloatVect3 mag_f, mag_body;
     MAGS_FLOAT_OF_BFP(mag_f, *mag);
-    ins_mekf_wind_update_mag(&mag_f);
-    set_body_state_from_quat();
+    struct FloatRMat *body_to_imu_rmat = orientationGetRMat_f(&ins_mekf_wind.body_to_imu);
+    // new values in body frame
+    float_rmat_transp_vmult(&mag_body, body_to_imu_rmat, &mag_f);
+    ins_mekf_wind_update_mag(&mag_body);
+    // udate state interface
+    //set_state_from_ins();
   }
 }
 
@@ -211,24 +254,39 @@ static void aligner_cb(uint8_t __attribute__((unused)) sender_id,
                        struct Int32Vect3 *lp_mag)
 {
   if (!ins_mekf_wind.is_aligned) {
-    /* convert to float */
-    struct FloatRates gyro_f;
+    struct FloatRMat *body_to_imu_rmat = orientationGetRMat_f(&ins_mekf_wind.body_to_imu);
+
+    struct FloatRates gyro_f, gyro_body;
     RATES_FLOAT_OF_BFP(gyro_f, *lp_gyro);
-    struct FloatVect3 accel_f;
+    float_rmat_transp_ratemult(&gyro_body, body_to_imu_rmat, &gyro_f);
+
+    struct FloatVect3 accel_f, accel_body;
     ACCELS_FLOAT_OF_BFP(accel_f, *lp_accel);
-    struct FloatVect3 mag_f;
+    float_rmat_transp_vmult(&accel_body, body_to_imu_rmat, &accel_f);
+
+    struct FloatVect3 mag_f, mag_body;
     MAGS_FLOAT_OF_BFP(mag_f, *lp_mag);
-    /* set initial body orientation in state interface if alignment was successful */
-    if (ins_mekf_wind_align(&gyro_f, &accel_f, &mag_f)) {
-      set_body_state_from_quat();
-    }
+    float_rmat_transp_vmult(&mag_body, body_to_imu_rmat, &mag_f);
+
+    struct FloatQuat quat;
+    ahrs_float_get_quat_from_accel_mag(&quat, &accel_body, &mag_body);
+    ins_mekf_wind_align(&gyro_body, &quat);
+    // udate state interface
+    set_state_from_ins();
+
+    // ins and ahrs are now running
+    ins_mekf_wind.is_aligned = true;
   }
 }
 
 static void body_to_imu_cb(uint8_t sender_id __attribute__((unused)),
-                           struct FloatQuat *q_b2i_f)
+                           struct FloatQuat *q_b2i)
 {
-  ins_mekf_wind_set_body_to_imu_quat(q_b2i_f);
+  orientationSetQuat_f(&ins_mekf_wind.body_to_imu, q_b2i);
+  if (!ins_mekf_wind.is_aligned) {
+    // set ltp_to_imu so that body is zero
+    ins_mekf_wind_set_quat(q_b2i);
+  }
 }
 
 static void geo_mag_cb(uint8_t sender_id __attribute__((unused)), struct FloatVect3 *h)
@@ -285,24 +343,24 @@ void ins_mekf_wind_aoa_periodic(void)
 }
 
 /**
- * Compute body orientation and rates from imu orientation and rates
+ * Set current state (ltp to body orientation/rates and ned pos/speed/accel
  */
-static void set_body_state_from_quat(void)
+static void set_state_from_ins(void)
 {
-//  struct FloatQuat *body_to_imu_quat = orientationGetQuat_f(&ins_mekf_wind.body_to_imu);
-//  struct FloatRMat *body_to_imu_rmat = orientationGetRMat_f(&ins_mekf_wind.body_to_imu);
-//
-//  /* Compute LTP to BODY quaternion */
-//  struct FloatQuat ltp_to_body_quat;
-//  float_quat_comp_inv(&ltp_to_body_quat, &ins_mekf_wind.ltp_to_imu_quat, body_to_imu_quat);
-//  /* Set in state interface */
-//  stateSetNedToBodyQuat_f(&ltp_to_body_quat);
-//
-//  /* compute body rates */
-//  struct FloatRates body_rate;
-//  float_rmat_transp_ratemult(&body_rate, body_to_imu_rmat, &ins_mekf_wind.imu_rate);
-//  /* Set state */
-//  stateSetBodyRates_f(&body_rate);
+  struct FloatQuat quat = ins_mekf_wind_get_quat();
+  stateSetNedToBodyQuat_f(&quat);
+
+  struct FloatRates rates = ins_mekf_wind_get_body_rates();
+  stateSetBodyRates_f(&rates);
+
+  struct NedCoor_f pos = ins_mekf_wind_get_pos_ned();
+  stateSetPositionNed_f(&pos);
+
+  struct NedCoor_f speed = ins_mekf_wind_get_speed_ned();
+  stateSetSpeedNed_f(&speed);
+
+  struct NedCoor_f accel = ins_mekf_wind_get_accel_ned();
+  stateSetAccelNed_f(&accel);
 }
 
 /**

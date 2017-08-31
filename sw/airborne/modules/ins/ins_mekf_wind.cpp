@@ -32,17 +32,20 @@
 
 #include "modules/ins/ins_mekf_wind.h"
 
+// Redifine Eigen assert so it doesn't use memory allocation
+#define eigen_assert(_cond) { if (_cond) { while(1) ; } }
+
+// Eigen headers
+#pragma GCC diagnostic ignored "-Wshadow"
+#include <Eigen/Dense>
+#pragma GCC diagnostic pop
+
 #include "generated/airframe.h"
 
-//#include "subsystems/ins.h"
+#include "subsystems/ins.h"
 
 #include "math/pprz_algebra_float.h"
 #include "math/pprz_algebra_int.h"
-#include "math/pprz_isa.h"
-
-// Eigen headers
-#include <Eigen/Dense>
-#include <Eigen/Geometry>
 
 using namespace Eigen;
 
@@ -60,6 +63,7 @@ struct MekfWindState {
 	Quaternionf quat;
 	Vector3f speed;
 	Vector3f pos;
+	Vector3f accel;
 	Vector3f rates_bias;
 	Vector3f accel_bias;
 	Vector3f wind;
@@ -146,57 +150,70 @@ static struct InsMekfWindPrivate mekf_wind_private;
 /* earth gravity model */
 static const Vector3f gravity( 0.f, 0.f, -9.81f);
 
-
 /* init state and measurements */
-static inline void init_mekf_state(void)
+static void init_mekf_state(void)
 {
   // init state
-  mekf_wind_private.state.quat.setIdentity();
-  mekf_wind_private.state.speed.setZero();
-  mekf_wind_private.state.pos.setZero();
-  mekf_wind_private.state.rates_bias.setZero();
-  mekf_wind_private.state.accel_bias.setZero();
-  mekf_wind_private.state.wind.setZero();
+  mekf_wind_private.state.quat = Quaternionf::Identity();
+  mekf_wind_private.state.speed = Vector3f::Zero();
+  mekf_wind_private.state.pos = Vector3f::Zero();
+  mekf_wind_private.state.rates_bias = Vector3f::Zero();
+  mekf_wind_private.state.accel_bias = Vector3f::Zero();
+  mekf_wind_private.state.wind = Vector3f::Zero();
 
   // init measures
-  mekf_wind_private.measurements.speed.setZero();
-  mekf_wind_private.measurements.pos.setZero();
-  mekf_wind_private.measurements.mag.setZero();
+  mekf_wind_private.measurements.speed = Vector3f::Zero();
+  mekf_wind_private.measurements.pos = Vector3f::Zero();
+  mekf_wind_private.measurements.mag = Vector3f::Zero();
   mekf_wind_private.measurements.baro_alt = 0.f;
   mekf_wind_private.measurements.airspeed = 0.f;
   mekf_wind_private.measurements.aoa = 0.f;
   mekf_wind_private.measurements.aos = 0.f;
 
   // init input
-  mekf_wind_private.inputs.rates.setZero();
-  mekf_wind_private.inputs.accel.setZero();
+  mekf_wind_private.inputs.rates = Vector3f::Zero();
+  mekf_wind_private.inputs.accel = Vector3f::Zero();
 
   // init state covariance
-  mekf_wind_private.P.diagonal() <<
-    P0_QUAT, P0_QUAT, P0_QUAT, P0_QUAT,
-    P0_SPEED, P0_SPEED, P0_SPEED,
-    P0_POS, P0_POS, P0_POS,
-    P0_RATES_BIAS, P0_RATES_BIAS, P0_RATES_BIAS,
-    P0_ACCEL_BIAS, P0_ACCEL_BIAS, P0_ACCEL_BIAS,
-    P0_WIND, P0_WIND, P0_WIND;
+  mekf_wind_private.P = MEKFWCov::Zero();
+  mekf_wind_private.P(0,0) = P0_QUAT;
+  mekf_wind_private.P(1,1) = P0_QUAT;
+  mekf_wind_private.P(2,2) = P0_QUAT;
+  mekf_wind_private.P(3,4) = P0_SPEED;
+  mekf_wind_private.P(4,4) = P0_SPEED;
+  mekf_wind_private.P(5,5) = P0_SPEED;
+  mekf_wind_private.P(6,6) = P0_POS;
+  mekf_wind_private.P(7,7) = P0_POS;
+  mekf_wind_private.P(8,8) = P0_POS;
+  mekf_wind_private.P(9,9) = P0_RATES_BIAS;
+  mekf_wind_private.P(10,10) = P0_RATES_BIAS;
+  mekf_wind_private.P(11,11) = P0_RATES_BIAS;
+  mekf_wind_private.P(12,12) = P0_ACCEL_BIAS;
+  mekf_wind_private.P(13,13) = P0_ACCEL_BIAS;
+  mekf_wind_private.P(14,14) = P0_ACCEL_BIAS;
+  mekf_wind_private.P(15,15) = P0_WIND;
+  mekf_wind_private.P(16,16) = P0_WIND;
+  mekf_wind_private.P(17,17) = P0_WIND;
 
   // init process noise
-  mekf_wind_private.Q.diagonal() <<
-    Q_GYRO, Q_GYRO, Q_GYRO,
-    Q_ACCEL, Q_ACCEL, Q_ACCEL,
-    Q_RATES_BIAS, Q_RATES_BIAS, Q_RATES_BIAS,
-    Q_ACCEL_BIAS, Q_ACCEL_BIAS, Q_ACCEL_BIAS,
-    Q_WIND, Q_WIND, Q_WIND;
+  Matrix<float, MEKF_WIND_PROC_NOISE_SIZE, 1> vp;
+  vp(0) = vp(1) = vp(2) = Q_GYRO;
+  vp(3) = vp(4) = vp(5) = Q_ACCEL;
+  vp(6) = vp(7) = vp(8) = Q_RATES_BIAS;
+  vp(9) = vp(10) = vp(11) = Q_ACCEL_BIAS;
+  vp(12) = vp(13) = vp(14) = Q_WIND;
+  mekf_wind_private.Q = vp.asDiagonal();
 
   // init measurements noise
-  mekf_wind_private.R.diagonal() <<
-    R_SPEED, R_SPEED, R_SPEED,
-    R_POS, R_POS, R_POS,
-    R_MAG, R_MAG, R_MAG,
-    R_BARO,
-    R_AIRSPEED,
-    R_AOA,
-    R_AOS;
+  Matrix<float, MEKF_WIND_MEAS_NOISE_SIZE, 1> vm;
+  vm(0) = vm(1) = vm(2) = R_SPEED;
+  vm(3) = vm(4) = vm(5) = R_POS;
+  vm(6) = vm(7) = vm(8) = R_MAG;
+  vm(9) = R_BARO;
+  vm(10) = R_AIRSPEED;
+  vm(11) = R_AOA;
+  vm(12) = R_AOS;
+  mekf_wind_private.R = vm.asDiagonal();
 
   // reset flags
   ins_mekf_wind.is_aligned = false;
@@ -205,6 +222,18 @@ static inline void init_mekf_state(void)
   ins_mekf_wind.gps_fix_once = false;
 }
 
+// Some quaternion utility functions
+static Quaternionf quat_add(const Quaternionf& q1, const Quaternionf& q2) {
+  return Quaternionf(q1.w() + q2.w(), q1.x() + q2.x(), q1.y() + q2.y(), q1.z() + q2.z());
+}
+
+static Quaternionf quat_smul(const Quaternionf& q1, float scal) {
+  return Quaternionf(q1.w() * scal, q1.x() * scal, q1.y() * scal, q1.z() * scal);
+}
+
+/**
+ * Init function
+ */
 void ins_mekf_wind_init(void)
 {
 
@@ -237,33 +266,43 @@ void ins_mekf_wind_init(void)
 
 }
 
-
 void ins_mekf_wind_propagate(struct FloatRates *gyro, struct FloatVect3 *acc, float dt)
 {
-  mekf_wind_private.inputs.rates << gyro->p, gyro->q, gyro->r;
-  mekf_wind_private.inputs.accel << acc->x, acc->y, acc->z;
+  Quaternionf q_tmp;
+
+  mekf_wind_private.inputs.rates = Vector3f(gyro->p, gyro->q, gyro->r);
+  mekf_wind_private.inputs.accel = Vector3f(acc->x, acc->y, acc->z);
 
   const Vector3f gyro_unbiased = mwp.inputs.rates - mwp.state.rates_bias;
   const Vector3f accel_unbiased = mwp.inputs.accel - mwp.state.accel_bias;
   // propagate state
-  const Quaternionf q_d = 0.5f * (mwp.state.quat * gyro_unbiased);
-  const Vector3f s_d = mwp.state.quat * accel_unbiased * mwp.state.quat.inverse() + gravity;
-  const Vector3f p_d = mwp.state.speed;
-  mwp.state.quat = (mwp.state.quat + q_d * dt).normalize();
-  mwp.state.speed = mwp.state.speed + s_d * dt;
-  mwp.state.pos = mwp.state.pos + p_d * dt;
+  // q_dot = 1/2 q * (rates - rates_bias)
+  q_tmp.w() = 0.f;
+  q_tmp.vec() = gyro_unbiased;
+  const Quaternionf q_d = quat_smul(mwp.state.quat * q_tmp, 0.5f);
+  // speed_d = q * (accel - accel_bias) * q^-1 + g
+  q_tmp.vec() = accel_unbiased;
+  mwp.state.accel = (mwp.state.quat * q_tmp * mwp.state.quat.inverse()).vec() + gravity;
 
-  // propagate covariance
+  // Euler integration
+
+  //mwp.state.quat = (mwp.state.quat + q_d * dt).normalize();
+  mwp.state.quat = quat_add(mwp.state.quat, quat_smul(q_d, dt));
+  mwp.state.quat.normalize();
+  mwp.state.pos = mwp.state.pos + mwp.state.speed * dt;
+  mwp.state.speed = mwp.state.speed + mwp.state.accel * dt;
+
+  //// propagate covariance
   const Matrix3f Rq = mwp.state.quat.toRotationMatrix();
 
-  MEKFWCov A;
+  MEKFWCov A; //FIXME
   A.setZero();
   A.block<3,3>(0,9) = Rq;
-  A.block<3,3>(3,0) = -(Rq * accel_unbiased);
+  A.block<3,3>(3,0) = (-Rq * accel_unbiased).asDiagonal();
   A.block<3,3>(3,12) = -Rq;
   A.block<3,3>(6,3) = Matrix3f::Identity();
 
-  MEKFWCov An;
+  MEKFWCov An; //FIXME
   An.setZero();
   An.block<3,3>(0,0) = Rq;
   An.block<3,3>(3,3) = Rq;
@@ -271,10 +310,10 @@ void ins_mekf_wind_propagate(struct FloatRates *gyro, struct FloatVect3 *acc, fl
   An.block<3,3>(12,9) = Matrix3f::Identity();
   An.block<3,3>(15,12) = Matrix3f::Identity();
 
-  Matrix3f At, Ant;
-  At = A.transpose();
-  Ant = An.transpose();
-  mwp.P = mwp.P + (A * mwp.P * At + An * mwp.Q * Ant);
+  MEKFWCov At(A), Ant(An);
+  At.transposeInPlace();
+  Ant.transposeInPlace();
+  //mwp.P = mwp.P + (A * mwp.P * At + An * mwp.Q * Ant);
 
 #if LOG_MEKF_WIND
   if (LogFileIsOpen()) {
@@ -285,33 +324,27 @@ void ins_mekf_wind_propagate(struct FloatRates *gyro, struct FloatVect3 *acc, fl
         );
   }
 #endif
-
-  // TODO update state interface
 }
 
 
-void ins_mekf_wind_align(struct FloatRates *lp_gyro,
-    struct FloatVect3 *lp_accel,
-    struct FloatVect3 *lp_mag)
+void ins_mekf_wind_align(struct FloatRates *gyro_bias, struct FloatQuat *quat)
 {
   /* Compute an initial orientation from accel and mag directly as quaternion */
-  ahrs_float_get_quat_from_accel_mag(&ins_mekf_wind.state.quat, lp_accel, lp_mag);
+  mwp.state.quat.w() = quat->qi;
+  mwp.state.quat.x() = quat->qx;
+  mwp.state.quat.y() = quat->qy;
+  mwp.state.quat.z() = quat->qz;
 
   /* use average gyro as initial value for bias */
-  ins_mekf_wind.state.gyro_bias = *lp_gyro;
-
-  // update private state
-  set_state_to_private(&init_mekf_state, &mekf_wind_private);
-
-  // ins and ahrs are now running
-  ins_mekf_wind.is_aligned = true;
+  mwp.state.rates_bias(0) = gyro_bias->p;
+  mwp.state.rates_bias(1) = gyro_bias->q;
+  mwp.state.rates_bias(2) = gyro_bias->r;
 }
 
 void ins_mekf_wind_update_mag(struct FloatVect3* mag)
 {
-  struct FloatRMat *body_to_imu_rmat = orientationGetRMat_f(&ins_mekf_wind.body_to_imu);
-  // new values in body frame
-  float_rmat_transp_vmult(&ins_mekf_wind.measurements.mag, body_to_imu_rmat, mag);
+  // TODO update mag
+  (void)mag;
 
 #if LOG_MEKF_WIND
   if (LogFileIsOpen()) {
@@ -323,41 +356,9 @@ void ins_mekf_wind_update_mag(struct FloatVect3* mag)
 #endif
 }
 
-void ins_mekf_wind_set_body_to_imu_quat(struct FloatQuat *quat)
+void ins_mekf_wind_update_baro(float baro_alt)
 {
-}
-
-void ins_mekf_wind_update_baro(float pressure)
-{
-  static float ins_qfe = 101325.0f;
-  static float alpha = 10.0f;
-  static int32_t i = 1;
-  static float baro_moy = 0.0f;
-  static float baro_prev = 0.0f;
-
-  if (!ins_mekf_wind.baro_initialized) {
-    // try to find a stable qfe
-    // TODO generic function in pprz_isa ?
-    if (i == 1) {
-      baro_moy = pressure;
-      baro_prev = pressure;
-    }
-    baro_moy = (baro_moy * (i - 1) + pressure) / i;
-    alpha = (10.*alpha + (baro_moy - baro_prev)) / (11.0f);
-    baro_prev = baro_moy;
-    // test stop condition
-    if (fabs(alpha) < 0.005f) {
-      ins_qfe = baro_moy;
-      ins_mekf_wind.baro_initialized = true;
-    }
-    if (i == 250) {
-      ins_qfe = pressure;
-      ins_mekf_wind.baro_initialized = true;
-    }
-    i++;
-  } else { /* normal update with baro measurement */
-    ins_mekf_wind.measurements.baro_alt = -pprz_isa_height_of_pressure(pressure, ins_qfe); // Z down
-  }
+  mwp.measurements.baro_alt = baro_alt;
 
 #if LOG_MEKF_WIND
   if (LogFileIsOpen()) {
@@ -420,194 +421,65 @@ void ins_mekf_wind_update_incidence(float aoa, float aos)
 #endif
 }
 
-
-
-
-
-
-#if 0
-
-static inline void propagate_state(struct FloatRates *omega, struct FloatVect3 *acc, float dt)
+/**
+ * Getter functions
+ */
+struct NedCoor_f ins_mekf_wind_get_pos_ned(void)
 {
-	struct FloatRates omega_unbiased = *omega;
-	struct FloatVect3 *acc_unbiased = *acc;
-	/* unbias measurements */
-	RATES_SUB(omega_unbiased, ins_mekf_wind.state.omega_b);
-	VECT3_SUB(acc_unbiased, ins_mekf_wind.state.acc_b);
-
-	/* propagate rotation matrix */
-	struct FloatMat33 omega_skew;
-	SKEW_VECT3(omega_skew, omega_unbiased);
-	MAT_MUL(3, 3, 3, ins_mekf_wind.state.rot, ins_mekf_wind.state.rot, omega_skew);
-
-	/* propagate speed */
-	struct FloatVect3 tem = g;
-	struct FloatVect3 tem2;
-	MAT33_VECT3_MUL(tem2, ins_mekf_wind.state.rot, acc_unbiased);
-	VECT3_ADD(tem, tem2);
-	VECT3_SUM_SCALED(ins_mekf_wind.state.v, ins_mekf_wind.state.v, tem, dt);
-
-	/* propagate position */
-	struct FloatVect3 tem;
-	MAT33_VECT3_MUL(tem, ins_mekf_wind.state.rot, ins_mekf_wind.state.v);
-	VECT3_SUM_SCALED(ins_mekf_wind.state.x, ins_mekf_wind.state.x, tem, dt);
-
-	/* propagate biases and wind */
-	// assumed firstly random walk
-	
-	UPDATE_VA(ins_mekf_wind.state.va, ins_mekf_wind.state.rot, ins_mekf_wind.state.v, ins_mekf_wind.state.w);
-
+  const struct NedCoor_f p = {
+    .x = mwp.state.pos(0),
+    .y = mwp.state.pos(1),
+    .z = mwp.state.pos(2)
+  };
+  return p;
 }
 
-
-static inline void propagate_covariance(struct FloatRates *omega, struct FloatVect3 *acc, float dt)// optimisable
-{  
-	struct FloatMat33 tem;
-	struct FloatMat33 tem2;
-	struct FloatVect3 *acc_unbiased = *acc;
-	VECT3_SUB(acc_unbiased, ins_mekf_wind.state.acc_b);
-	MAT33_VECT3_MUL(tem2, ins_mekf_wind.state.rot, acc_unbiased);
-	SKEW_VECT3(tem, tem2);
-	float A[18][18] = {{zero33, zero33, zero33, ins_mekf_wind.state.rot, zero33, zero33},
-			{tem, zero33, zero33, zero33, -ins_mekf_wind.state.rot, zero33},
-			{zero33, id33, zero33, zero33, zero33, zero33},
-			{zero33, zero33, zero33, zero33, zero33, zero33},//bias follow random walk
-			{zero33, zero33, zero33, zero33, zero33, zero33},
-			{zero33, zero33, zero33, zero33, zero33, zero33}};
-
-	//A * P * A'
-	float APA[18][18];
-	MAT_MUL(18, 18, 18, APA, A, ahrs_mlkf.P);
-	MAT_MUL_T(18, 18, 18, APA, ahrs_mlkf.P, A);
-
-
-	// A_n * Q * A_n'
-	float An[18][18] = {{ins_mekf_wind.state.rot, zero33, zero33, zero33, zero33, zero33},
-			{zero33, ins_mekf_wind.state.rot, zero33, zero33, zero33, zero33},
-			{zero33, zero33, zero33, id33, zero33, zero33},
-			{zero33, zero33, zero33, zero33, id33, zero33},
-			{zero33, zero33, zero33, zero33, zero33, id33}};
-	float Q[18][18];
-	DIAG_VEC(18, Q, Q_diag);
-	float AQA[18][18];
-	MAT_MUL(18, 18, 18, AQA, An, Q);
-	MAT_MUL_T(18, 18, 18,  Q, AQA, An);
-
-	// P = P + (A*P*A' + A_n*Q*A_n)*dt
-	float tmp[18][18];
-	MAT_ADD(18, 18, tmp, APA, AQA);
-	SCAL_MUL_MAT(18, 18, tmp, dt);
-	MAT_ADD(18, 18, ins_mekf_wind.P, tmp)
-
-}
-
-
-static inline void update_state(void)
+struct NedCoor_f ins_mekf_wind_get_speed_ned(void)
 {
-	// y_mesured : observations
-	// y_times[0] = 1, GPS measurement, 0 otherwise
-	// y_times[1] = 1, magnetometer measurement, 0 otherwise
-	// y_times[2] = 1, barometer measurement, 0 otherwise	
-	// y_times[3] = 1, Pitot tube measurement, 0 otherwise
-	// y_times[4] = 1, vanes measurement, 0 otherwise
-
-
-
-	//H
-	struct FloatMat33 b_skew, rot_transpose, tem, tem2, tem3, tem4, tem5, tem6, tem7, tem8_skew;
-	const struct FloatMat33 B = {{sin(y_mesured[12])^2, 0, 0},
-			{0, -cos(y_mesured[12]), 0},
-			{0, 0, 0}
-	};
-	SKEW_VECT3(b_skew, ahrs_ins_mekf_wind.b);
-	struct FloatVect3 C = {sin(y_mesured[11]), 0 -cos(y_mesured[11])},
-			tem8 = ins_mekf_wind.state.v-ins_mekf_wind.state.wind;
-	SKEW_VECT3(tem8_skew, tem8);
-	MAT33_TRANSPOSE(rot_transpose, ins_mekf_wind.state.rot);
-	MAT_MUL(3, 3, 3, tem, rot_transpose, b_skew);
-	MAT_MUL(1, 3, 3, tem2, id_u, rot_transpose);
-	MAT_MUL(3, 3, 3, tem3, rot_transpose, tem8_skew);
-	MAT_MUL(1, 3, 3, tem3, id_u, tem3);
-	MAT_MUL(3, 3, 3, tem4, C, rot_transpose);
-	MAT_MUL(3, 3, 3, tem, rot_transpose, b_skew);
-	MAT_MUL(3, 3, 3, tem5, tem4, tem8);
-	MAT_MUL(3, 3, 3, tem6, B, rot_transpose);
-	MAT_MUL(1, 3, 3, tem7, ins_mekf_wind.state.airspeed, 2*tem6);
-	MAT_MUL(3, 3, 3, tem6, tem6, tem8);
-	const float H[6][18] = {{zero33, id33, zero33, zero33, zero33, zero33},
-			{zero33, zero33, id33, zero33, zero33, zero33},
-			{tem, zero33, zero33, zero33, zero33, zero33},
-			{0, 0, id_z, 0, 0, 0},
-			{tem3, tem2, 0, 0, 0, -tem2},
-			{tem5, tem4, 0, 0, 0, -tem4},
-			{tem6, tem7, 0, 0, 0, -tem7}};
-
-
-	// S = HPH' + JRJ
-	int nb_measurements;
-	float tmp[13][18];
-	MAT_MUL(13, 18, 18, tmp, H, ahrs_ins_mekf_wind.P);
-	float S[13][13];
-	MAT_MUL_T(13, 18, 13, S, tmp, H);
-
-	/* add the measurement noise */
-	for (l=0; l<_i; l++)                                            
-		MAT33_ELMT(S,i,i) += ins_mekf_wind.measurementnoise[i];         
-	}
-
-	float invS[18][18];
-	float u_left[18][18] = ins_mekf_wind.P, diagonale[18], v_right[18][18];
-	dsvd( u_left, 13, 13, diagonale, v_right);
-	VECT_INV(13, diagonale, diagonale);
-	MAT_MUL(13, 13, 1, u_left, u_left,diagonale);
-	MAT_MUL(13, 13, 13, invS, u_left,diagonale);
-
-	// K = PH'invS
-	float tmp2[18][13];
-	MAT_MUL_T(18, 18, 13, tmp2, ins_mekf_wind.P, H);
-	float K[18][13];
-	MAT_MUL(18, 13, 13, K, tmp2, invS);
-
-	// P = (I-KH)P
-	float tmp3[18][18];
-	MAT_MUL(18, 13, 18, tmp3, K, H);
-
-	float tmp4[18][18];
-	MAT_SUB(18, 18, tmp4, id1818, tmp3);
-	float tmp5[18][18];
-	MAT_MUL(18, 18, 18, tmp5, tmp4, ins_mekf_wind.P);
-	memcpy(ins_mekf_wind.P, tmp5, sizeof(ins_mekf_wind.P));
-
-	// x = x + K*err
-	float y_talphahat, y_tbetahat;
-	MAT_MUL_VECT(3, y_talphahat, C, ins_mekf_wind.state.va);
-	struct FloatVect3 tem;
-	MAT_MUL_VECT(3, tem, B, ins_mekf_wind.state.va);
-	MAT_MUL(1, 3, 1, y_tbetahat, ins_mekf_wind.state.va, tem);
-	float err[18] = {ins_mekf_wind.state.v, ins_mekf_wind.state.x, y_mhat, ins_mekf_wind.state.x[3], ins_mekf_wind.state.va[1], y_talphahat, y_tbetahat];
-	int j;
-	for (j=0; j<18; j++){                      
-			err[j] = err[j] - y_mesured[j];
-	}
-	//test pour prendre uniquement les mesures
-	float inov[18];
-	MAT_MUL_VECT(18, inov, K, err);
-
-	struct FloatVect3 tmp;
-	VECT3_DIFF(e, *b_measured, b_expected);
-	//rot
-	tmp = {err[3], err[4], err[5]};
-	MAT_SUB(3, 3, ins_mekf_wind.state.v, ins_mekf_wind.state.v, tmp);
-	tmp = {err[6], err[7], err[8]};
-	MAT_SUB(3, 3, ins_mekf_wind.state.x, ins_mekf_wind.state.x, tmp);
-	tmp = {err[9], err[10], err[11]};
-	MAT_SUB(3, 3, ins_mekf_wind.state.omega_b, ins_mekf_wind.state.omega_b, tmp);
-	tmp = {err[12], err[13], err[14]};
-	MAT_SUB(3, 3, ins_mekf_wind.state.a_b, ins_mekf_wind.state.a_b, tmp);
-	tmp = {err[15], err[16], err[17]};
-	MAT_SUB(3, 3, ins_mekf_wind.state.w, ins_mekf_wind.state.w, tmp);
-	COMPUTE_VA(ins_mekf_wind.state.rot, ins_mekf_wind.state.v, ins_mekf_wind.state.x);
+  const struct NedCoor_f s = {
+    .x = mwp.state.speed(0),
+    .y = mwp.state.speed(1),
+    .z = mwp.state.speed(2)
+  };
+  return s;
 }
 
-#endif
+struct NedCoor_f ins_mekf_wind_get_accel_ned(void)
+{
+  const struct NedCoor_f a = {
+    .x = mwp.state.accel(0),
+    .y = mwp.state.accel(1),
+    .z = mwp.state.accel(2)
+  };
+  return a;
+}
+
+struct FloatQuat ins_mekf_wind_get_quat(void)
+{
+  const struct FloatQuat q = {
+    .qi = mwp.state.quat.w(),
+    .qx = mwp.state.quat.x(),
+    .qy = mwp.state.quat.y(),
+    .qz = mwp.state.quat.z()
+  };
+  return q;
+}
+
+void ins_mekf_wind_set_quat(struct FloatQuat *quat)
+{
+  mwp.state.quat.w() = quat->qi;
+  mwp.state.quat.x() = quat->qx;
+  mwp.state.quat.y() = quat->qy;
+  mwp.state.quat.z() = quat->qz;
+}
+
+struct FloatRates ins_mekf_wind_get_body_rates(void)
+{
+  const struct FloatRates r = {
+    .p = mwp.inputs.rates(0) - mwp.state.rates_bias(0),
+    .q = mwp.inputs.rates(1) - mwp.state.rates_bias(1),
+    .r = mwp.inputs.rates(2) - mwp.state.rates_bias(2)
+  };
+  return r;
+}
 
