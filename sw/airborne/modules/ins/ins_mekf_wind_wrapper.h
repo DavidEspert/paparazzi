@@ -27,8 +27,30 @@
 #ifndef INS_MEKF_WIND_WRAPPER_H
 #define INS_MEKF_WIND_WRAPPER_H
 
+#include "std.h"
+#include "math/pprz_orientation_conversion.h"
+
+/** filter structure
+ */
+struct InsMekfWind {
+  struct OrientationReps body_to_imu;
+  bool is_aligned;
+  bool baro_initialized;
+  bool gps_fix_once;
+  bool reset;
+};
+
+extern struct InsMekfWind ins_mekf_wind;
+
 extern void ins_mekf_wind_wrapper_init(void);
 extern void ins_mekf_wind_aoa_periodic(void);
+
+#define ins_mekf_wind_wrapper_Reset(_v) { \
+  ins_mekf_wind.reset = false;            \
+  ins_mekf_wind.baro_initialized = false; \
+  ins_mekf_wind.gps_fix_once = false;     \
+  ins_mekf_wind_reset();                  \
+}
 
 #endif /* INS_MEKF_WIND_WRAPPER_H */
 

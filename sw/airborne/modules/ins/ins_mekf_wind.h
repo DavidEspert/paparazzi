@@ -37,35 +37,13 @@ extern "C" {
 #include "std.h"
 #include "math/pprz_algebra_float.h"
 #include "math/pprz_geodetic_float.h"
-#include "math/pprz_orientation_conversion.h"
-
-enum MekfWindStatus {
-  MEKF_WIND_UNINIT,
-  MEKF_WIND_RUNNING
-};
-
-/** filter structure
- */
-struct InsMekfWind {
-  //struct MekfWindState state;
-  //struct MekfWindInputs inputs;
-  //struct MekfWindMeasurements measurements;
-  struct FloatVect3 mag_h;
-  struct OrientationReps body_to_imu;
-  enum MekfWindStatus status;
-  bool is_aligned;
-  bool baro_initialized;
-  bool gps_fix_once;
-  bool reset;
-};
-
-extern struct InsMekfWind ins_mekf_wind;
 
 // Init functions
 extern void ins_mekf_wind_init(void);
 extern void ins_mekf_wind_align(struct FloatRates *gyro_bias,
                                 struct FloatQuat *quat);
 extern void ins_mekf_wind_set_mag_h(const struct FloatVect3 *mag_h);
+extern void ins_mekf_wind_reset(void);
 
 // Filtering functions
 extern void ins_mekf_wind_propagate(struct FloatRates* gyro,

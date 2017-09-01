@@ -118,7 +118,6 @@ struct InsMekfWindPrivate {
 #define R_AOS         1.0f
 
 
-struct InsMekfWind ins_mekf_wind;
 static struct InsMekfWindPrivate mekf_wind_private;
 // short name
 #define mwp mekf_wind_private
@@ -191,12 +190,6 @@ static void init_mekf_state(void)
   vm(11) = R_AOA;
   vm(12) = R_AOS;
   mekf_wind_private.R = vm.asDiagonal();
-
-  // reset flags
-  ins_mekf_wind.is_aligned = false;
-  ins_mekf_wind.reset = false;
-  ins_mekf_wind.baro_initialized = false;
-  ins_mekf_wind.gps_fix_once = false;
 }
 
 // Some quaternion utility functions
@@ -226,6 +219,11 @@ void ins_mekf_wind_set_mag_h(const struct FloatVect3 *mag_h)
   mekf_wind_private.mag_h(0) = mag_h->x;
   mekf_wind_private.mag_h(1) = mag_h->y;
   mekf_wind_private.mag_h(2) = mag_h->z;
+}
+
+void ins_mekf_wind_reset(void)
+{
+  init_mekf_state();
 }
 
 void ins_mekf_wind_propagate(struct FloatRates *gyro, struct FloatVect3 *acc, float dt)
@@ -295,8 +293,10 @@ void ins_mekf_wind_align(struct FloatRates *gyro_bias, struct FloatQuat *quat)
 
 void ins_mekf_wind_update_mag(struct FloatVect3* mag)
 {
+  mwp.measurements.mag(0) = mag->x;
+  mwp.measurements.mag(1) = mag->y;
+  mwp.measurements.mag(2) = mag->z;
   // TODO update mag
-  (void)mag;
 
 }
 

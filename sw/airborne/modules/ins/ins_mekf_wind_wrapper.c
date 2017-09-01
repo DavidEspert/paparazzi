@@ -43,6 +43,8 @@
 #define INS_MEKF_WIND_FILTER_ID 3
 #endif
 
+struct InsMekfWind ins_mekf_wind;
+
 /** last accel measurement */
 static struct FloatVect3 ins_mekf_wind_accel;
 static uint32_t last_imu_stamp = 0;
@@ -64,7 +66,6 @@ static FILE* pprzLogFile = NULL;
 #endif
 #endif
 
-#undef PERIODIC_TELEMETRY
 /** telemetry functions */
 #if PERIODIC_TELEMETRY
 #include "subsystems/datalink/telemetry.h"
@@ -73,27 +74,24 @@ static FILE* pprzLogFile = NULL;
 static void send_euler(struct transport_tx *trans, struct link_device *dev)
 {
   struct FloatEulers ltp_to_imu_euler;
-  float_eulers_of_quat(&ltp_to_imu_euler, &ins_mekf_wind.ltp_to_imu_quat);
+  struct FloatQuat quat = ins_mekf_wind_get_quat();
+  float_eulers_of_quat(&ltp_to_imu_euler, &quat);
+  uint8_t id = INS_MEKF_WIND_FILTER_ID;
   pprz_msg_send_AHRS_EULER(trans, dev, AC_ID,
                            &ltp_to_imu_euler.phi,
                            &ltp_to_imu_euler.theta,
                            &ltp_to_imu_euler.psi,
-                           &ins_mekf_wind.id);
+                           &id);
 }
 
-static void send_bias(struct transport_tx *trans, struct link_device *dev)
-{
-  struct Int32Rates gyro_bias;
-  RATES_BFP_OF_REAL(gyro_bias, ins_mekf_wind.gyro_bias);
-  pprz_msg_send_AHRS_GYRO_BIAS_INT(trans, dev, AC_ID,
-                                   &gyro_bias.p, &gyro_bias.q, &gyro_bias.r, &ins_mekf_wind.id);
-}
-
-static void send_geo_mag(struct transport_tx *trans, struct link_device *dev)
-{
-  pprz_msg_send_GEO_MAG(trans, dev, AC_ID,
-                        &ins_mekf_wind.mag_h.x, &ins_mekf_wind.mag_h.y, &ins_mekf_wind.mag_h.z, &ins_mekf_wind.id);
-}
+//static void send_bias(struct transport_tx *trans, struct link_device *dev)
+//{
+//  struct Int32Rates gyro_bias;
+//  RATES_BFP_OF_REAL(gyro_bias, ins_mekf_wind_get_gyro_bias());
+//  uint8_t id = INS_MEKF_WIND_FILTER_ID;
+//  pprz_msg_send_AHRS_GYRO_BIAS_INT(trans, dev, AC_ID,
+//                                   &gyro_bias.p, &gyro_bias.q, &gyro_bias.r, &id);
+//}
 
 static void send_filter_status(struct transport_tx *trans, struct link_device *dev)
 {
@@ -103,7 +101,8 @@ static void send_filter_status(struct transport_tx *trans, struct link_device *d
   uint32_t t_diff = get_sys_time_usec() - last_imu_stamp;
   /* set lost if no new gyro measurements for 50ms */
   if (t_diff > 50000) { mde = 5; }
-  pprz_msg_send_STATE_FILTER_STATUS(trans, dev, AC_ID, &ins_mekf_wind.id, &mde, &val);
+  uint8_t id = INS_MEKF_WIND_FILTER_ID;
+  pprz_msg_send_STATE_FILTER_STATUS(trans, dev, AC_ID, &id, &mde, &val);
 }
 #endif
 
@@ -462,6 +461,12 @@ void ins_mekf_wind_wrapper_init(void)
   stateSetLocalOrigin_i(&ltp_def);
 #endif
 
+  // reset flags
+  ins_mekf_wind.is_aligned = false;
+  ins_mekf_wind.reset = false;
+  ins_mekf_wind.baro_initialized = false;
+  ins_mekf_wind.gps_fix_once = false;
+
   // init filter
   ins_mekf_wind_init();
   const struct FloatVect3 mag_h = { INS_H_X, INS_H_Y, INS_H_Z };
@@ -480,8 +485,7 @@ void ins_mekf_wind_wrapper_init(void)
 
 #if PERIODIC_TELEMETRY
   register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_AHRS_EULER, send_euler);
-  register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_AHRS_GYRO_BIAS_INT, send_bias);
-  register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_GEO_MAG, send_geo_mag);
+  //register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_AHRS_GYRO_BIAS_INT, send_bias);
   register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_STATE_FILTER_STATUS, send_filter_status);
 #endif
 
