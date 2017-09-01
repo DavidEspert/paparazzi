@@ -47,10 +47,25 @@
 static struct FloatVect3 ins_mekf_wind_accel;
 static uint32_t last_imu_stamp = 0;
 
+/** update state interface */
 static void set_state_from_ins(void);
 
-#undef PERIODIC_TELEMETRY
+/** logging functions */
+#if LOG_MEKF_WIND
+#ifndef SITL
+#include "modules/loggers/sdlog_chibios.h"
+#define PrintLog sdLogWriteLog
+#define LogFileIsOpen() (pprzLogFile != -1)
+#else // SITL: print in a file
+#include <stdio.h>
+#define PrintLog fprintf
+#define LogFileIsOpen() (pprzLogFile != NULL)
+static FILE* pprzLogFile = NULL;
+#endif
+#endif
 
+#undef PERIODIC_TELEMETRY
+/** telemetry functions */
 #if PERIODIC_TELEMETRY
 #include "subsystems/datalink/telemetry.h"
 #include "mcu_periph/sys_time.h"
@@ -176,6 +191,12 @@ static void baro_cb(uint8_t __attribute__((unused)) sender_id, float pressure)
   } else { /* normal update with baro measurement */
     float baro_alt = -pprz_isa_height_of_pressure(pressure, ins_qfe); // Z down
     ins_mekf_wind_update_baro(baro_alt);
+
+#if LOG_MEKF_WIND
+    if (LogFileIsOpen()) {
+      PrintLog(pprzLogFile, "%.3f  baro %.3f \n", get_sys_time_float(), baro_alt);
+    }
+#endif
   }
 }
 
@@ -183,6 +204,12 @@ static void pressure_diff_cb(uint8_t __attribute__((unused)) sender_id, float pd
 {
   float airspeed = eas_from_dynamic_pressure(pdyn);
   ins_mekf_wind_update_airspeed(airspeed);
+
+#if LOG_MEKF_WIND
+  if (LogFileIsOpen()) {
+    PrintLog(pprzLogFile, "%.3f airspeed %.3f\n", get_sys_time_float(), airspeed);
+  }
+#endif
 }
 
 /**
@@ -219,6 +246,18 @@ static void gyro_cb(uint8_t sender_id __attribute__((unused)),
   set_state_from_ins();
 
   last_imu_stamp = last_stamp;
+
+#if LOG_MEKF_WIND
+  if (LogFileIsOpen()) {
+    PrintLog(pprzLogFile,
+        "%.3f gyro_accel %.3f %.3f %.3f %.3f %.3f %.3f \n",
+        get_sys_time_float(),
+        gyro_body.p, gyro_body.q, gyro_body.r,
+        ins_mekf_wind_accel.x,
+        ins_mekf_wind_accel.y,
+        ins_mekf_wind_accel.z);
+  }
+#endif
 }
 
 static void accel_cb(uint8_t sender_id __attribute__((unused)),
@@ -245,6 +284,15 @@ static void mag_cb(uint8_t sender_id __attribute__((unused)),
     ins_mekf_wind_update_mag(&mag_body);
     // udate state interface
     //set_state_from_ins();
+
+#if LOG_MEKF_WIND
+    if (LogFileIsOpen()) {
+      PrintLog(pprzLogFile,
+          "%.3f magneto %.3f %.3f %.3f\n",
+          get_sys_time_float(),
+          mag_body.x, mag_body.y, mag_body.z);
+    }
+#endif
   }
 }
 
@@ -291,7 +339,7 @@ static void body_to_imu_cb(uint8_t sender_id __attribute__((unused)),
 
 static void geo_mag_cb(uint8_t sender_id __attribute__((unused)), struct FloatVect3 *h)
 {
-  ins_mekf_wind.mag_h = *h;
+  ins_mekf_wind_set_mag_h(h);
 }
 
 static void gps_cb(uint8_t sender_id __attribute__((unused)),
@@ -314,6 +362,15 @@ static void gps_cb(uint8_t sender_id __attribute__((unused)),
 			speed.y = gps_s->ned_vel.y / 100.0f;
 			speed.z = gps_s->ned_vel.z / 100.0f;
       ins_mekf_wind_update_pos_speed(&pos, &speed);
+
+#if LOG_MEKFW_FILTER
+      if (LogFileIsOpen()) {
+        PrintLog(pprzLogFile,
+            "%.3f gps %.3f %.3f %.3f %.3f %.3f %.3f \n",
+            get_sys_time_float(),
+            pos.x, pos.y, pos.z, speed.x, speed.y, speed.z);
+      }
+#endif
 		}
 
 #else
@@ -327,6 +384,15 @@ static void gps_cb(uint8_t sender_id __attribute__((unused)),
 			ECEF_FLOAT_OF_BFP(ecef_vel, gps_s->ecef_vel);
 			ned_of_ecef_vect_f(&speed, &state.ned_origin_f, &ecef_vel);
       ins_mekf_wind_update_pos_speed(&pos, &speed);
+
+#if LOG_MEKFW_FILTER
+      if (LogFileIsOpen()) {
+        PrintLog(pprzLogFile,
+            "%.3f gps %.3f %.3f %.3f %.3f %.3f %.3f \n",
+            get_sys_time_float(),
+            pos.x, pos.y, pos.z, speed.x, speed.y, speed.z);
+      }
+#endif
 		}
 #endif
 	}
@@ -339,6 +405,12 @@ void ins_mekf_wind_aoa_periodic(void)
   ins_mekf_wind_update_incidence(aoa, aos);
 #if USE_NPS || USE_AIRSPEED_PERIODIC
   ins_mekf_wind_update_airspeed(stateGetAirspeed_f());
+#endif
+
+#if LOG_MEKF_WIND
+  if (LogFileIsOpen()) {
+    PrintLog(pprzLogFile, "%.3f incidence %.3f %.3f\n", get_sys_time_float(), aoa, aos);
+  }
 #endif
 }
 
@@ -392,6 +464,8 @@ void ins_mekf_wind_wrapper_init(void)
 
   // init filter
   ins_mekf_wind_init();
+  const struct FloatVect3 mag_h = { INS_H_X, INS_H_Y, INS_H_Z };
+  ins_mekf_wind_set_mag_h(&mag_h);
 
   // Bind to ABI messages
   AbiBindMsgBARO_ABS(INS_MEKF_WIND_BARO_ID, &baro_ev, baro_cb);
@@ -410,5 +484,26 @@ void ins_mekf_wind_wrapper_init(void)
   register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_GEO_MAG, send_geo_mag);
   register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_STATE_FILTER_STATUS, send_filter_status);
 #endif
+
+  // init log
+#if LOG_MEKF_WIND && SITL
+  // open log file for writing
+  // path should be specified in airframe file
+  uint32_t counter = 0;
+  char filename[512];
+  snprintf(filename, 512, "%s/mekf_wind_%05d.csv", STRINGIFY(MEKF_WIND_LOG_PATH), counter);
+  // check availale name
+  while ((pprzLogFile = fopen(filename, "r"))) {
+    fclose(pprzLogFile);
+    snprintf(filename, 512, "%s/mekf_wind_%05d.csv", STRINGIFY(MEKF_WIND_LOG_PATH), ++counter);
+  }
+  pprzLogFile = fopen(filename, "w");
+  if (pprzLogFile == NULL) {
+    printf("Failed to open WE log file '%s'\n",filename);
+  } else {
+    printf("Opening WE log file '%s'\n",filename);
+  }
+#endif
+
 }
 

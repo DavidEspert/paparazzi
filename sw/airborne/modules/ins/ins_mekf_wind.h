@@ -65,6 +65,7 @@ extern struct InsMekfWind ins_mekf_wind;
 extern void ins_mekf_wind_init(void);
 extern void ins_mekf_wind_align(struct FloatRates *gyro_bias,
                                 struct FloatQuat *quat);
+extern void ins_mekf_wind_set_mag_h(const struct FloatVect3 *mag_h);
 
 // Filtering functions
 extern void ins_mekf_wind_propagate(struct FloatRates* gyro,

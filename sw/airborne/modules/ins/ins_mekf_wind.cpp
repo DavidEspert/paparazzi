@@ -40,13 +40,6 @@
 #include <Eigen/Dense>
 #pragma GCC diagnostic pop
 
-#include "generated/airframe.h"
-
-#include "subsystems/ins.h"
-
-#include "math/pprz_algebra_float.h"
-#include "math/pprz_algebra_int.h"
-
 using namespace Eigen;
 
 #define MEKF_WIND_COV_SIZE        18
@@ -98,6 +91,9 @@ struct InsMekfWindPrivate {
   MEKFWCov P;
   MEKFWPNoise Q;
   MEKFWMNoise R;
+
+  /* earth magnetic model */
+  Vector3f mag_h;
 };
 
 #define P0_QUAT       1.0f
@@ -122,26 +118,6 @@ struct InsMekfWindPrivate {
 #define R_AOS         1.0f
 
 
-#undef PERIODIC_TELEMETRY
-
-#if SEND_MEKF_WIND_FILTER || PERIODIC_TELEMETRY
-#include "subsystems/datalink/telemetry.h"
-#endif
-
-#if LOG_MEKF_WIND
-#ifndef SITL
-#include "modules/loggers/sdlog_chibios.h"
-#define PrintLog sdLogWriteLog
-#define LogFileIsOpen() (pprzLogFile != -1)
-#else // SITL: print in a file
-#include <stdio.h>
-#define PrintLog fprintf
-#define LogFileIsOpen() (pprzLogFile != NULL)
-static FILE* pprzLogFile = NULL;
-#endif
-#endif
-
-
 struct InsMekfWind ins_mekf_wind;
 static struct InsMekfWindPrivate mekf_wind_private;
 // short name
@@ -149,6 +125,7 @@ static struct InsMekfWindPrivate mekf_wind_private;
 
 /* earth gravity model */
 static const Vector3f gravity( 0.f, 0.f, -9.81f);
+
 
 /* init state and measurements */
 static void init_mekf_state(void)
@@ -236,34 +213,19 @@ static Quaternionf quat_smul(const Quaternionf& q1, float scal) {
  */
 void ins_mekf_wind_init(void)
 {
-
-#if LOG_MEKF_WIND && SITL
-  // open log file for writing
-  // path should be specified in airframe file
-  uint32_t counter = 0;
-  char filename[512];
-  snprintf(filename, 512, "%s/mekf_wind_%05d.csv", STRINGIFY(MEKF_WIND_LOG_PATH), counter);
-  // check availale name
-  while ((pprzLogFile = fopen(filename, "r"))) {
-    fclose(pprzLogFile);
-    snprintf(filename, 512, "%s/mekf_wind_%05d.csv", STRINGIFY(MEKF_WIND_LOG_PATH), ++counter);
-  }
-  pprzLogFile = fopen(filename, "w");
-  if (pprzLogFile == NULL) {
-    printf("Failed to open WE log file '%s'\n",filename);
-  } else {
-    printf("Opening WE log file '%s'\n",filename);
-  }
-#endif
-
   // init state and measurements
   init_mekf_state();
 
   // init local earth magnetic field
-  ins_mekf_wind.mag_h.x = INS_H_X;
-  ins_mekf_wind.mag_h.y = INS_H_Y;
-  ins_mekf_wind.mag_h.z = INS_H_Z;
+  mekf_wind_private.mag_h = Vector3f(1.0f, 0.f, 0.f);
+}
 
+void ins_mekf_wind_set_mag_h(const struct FloatVect3 *mag_h)
+{
+  // update local earth magnetic field
+  mekf_wind_private.mag_h(0) = mag_h->x;
+  mekf_wind_private.mag_h(1) = mag_h->y;
+  mekf_wind_private.mag_h(2) = mag_h->z;
 }
 
 void ins_mekf_wind_propagate(struct FloatRates *gyro, struct FloatVect3 *acc, float dt)
@@ -295,35 +257,25 @@ void ins_mekf_wind_propagate(struct FloatRates *gyro, struct FloatVect3 *acc, fl
   //// propagate covariance
   const Matrix3f Rq = mwp.state.quat.toRotationMatrix();
 
-  MEKFWCov A; //FIXME
+  MEKFWCov A;
   A.setZero();
   A.block<3,3>(0,9) = Rq;
   A.block<3,3>(3,0) = (-Rq * accel_unbiased).asDiagonal();
   A.block<3,3>(3,12) = -Rq;
   A.block<3,3>(6,3) = Matrix3f::Identity();
 
-  MEKFWCov An; //FIXME
+  Matrix<float, MEKF_WIND_COV_SIZE, MEKF_WIND_PROC_NOISE_SIZE> An;
   An.setZero();
   An.block<3,3>(0,0) = Rq;
   An.block<3,3>(3,3) = Rq;
-  An.block<3,3>(9,6) = Matrix3f::Identity();
-  An.block<3,3>(12,9) = Matrix3f::Identity();
-  An.block<3,3>(15,12) = Matrix3f::Identity();
+  An.block<9,9>(9,6) = Matrix<float,9,9>::Identity();
 
-  MEKFWCov At(A), Ant(An);
+  MEKFWCov At(A);
   At.transposeInPlace();
-  Ant.transposeInPlace();
-  //mwp.P = mwp.P + (A * mwp.P * At + An * mwp.Q * Ant);
+  Matrix<float, MEKF_WIND_PROC_NOISE_SIZE, MEKF_WIND_COV_SIZE> Ant;
+  Ant = An.transpose();
+  mwp.P = mwp.P + (A * mwp.P * At + An * mwp.Q * Ant);
 
-#if LOG_MEKF_WIND
-  if (LogFileIsOpen()) {
-    PrintLog(pprzLogFile,
-        "%.3f gyro_accel %.3f %.3f %.3f %.3f %.3f %.3f \n",
-        get_sys_time_float(),
-        gyro->p, gyro->q, gyro->r, accel->x, accel->y, accel->z
-        );
-  }
-#endif
 }
 
 
@@ -346,28 +298,11 @@ void ins_mekf_wind_update_mag(struct FloatVect3* mag)
   // TODO update mag
   (void)mag;
 
-#if LOG_MEKF_WIND
-  if (LogFileIsOpen()) {
-    PrintLog(pprzLogFile,
-        "%.3f magneto %.3f %.3f %.3f\n",
-        get_sys_time_float(),
-        mag->x, mag->y, mag->z);
-  }
-#endif
 }
 
 void ins_mekf_wind_update_baro(float baro_alt)
 {
   mwp.measurements.baro_alt = baro_alt;
-
-#if LOG_MEKF_WIND
-  if (LogFileIsOpen()) {
-    PrintLog(pprzLogFile,
-        "%.3f  baro %.3f \n",
-        get_sys_time_float(),
-        ins_mekf_wind.measurements.baro_alt);
-  }
-#endif
 }
 
 void ins_mekf_wind_update_pos_speed(struct FloatVect3 *pos, struct FloatVect3 *speed)
@@ -379,46 +314,17 @@ void ins_mekf_wind_update_pos_speed(struct FloatVect3 *pos, struct FloatVect3 *s
   mwp.measurements.speed(1) = speed->y;
   mwp.measurements.speed(2) = speed->z;
 
-#if LOG_MEKFW_FILTER
-	if (LogFileIsOpen()) {
-		PrintLog(pprzLogFile,
-					"%.3f gps %.3f %.3f %.3f %.3f %.3f %.3f \n",
-					get_sys_time_float(),
-					pos->x,
-					pos->y,
-					pos->z,
-					speed->x,
-					speed->y,
-					speed->z
-			);
-		}
-#endif
-
 }
 
 void ins_mekf_wind_update_airspeed(float airspeed)
 {
   mwp.measurements.airspeed = airspeed;
-
-#if LOG_MEKF_WIND
-  if (LogFileIsOpen()) {
-    PrintLog(pprzLogFile,
-        "%.3f airspeed %.3f\n", get_sys_time_float(), airspeed);
-  }
-#endif
 }
 
 void ins_mekf_wind_update_incidence(float aoa, float aos)
 {
   mwp.measurements.aoa = aoa;
   mwp.measurements.aos = aos;
-
-#if LOG_MEKF_WIND
-  if (LogFileIsOpen()) {
-    PrintLog(pprzLogFile,
-        "%.3f incidence %.3f %.3f\n", get_sys_time_float(), aoa, aos);
-  }
-#endif
 }
 
 /**
