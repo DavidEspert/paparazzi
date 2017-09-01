@@ -47,8 +47,8 @@ using namespace Eigen;
 #define MEKF_WIND_MEAS_NOISE_SIZE 13
 
 typedef Matrix<float, MEKF_WIND_COV_SIZE, MEKF_WIND_COV_SIZE> MEKFWCov;
-typedef DiagonalMatrix<float, MEKF_WIND_PROC_NOISE_SIZE> MEKFWPNoise;
-typedef DiagonalMatrix<float, MEKF_WIND_MEAS_NOISE_SIZE> MEKFWMNoise;
+typedef Matrix<float, MEKF_WIND_PROC_NOISE_SIZE, MEKF_WIND_PROC_NOISE_SIZE> MEKFWPNoise;
+typedef Matrix<float, MEKF_WIND_MEAS_NOISE_SIZE, MEKF_WIND_MEAS_NOISE_SIZE> MEKFWMNoise;
 
 /** filter state vector
  */
@@ -96,26 +96,65 @@ struct InsMekfWindPrivate {
   Vector3f mag_h;
 };
 
-#define P0_QUAT       1.0f
-#define P0_SPEED      1.0f
-#define P0_POS        1.0f
-#define P0_RATES_BIAS 1.0f
-#define P0_ACCEL_BIAS 1.0f
-#define P0_WIND       1.0f
+// Initial covariance parameters
+#ifndef P0_QUAT
+#define P0_QUAT       0.00761544f
+#endif
+#ifndef P0_SPEED
+#define P0_SPEED      1.E-2f
+#endif
+#ifndef P0_POS
+#define P0_POS        1.E-1f
+#endif
+#ifndef P0_RATES_BIAS
+#define P0_RATES_BIAS 1.E-5f
+#endif
+#ifndef P0_ACCEL_BIAS
+#define P0_ACCEL_BIAS 1.E-5f
+#endif
+#ifndef P0_WIND
+#define P0_WIND       1.E-2f
+#endif
 
+// Initial process noise parameters
+#ifndef Q_GYRO
 #define Q_GYRO        1.0f
+#endif
+#ifndef Q_ACCEL
 #define Q_ACCEL       1.0f
+#endif
+#ifndef Q_RATES_BIAS
 #define Q_RATES_BIAS  1.0f
+#endif
+#ifndef Q_ACCEL_BIAS
 #define Q_ACCEL_BIAS  1.0f
+#endif
+#ifndef Q_WIND
 #define Q_WIND        1.0f
+#endif
 
+// Initial measurements noise parameters
+#ifndef R_SPEED
 #define R_SPEED       1.0f
+#endif
+#ifndef R_POS
 #define R_POS         1.0f
+#endif
+#ifndef R_MAG
 #define R_MAG         1.0f
+#endif
+#ifndef R_BARO
 #define R_BARO        1.0f
+#endif
+#ifndef R_AIRSPEED
 #define R_AIRSPEED    1.0f
+#endif
+#ifndef R_AOA
 #define R_AOA         1.0f
+#endif
+#ifndef R_AOS
 #define R_AOS         1.0f
+#endif
 
 
 static struct InsMekfWindPrivate mekf_wind_private;
@@ -314,11 +353,61 @@ void ins_mekf_wind_update_pos_speed(struct FloatVect3 *pos, struct FloatVect3 *s
   mwp.measurements.speed(1) = speed->y;
   mwp.measurements.speed(2) = speed->z;
 
+  // S = H*P*Ht + Hn*N*Hnt
+  Matrix<float, 6, 6> S = mwp.P.block<6,6>(3,3) + mwp.R.block<6,6>(0,0);
+  // K = P*Ht*S^-1
+  Matrix<float, MEKF_WIND_COV_SIZE, 6> Ht = Matrix<float, MEKF_WIND_COV_SIZE, 6>::Zero();
+  Ht.block<6,6>(3,0) = Matrix<float,6,6>::Identity();
+  Matrix<float, MEKF_WIND_COV_SIZE, 6> K = mwp.P * Ht * S.inverse();
+  // Residual z_m - h(z)
+  Matrix<float, 6, 1> res = Matrix<float, 6, 1>::Zero();
+  res.block<3,1>(0,0) = mwp.measurements.speed - mwp.measurements.speed;
+  res.block<3,1>(3,0) = mwp.measurements.pos - mwp.measurements.pos;
+  // Update state
+  Quaternionf q_tmp;
+  q_tmp.w() = 0.f;
+  q_tmp.vec() = K.block<3,6>(0,0) * res;
+  mwp.state.quat = q_tmp * mwp.state.quat;
+  mwp.state.speed       += K.block<3,6>(3,0) * res;
+  mwp.state.pos         += K.block<3,6>(6,0) * res;
+  mwp.state.rates_bias  += K.block<3,6>(9,0) * res;
+  mwp.state.accel_bias  += K.block<3,6>(12,0) * res;
+  mwp.state.wind        += K.block<3,6>(15,0) * res;
+  // Update covariance
+  Matrix<float, 6, MEKF_WIND_COV_SIZE> H = Matrix<float, 6, MEKF_WIND_COV_SIZE>::Zero();
+  H.block<6,6>(0,3) = Matrix<float,6,6>::Identity();
+  mwp.P = (MEKFWCov::Identity() - K * H) * mwp.P;
 }
 
 void ins_mekf_wind_update_airspeed(float airspeed)
 {
   mwp.measurements.airspeed = airspeed;
+
+  // S = H*P*Ht + Hn*N*Hnt
+  const RowVector3f IuRqt = mwp.state.quat.toRotationMatrix().transpose().block<1,3>(0,0);
+  const Vector3f va = mwp.state.speed - mwp.state.wind;
+  Matrix<float, 1, MEKF_WIND_COV_SIZE> H = Matrix<float, 1, MEKF_WIND_COV_SIZE>::Zero();
+  H.block<1,3>(0,0) = IuRqt * va.asDiagonal();
+  H.block<1,3>(0,3) = IuRqt;
+  H.block<1,3>(0,15) = -IuRqt;
+  Matrix<float, MEKF_WIND_COV_SIZE, 1> Ht = H.transpose();
+  float S = H * mwp.P * Ht + mwp.R(10,10);
+  // K = P*Ht*S^-1
+  Matrix<float, MEKF_WIND_COV_SIZE, 1> K = mwp.P * Ht / S;
+  // Residual z_m - h(z)
+  float res = mwp.measurements.airspeed - IuRqt * va;
+  // Update state
+  Quaternionf q_tmp;
+  q_tmp.w() = 0.f;
+  q_tmp.vec() = K.block<3,1>(10,0) * res;
+  mwp.state.quat = q_tmp * mwp.state.quat;
+  mwp.state.speed       += K.block<3,1>(3,0) * res;
+  mwp.state.pos         += K.block<3,1>(6,0) * res;
+  mwp.state.rates_bias  += K.block<3,1>(9,0) * res;
+  mwp.state.accel_bias  += K.block<3,1>(12,0) * res;
+  mwp.state.wind        += K.block<3,1>(15,0) * res;
+  // Update covariance
+  mwp.P = (MEKFWCov::Identity() - K * H) * mwp.P;
 }
 
 void ins_mekf_wind_update_incidence(float aoa, float aos)
