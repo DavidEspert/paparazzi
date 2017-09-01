@@ -57,7 +57,9 @@ extern void ins_mekf_wind_update_incidence(float aoa, float aos);
 
 // Getter functions
 extern struct NedCoor_f ins_mekf_wind_get_pos_ned(void);
+extern void ins_mekf_wind_set_pos_ned(struct NedCoor_f *p);
 extern struct NedCoor_f ins_mekf_wind_get_speed_ned(void);
+extern void ins_mekf_wind_set_speed_ned(struct NedCoor_f *s);
 extern struct NedCoor_f ins_mekf_wind_get_accel_ned(void);
 extern struct FloatQuat ins_mekf_wind_get_quat(void);
 extern void ins_mekf_wind_set_quat(struct FloatQuat *quat);

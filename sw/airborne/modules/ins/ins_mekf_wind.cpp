@@ -328,7 +328,7 @@ void ins_mekf_wind_update_incidence(float aoa, float aos)
 }
 
 /**
- * Getter functions
+ * Getter/Setter functions
  */
 struct NedCoor_f ins_mekf_wind_get_pos_ned(void)
 {
@@ -340,6 +340,13 @@ struct NedCoor_f ins_mekf_wind_get_pos_ned(void)
   return p;
 }
 
+void ins_mekf_wind_set_pos_ned(struct NedCoor_f *p)
+{
+  mwp.state.pos(0) = p->x;
+  mwp.state.pos(1) = p->y;
+  mwp.state.pos(2) = p->z;
+}
+
 struct NedCoor_f ins_mekf_wind_get_speed_ned(void)
 {
   const struct NedCoor_f s = {
@@ -348,6 +355,13 @@ struct NedCoor_f ins_mekf_wind_get_speed_ned(void)
     .z = mwp.state.speed(2)
   };
   return s;
+}
+
+void ins_mekf_wind_set_speed_ned(struct NedCoor_f *s)
+{
+  mwp.state.speed(0) = s->x;
+  mwp.state.speed(1) = s->y;
+  mwp.state.speed(2) = s->z;
 }
 
 struct NedCoor_f ins_mekf_wind_get_accel_ned(void)
