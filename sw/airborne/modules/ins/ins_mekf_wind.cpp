@@ -463,8 +463,21 @@ void ins_mekf_wind_update_incidence(float aoa, float aos)
   mwp.measurements.aos = aos;
 
   // H and Ht matrices
+  const Matrix3f Rqt = mwp.state.quat.toRotationMatrix().transpose();
+  const Vector3f va = Rqt * (mwp.state.speed - mwp.state.wind); // airspeed in body frame
+  const RowVector3f C(sinf(aoa), 0.f, -cosf(aoa));
+  const RowVector3f CRqt = C * Rqt;
+  const float s_aos = sinf(aos);
+  const float c_aos = cosf(aos);
+  const Matrix3f B = Vector3f(s_aos * s_aos, - c_aos * c_aos, 0.f).asDiagonal();
+  const RowVector3f vBRqt = 2.f * va.transpose() * B * Rqt;
   Matrix<float, 2, MEKF_WIND_COV_SIZE> H = Matrix<float, 2, MEKF_WIND_COV_SIZE>::Zero();
-  // TODO
+  H.block<1,3>(0,0) = CRqt * (mwp.state.speed - mwp.state.wind).asDiagonal();
+  H.block<1,3>(0,3) = CRqt;
+  H.block<1,3>(0,15) = -CRqt;
+  H.block<1,3>(1,0) = vBRqt * (mwp.state.speed - mwp.state.wind).asDiagonal();
+  H.block<1,3>(1,3) = vBRqt;
+  H.block<1,3>(1,15) = -vBRqt;
   Matrix<float, MEKF_WIND_COV_SIZE, 2> Ht = H.transpose();
   // S = H*P*Ht + Hn*N*Hnt
   Matrix2f S = H * mwp.P * Ht + mwp.R.block<2,2>(11,11);
@@ -472,8 +485,8 @@ void ins_mekf_wind_update_incidence(float aoa, float aos)
   Matrix<float, MEKF_WIND_COV_SIZE, 2> K = mwp.P * Ht * S.inverse();
   // Residual z_m - h(z)
   Vector2f res = Vector2f::Zero();
-  res(0) = mwp.measurements.aoa; // C * va TODO
-  res(1) = mwp.measurements.aos; // vat * B * va TODO
+  res(0) = mwp.measurements.aoa - C * va;
+  res(1) = mwp.measurements.aos - va.transpose() * B * va;
   // Update state
   Quaternionf q_tmp;
   q_tmp.w() = 0.f;
