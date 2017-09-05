@@ -84,14 +84,16 @@ static void send_euler(struct transport_tx *trans, struct link_device *dev)
                            &id);
 }
 
-//static void send_bias(struct transport_tx *trans, struct link_device *dev)
-//{
-//  struct Int32Rates gyro_bias;
-//  RATES_BFP_OF_REAL(gyro_bias, ins_mekf_wind_get_gyro_bias());
-//  uint8_t id = INS_MEKF_WIND_FILTER_ID;
-//  pprz_msg_send_AHRS_GYRO_BIAS_INT(trans, dev, AC_ID,
-//                                   &gyro_bias.p, &gyro_bias.q, &gyro_bias.r, &id);
-//}
+static void send_wind(struct transport_tx *trans, struct link_device *dev)
+{
+  struct NedCoor_f wind_ned = ins_mekf_wind_get_wind_ned();
+  struct EnuCoor_f wind_enu;
+  ENU_OF_TO_NED(wind_enu, wind_ned);
+  float va = ins_mekf_wind_get_airspeed_norm();
+  uint8_t flags = 7; // 3D wind + airspeed
+  pprz_msg_send_WIND_INFO_RET(trans, dev, AC_ID, &flags,
+      &wind_enu.x, &wind_enu.y, &wind_enu.z, &va);
+}
 
 static void send_filter_status(struct transport_tx *trans, struct link_device *dev)
 {
@@ -485,7 +487,7 @@ void ins_mekf_wind_wrapper_init(void)
 
 #if PERIODIC_TELEMETRY
   register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_AHRS_EULER, send_euler);
-  //register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_AHRS_GYRO_BIAS_INT, send_bias);
+  register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_WIND_INFO_RET, send_wind);
   register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_STATE_FILTER_STATUS, send_filter_status);
 #endif
 

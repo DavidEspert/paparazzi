@@ -311,7 +311,7 @@ void ins_mekf_wind_propagate(struct FloatRates *gyro, struct FloatVect3 *acc, fl
   At.transposeInPlace();
   Matrix<float, MEKF_WIND_PROC_NOISE_SIZE, MEKF_WIND_COV_SIZE> Ant;
   Ant = An.transpose();
-  mwp.P = mwp.P + (A * mwp.P * At + An * mwp.Q * Ant);
+  mwp.P = mwp.P + (A * mwp.P * At + An * mwp.Q * Ant) * dt;
 
 }
 
@@ -352,6 +352,7 @@ void ins_mekf_wind_update_mag(struct FloatVect3* mag)
   q_tmp.w() = 0.f;
   q_tmp.vec() = K.block<3,3>(0,0) * res;
   mwp.state.quat = q_tmp * mwp.state.quat;
+  mwp.state.quat.normalize();
   mwp.state.speed       += K.block<3,3>(3,0) * res;
   mwp.state.pos         += K.block<3,3>(6,0) * res;
   mwp.state.rates_bias  += K.block<3,3>(9,0) * res;
@@ -381,6 +382,7 @@ void ins_mekf_wind_update_baro(float baro_alt)
   q_tmp.w() = 0.f;
   q_tmp.vec() = K.block<3,1>(10,0) * res;
   mwp.state.quat = q_tmp * mwp.state.quat;
+  mwp.state.quat.normalize();
   mwp.state.speed       += K.block<3,1>(3,0) * res;
   mwp.state.pos         += K.block<3,1>(6,0) * res;
   mwp.state.rates_bias  += K.block<3,1>(9,0) * res;
@@ -416,6 +418,7 @@ void ins_mekf_wind_update_pos_speed(struct FloatVect3 *pos, struct FloatVect3 *s
   q_tmp.w() = 0.f;
   q_tmp.vec() = K.block<3,6>(0,0) * res;
   mwp.state.quat = q_tmp * mwp.state.quat;
+  mwp.state.quat.normalize();
   mwp.state.speed       += K.block<3,6>(3,0) * res;
   mwp.state.pos         += K.block<3,6>(6,0) * res;
   mwp.state.rates_bias  += K.block<3,6>(9,0) * res;
@@ -448,6 +451,7 @@ void ins_mekf_wind_update_airspeed(float airspeed)
   q_tmp.w() = 0.f;
   q_tmp.vec() = K.block<3,1>(10,0) * res;
   mwp.state.quat = q_tmp * mwp.state.quat;
+  mwp.state.quat.normalize();
   mwp.state.speed       += K.block<3,1>(3,0) * res;
   mwp.state.pos         += K.block<3,1>(6,0) * res;
   mwp.state.rates_bias  += K.block<3,1>(9,0) * res;
@@ -492,6 +496,7 @@ void ins_mekf_wind_update_incidence(float aoa, float aos)
   q_tmp.w() = 0.f;
   q_tmp.vec() = K.block<3,2>(0,0) * res;
   mwp.state.quat = q_tmp * mwp.state.quat;
+  mwp.state.quat.normalize();
   mwp.state.speed       += K.block<3,2>(3,0) * res;
   mwp.state.pos         += K.block<3,2>(6,0) * res;
   mwp.state.rates_bias  += K.block<3,2>(9,0) * res;
@@ -577,3 +582,29 @@ struct FloatRates ins_mekf_wind_get_body_rates(void)
   return r;
 }
 
+struct NedCoor_f ins_mekf_wind_get_wind_ned(void)
+{
+  const struct NedCoor_f w = {
+    .x = mwp.state.wind(0),
+    .y = mwp.state.wind(1),
+    .z = mwp.state.wind(2)
+  };
+  return w;
+}
+
+struct NedCoor_f ins_mekf_wind_get_airspeed_body(void)
+{
+  const Matrix3f Rqt = mwp.state.quat.toRotationMatrix().transpose();
+  const Vector3f va = Rqt * (mwp.state.speed - mwp.state.wind); // airspeed in body frame
+  const struct NedCoor_f a = {
+    .x = va(0),
+    .y = va(1),
+    .z = va(2)
+  };
+  return a;
+}
+
+float ins_mekf_wind_get_airspeed_norm(void)
+{
+  return (mwp.state.speed - mwp.state.wind).norm();
+}
