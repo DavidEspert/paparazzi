@@ -27,6 +27,9 @@
 #include "modules/ins/ins_mekf_wind_wrapper.h"
 #include "modules/ins/ins_mekf_wind.h"
 #include "subsystems/ahrs/ahrs_float_utils.h"
+#if USE_AHRS_ALIGNER
+#include "subsystems/ahrs/ahrs_aligner.h"
+#endif
 #include "subsystems/abi.h"
 #include "math/pprz_isa.h"
 #include "state.h"
@@ -190,27 +193,31 @@ static void baro_cb(uint8_t __attribute__((unused)) sender_id, float pressure)
     }
     i++;
   } else { /* normal update with baro measurement */
-    float baro_alt = -pprz_isa_height_of_pressure(pressure, ins_qfe); // Z down
-    ins_mekf_wind_update_baro(baro_alt);
+    if (ins_mekf_wind.is_aligned) {
+      float baro_alt = -pprz_isa_height_of_pressure(pressure, ins_qfe); // Z down
+      ins_mekf_wind_update_baro(baro_alt);
 
 #if LOG_MEKF_WIND
-    if (LogFileIsOpen()) {
-      PrintLog(pprzLogFile, "%.3f  baro %.3f \n", get_sys_time_float(), baro_alt);
-    }
+      if (LogFileIsOpen()) {
+        PrintLog(pprzLogFile, "%.3f  baro %.3f \n", get_sys_time_float(), baro_alt);
+      }
 #endif
+    }
   }
 }
 
 static void pressure_diff_cb(uint8_t __attribute__((unused)) sender_id, float pdyn)
 {
-  float airspeed = eas_from_dynamic_pressure(pdyn);
-  ins_mekf_wind_update_airspeed(airspeed);
+  if (ins_mekf_wind.is_aligned) {
+    float airspeed = eas_from_dynamic_pressure(pdyn);
+    ins_mekf_wind_update_airspeed(airspeed);
 
 #if LOG_MEKF_WIND
-  if (LogFileIsOpen()) {
-    PrintLog(pprzLogFile, "%.3f airspeed %.3f\n", get_sys_time_float(), airspeed);
-  }
+    if (LogFileIsOpen()) {
+      PrintLog(pprzLogFile, "%.3f airspeed %.3f\n", get_sys_time_float(), airspeed);
+    }
 #endif
+  }
 }
 
 /**
@@ -221,44 +228,46 @@ static void pressure_diff_cb(uint8_t __attribute__((unused)) sender_id, float pd
 static void gyro_cb(uint8_t sender_id __attribute__((unused)),
                     uint32_t stamp, struct Int32Rates *gyro)
 {
-  struct FloatRates gyro_f, gyro_body;
-  RATES_FLOAT_OF_BFP(gyro_f, *gyro);
-  struct FloatRMat *body_to_imu_rmat = orientationGetRMat_f(&ins_mekf_wind.body_to_imu);
-  // new values in body frame
-  float_rmat_transp_ratemult(&gyro_body, body_to_imu_rmat, &gyro_f);
+  if (ins_mekf_wind.is_aligned) {
+    struct FloatRates gyro_f, gyro_body;
+    RATES_FLOAT_OF_BFP(gyro_f, *gyro);
+    struct FloatRMat *body_to_imu_rmat = orientationGetRMat_f(&ins_mekf_wind.body_to_imu);
+    // new values in body frame
+    float_rmat_transp_ratemult(&gyro_body, body_to_imu_rmat, &gyro_f);
 
 #if USE_AUTO_INS_FREQ || !defined(INS_PROPAGATE_FREQUENCY)
-  PRINT_CONFIG_MSG("Calculating dt for INS MEKF_WIND propagation.")
-  /* timestamp in usec when last callback was received */
-  static uint32_t last_stamp = 0;
+    PRINT_CONFIG_MSG("Calculating dt for INS MEKF_WIND propagation.")
+      /* timestamp in usec when last callback was received */
+      static uint32_t last_stamp = 0;
 
-  if (last_stamp > 0) {
-    float dt = (float)(stamp - last_stamp) * 1e-6;
-    ins_mekf_wind_propagate(&gyro_body, &ins_mekf_wind_accel, dt);
-  }
-  last_stamp = stamp;
+    if (last_stamp > 0) {
+      float dt = (float)(stamp - last_stamp) * 1e-6;
+      ins_mekf_wind_propagate(&gyro_body, &ins_mekf_wind_accel, dt);
+    }
+    last_stamp = stamp;
 #else
-  PRINT_CONFIG_MSG("Using fixed INS_PROPAGATE_FREQUENCY for INS MEKF_WIND propagation.")
-  PRINT_CONFIG_VAR(INS_PROPAGATE_FREQUENCY)
-  const float dt = 1. / (INS_PROPAGATE_FREQUENCY);
-  ins_mekf_wind_propagate(&gyro_body, &ins_mekf_wind_accel, dt);
+    PRINT_CONFIG_MSG("Using fixed INS_PROPAGATE_FREQUENCY for INS MEKF_WIND propagation.")
+      PRINT_CONFIG_VAR(INS_PROPAGATE_FREQUENCY)
+      const float dt = 1. / (INS_PROPAGATE_FREQUENCY);
+    ins_mekf_wind_propagate(&gyro_body, &ins_mekf_wind_accel, dt);
 #endif
-  // update state interface
-  set_state_from_ins();
+    // update state interface
+    set_state_from_ins();
 
-  last_imu_stamp = last_stamp;
+    last_imu_stamp = last_stamp;
 
 #if LOG_MEKF_WIND
-  if (LogFileIsOpen()) {
-    PrintLog(pprzLogFile,
-        "%.3f gyro_accel %.3f %.3f %.3f %.3f %.3f %.3f \n",
-        get_sys_time_float(),
-        gyro_body.p, gyro_body.q, gyro_body.r,
-        ins_mekf_wind_accel.x,
-        ins_mekf_wind_accel.y,
-        ins_mekf_wind_accel.z);
-  }
+    if (LogFileIsOpen()) {
+      PrintLog(pprzLogFile,
+          "%.3f gyro_accel %.3f %.3f %.3f %.3f %.3f %.3f \n",
+          get_sys_time_float(),
+          gyro_body.p, gyro_body.q, gyro_body.r,
+          ins_mekf_wind_accel.x,
+          ins_mekf_wind_accel.y,
+          ins_mekf_wind_accel.z);
+    }
 #endif
+  }
 }
 
 static void accel_cb(uint8_t sender_id __attribute__((unused)),
@@ -347,7 +356,7 @@ static void gps_cb(uint8_t sender_id __attribute__((unused)),
                    uint32_t stamp __attribute__((unused)),
                    struct GpsState *gps_s)
 {
-	if (gps_s->fix >= GPS_FIX_3D) {
+	if (ins_mekf_wind.is_aligned && gps_s->fix >= GPS_FIX_3D) {
     ins_mekf_wind.gps_fix_once = true;
 
 #if MEKF_WIND_USE_UTM
@@ -401,18 +410,20 @@ static void gps_cb(uint8_t sender_id __attribute__((unused)),
 
 void ins_mekf_wind_aoa_periodic(void)
 {
-  float aoa = stateGetAngleOfAttack_f();
-  float aos = stateGetSideslip_f();
-  ins_mekf_wind_update_incidence(aoa, aos);
+  if (ins_mekf_wind.is_aligned) {
+    float aoa = stateGetAngleOfAttack_f();
+    float aos = stateGetSideslip_f();
+    ins_mekf_wind_update_incidence(aoa, aos);
 #if USE_NPS || USE_AIRSPEED_PERIODIC
-  ins_mekf_wind_update_airspeed(stateGetAirspeed_f());
+    ins_mekf_wind_update_airspeed(stateGetAirspeed_f());
 #endif
 
 #if LOG_MEKF_WIND
-  if (LogFileIsOpen()) {
-    PrintLog(pprzLogFile, "%.3f incidence %.3f %.3f\n", get_sys_time_float(), aoa, aos);
-  }
+    if (LogFileIsOpen()) {
+      PrintLog(pprzLogFile, "%.3f incidence %.3f %.3f\n", get_sys_time_float(), aoa, aos);
+    }
 #endif
+  }
 }
 
 /**
@@ -422,6 +433,7 @@ static void set_state_from_ins(void)
 {
   struct FloatQuat quat = ins_mekf_wind_get_quat();
   stateSetNedToBodyQuat_f(&quat);
+  printf("quat %f %f %f %f\n",quat.qi,quat.qx,quat.qy,quat.qz);
 
   struct FloatRates rates = ins_mekf_wind_get_body_rates();
   stateSetBodyRates_f(&rates);
@@ -468,6 +480,11 @@ void ins_mekf_wind_wrapper_init(void)
   ins_mekf_wind.reset = false;
   ins_mekf_wind.baro_initialized = false;
   ins_mekf_wind.gps_fix_once = false;
+
+  // aligner
+#if USE_AHRS_ALIGNER
+  ahrs_aligner_init();
+#endif
 
   // init filter
   ins_mekf_wind_init();
