@@ -433,7 +433,7 @@ static void set_state_from_ins(void)
 {
   struct FloatQuat quat = ins_mekf_wind_get_quat();
   stateSetNedToBodyQuat_f(&quat);
-  printf("quat %f %f %f %f\n",quat.qi,quat.qx,quat.qy,quat.qz);
+  //printf("quat %f %f %f %f\n",quat.qi,quat.qx,quat.qy,quat.qz);
 
   struct FloatRates rates = ins_mekf_wind_get_body_rates();
   stateSetBodyRates_f(&rates);
