@@ -233,13 +233,21 @@ static void init_mekf_state(void)
   mekf_wind_private.R = vm.asDiagonal();
 }
 
-// Some quaternion utility functions
+// Some matrix and quaternion utility functions
 static Quaternionf quat_add(const Quaternionf& q1, const Quaternionf& q2) {
   return Quaternionf(q1.w() + q2.w(), q1.x() + q2.x(), q1.y() + q2.y(), q1.z() + q2.z());
 }
 
 static Quaternionf quat_smul(const Quaternionf& q1, float scal) {
   return Quaternionf(q1.w() * scal, q1.x() * scal, q1.y() * scal, q1.z() * scal);
+}
+
+static Matrix3f skew_sym(const Vector3f& v) {
+  Matrix3f m;
+  m << 0,    -v(2),  v(1),
+    v(2),     0, -v(0),
+    -v(1), v(0),     0;
+  return m;
 }
 
 /**
@@ -295,8 +303,8 @@ void ins_mekf_wind_propagate(struct FloatRates *gyro, struct FloatVect3 *acc, fl
   //mwp.state.quat = (mwp.state.quat + q_d * dt).normalize();
   mwp.state.quat = quat_add(mwp.state.quat, quat_smul(q_d, dt));
   mwp.state.quat.normalize();
-  mwp.state.pos = mwp.state.pos + mwp.state.speed * dt;
   mwp.state.speed = mwp.state.speed + mwp.state.accel * dt;
+  mwp.state.pos = mwp.state.pos + mwp.state.speed * dt;
   //cout << accel_unbiased << endl;
   //cout << "accel " << endl << mwp.inputs.accel << endl << mwp.state.accel_bias << endl;
   //cout << (mwp.state.quat * q_tmp * mwp.state.quat.inverse()).vec() << endl;
@@ -306,14 +314,14 @@ void ins_mekf_wind_propagate(struct FloatRates *gyro, struct FloatVect3 *acc, fl
   //// propagate covariance
   const Matrix3f Rq = mwp.state.quat.toRotationMatrix();
   const Matrix3f Rqdt = Rq * dt;
-  const Matrix3f RqA = (Rq * accel_unbiased).asDiagonal();
+  const Matrix3f RqA = skew_sym(Rq * (accel_unbiased));
   const Matrix3f RqAdt = RqA * dt;
   const Matrix3f RqAdt2 = RqAdt * dt;
 
-  //MEKFWCov A = MEKFWCov::Identity();
-  MEKFWCov A = MEKFWCov::Zero();
-  A.block<15,15>(3,3) = Matrix<float,15,15>::Identity();
-  A.block<3,3>(0,9) = Rqdt;
+  MEKFWCov A = MEKFWCov::Identity();
+  //MEKFWCov A = MEKFWCov::Zero();
+  //A.block<15,15>(3,3) = Matrix<float,15,15>::Identity();
+  A.block<3,3>(0,9) = -Rqdt;
   A.block<3,3>(3,0) = -RqAdt;
   A.block<3,3>(3,9) = RqAdt2;
   A.block<3,3>(3,12) = -Rqdt;
@@ -324,9 +332,9 @@ void ins_mekf_wind_propagate(struct FloatRates *gyro, struct FloatVect3 *acc, fl
 
   Matrix<float, MEKF_WIND_COV_SIZE, MEKF_WIND_PROC_NOISE_SIZE> An;
   An.setZero();
-  An.block<3,3>(0,0) = Rqdt;
-  An.block<3,3>(3,3) = Rqdt;
-  An.block<9,9>(9,6) = Matrix<float,9,9>::Identity() * dt;
+  An.block<3,3>(0,0) = Rq;
+  An.block<3,3>(3,3) = Rq;
+  An.block<9,9>(9,6) = Matrix<float,9,9>::Identity();
 
   MEKFWCov At(A);
   At.transposeInPlace();
@@ -335,7 +343,7 @@ void ins_mekf_wind_propagate(struct FloatRates *gyro, struct FloatVect3 *acc, fl
   //cout << An << endl;
   //cout << An * mwp.Q * Ant << endl;
   //cout << "A: " << endl << A << endl << endl;
-  mwp.P = A * mwp.P * At + An * mwp.Q * Ant;
+  mwp.P = A * mwp.P * At + An * mwp.Q * Ant * dt;
 
 }
 
@@ -365,7 +373,7 @@ void ins_mekf_wind_update_mag(struct FloatVect3* mag)
   // H and Ht matrices
   const Matrix3f Rq = mwp.state.quat.toRotationMatrix();
   Matrix<float, 3, MEKF_WIND_COV_SIZE> H = Matrix<float, 3, MEKF_WIND_COV_SIZE>::Zero();
-  H.block<3,3>(0,0) = Rq.transpose() * mwp.mag_h.asDiagonal();
+  H.block<3,3>(0,0) = Rq.transpose() * skew_sym(mwp.mag_h);
   Matrix<float, MEKF_WIND_COV_SIZE, 3> Ht = H.transpose();
   // S = H*P*Ht + Hn*N*Hnt
   Matrix3f S = H * mwp.P * Ht + mwp.R.block<3,3>(6,6);
@@ -483,7 +491,7 @@ void ins_mekf_wind_update_airspeed(float airspeed)
   const RowVector3f IuRqt = mwp.state.quat.toRotationMatrix().transpose().block<1,3>(0,0);
   const Vector3f va = mwp.state.speed - mwp.state.wind;
   Matrix<float, 1, MEKF_WIND_COV_SIZE> H = Matrix<float, 1, MEKF_WIND_COV_SIZE>::Zero();
-  H.block<1,3>(0,0) = IuRqt * va.asDiagonal();
+  H.block<1,3>(0,0) = IuRqt * skew_sym(va);
   H.block<1,3>(0,3) = IuRqt;
   H.block<1,3>(0,15) = -IuRqt;
   Matrix<float, MEKF_WIND_COV_SIZE, 1> Ht = H.transpose();
@@ -528,10 +536,10 @@ void ins_mekf_wind_update_incidence(float aoa, float aos)
   const Matrix3f B = Vector3f(s_aos * s_aos, - c_aos * c_aos, 0.f).asDiagonal();
   const RowVector3f vBRqt = 2.f * va.transpose() * B * Rqt;
   Matrix<float, 2, MEKF_WIND_COV_SIZE> H = Matrix<float, 2, MEKF_WIND_COV_SIZE>::Zero();
-  H.block<1,3>(0,0) = CRqt * (mwp.state.speed - mwp.state.wind).asDiagonal();
+  H.block<1,3>(0,0) = CRqt * skew_sym(mwp.state.speed - mwp.state.wind);
   H.block<1,3>(0,3) = CRqt;
   H.block<1,3>(0,15) = -CRqt;
-  H.block<1,3>(1,0) = vBRqt * (mwp.state.speed - mwp.state.wind).asDiagonal();
+  H.block<1,3>(1,0) = vBRqt * skew_sym(mwp.state.speed - mwp.state.wind);
   H.block<1,3>(1,3) = vBRqt;
   H.block<1,3>(1,15) = -vBRqt;
   Matrix<float, MEKF_WIND_COV_SIZE, 2> Ht = H.transpose();
