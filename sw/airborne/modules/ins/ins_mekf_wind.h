@@ -67,6 +67,8 @@ extern struct FloatRates ins_mekf_wind_get_body_rates(void);
 extern struct NedCoor_f ins_mekf_wind_get_wind_ned(void);
 extern struct NedCoor_f ins_mekf_wind_get_airspeed_body(void);
 extern float ins_mekf_wind_get_airspeed_norm(void);
+extern struct FloatVect3 ins_mekf_wind_get_accel_bias(void);
+extern struct FloatRates ins_mekf_wind_get_rates_bias(void);
 
 #ifdef __cplusplus
 }

@@ -109,6 +109,39 @@ static void send_filter_status(struct transport_tx *trans, struct link_device *d
   uint8_t id = INS_MEKF_WIND_FILTER_ID;
   pprz_msg_send_STATE_FILTER_STATUS(trans, dev, AC_ID, &id, &mde, &val);
 }
+
+static void send_inv_filter(struct transport_tx *trans, struct link_device *dev)
+{
+  struct FloatEulers eulers;
+  struct FloatQuat quat = ins_mekf_wind_get_quat();
+  float_eulers_of_quat(&eulers, &quat);
+  struct FloatRates rates = ins_mekf_wind_get_body_rates();
+  struct NedCoor_f pos = ins_mekf_wind_get_pos_ned();
+  struct NedCoor_f speed = ins_mekf_wind_get_speed_ned();
+  struct NedCoor_f accel = ins_mekf_wind_get_accel_ned();
+  struct FloatVect3 ab = ins_mekf_wind_get_accel_bias();
+  struct FloatRates rb = ins_mekf_wind_get_rates_bias();
+  float airspeed = ins_mekf_wind_get_airspeed_norm();
+  pprz_msg_send_INV_FILTER(trans, dev,
+      AC_ID,
+      &quat.qi,
+      &eulers.phi,
+      &eulers.theta,
+      &eulers.psi,
+      &speed.x,
+      &speed.y,
+      &speed.z,
+      &pos.x,
+      &pos.y,
+      &pos.z,
+      &rb.p,
+      &rb.q,
+      &rb.r,
+      &ab.x,
+      &ab.y,
+      &ab.z,
+      &airspeed);
+}
 #endif
 
 /*
@@ -411,8 +444,8 @@ static void gps_cb(uint8_t sender_id __attribute__((unused)),
 void ins_mekf_wind_aoa_periodic(void)
 {
   if (ins_mekf_wind.is_aligned) {
-    float aoa = stateGetAngleOfAttack_f();
-    float aos = stateGetSideslip_f();
+    float aoa = 0.;//stateGetAngleOfAttack_f();
+    float aos = 0.;//stateGetSideslip_f();
     ins_mekf_wind_update_incidence(aoa, aos);
 #if USE_NPS || USE_AIRSPEED_PERIODIC
     ins_mekf_wind_update_airspeed(stateGetAirspeed_f());
@@ -506,6 +539,7 @@ void ins_mekf_wind_wrapper_init(void)
   register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_AHRS_EULER, send_euler);
   register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_WIND_INFO_RET, send_wind);
   register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_STATE_FILTER_STATUS, send_filter_status);
+  register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_INV_FILTER, send_inv_filter);
 #endif
 
   // init log

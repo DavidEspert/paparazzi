@@ -287,6 +287,7 @@ void ins_mekf_wind_propagate(struct FloatRates *gyro, struct FloatVect3 *acc, fl
   const Quaternionf q_d = quat_smul(mwp.state.quat * q_tmp, 0.5f);
   // speed_d = q * (accel - accel_bias) * q^-1 + g
   q_tmp.vec() = accel_unbiased;
+  // store NED accel
   mwp.state.accel = (mwp.state.quat * q_tmp * mwp.state.quat.inverse()).vec() + gravity;
 
   // Euler integration
@@ -664,3 +665,24 @@ float ins_mekf_wind_get_airspeed_norm(void)
 {
   return (mwp.state.speed - mwp.state.wind).norm();
 }
+
+struct FloatVect3 ins_mekf_wind_get_accel_bias(void)
+{
+  const struct FloatVect3 ab = {
+    .x = mwp.state.accel_bias(0),
+    .y = mwp.state.accel_bias(1),
+    .z = mwp.state.accel_bias(2)
+  };
+  return ab;
+}
+
+struct FloatRates ins_mekf_wind_get_rates_bias(void)
+{
+  const struct FloatRates rb = {
+    .p = mwp.state.rates_bias(0),
+    .q = mwp.state.rates_bias(1),
+    .r = mwp.state.rates_bias(2)
+  };
+  return rb;
+}
+
