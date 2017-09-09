@@ -261,6 +261,9 @@ static void pressure_diff_cb(uint8_t __attribute__((unused)) sender_id, float pd
 static void gyro_cb(uint8_t sender_id __attribute__((unused)),
                     uint32_t stamp, struct Int32Rates *gyro)
 {
+  /* timestamp in usec when last callback was received */
+  static uint32_t last_stamp = 0;
+
   if (ins_mekf_wind.is_aligned) {
     struct FloatRates gyro_f, gyro_body;
     RATES_FLOAT_OF_BFP(gyro_f, *gyro);
@@ -270,8 +273,6 @@ static void gyro_cb(uint8_t sender_id __attribute__((unused)),
 
 #if USE_AUTO_INS_FREQ || !defined(INS_PROPAGATE_FREQUENCY)
     PRINT_CONFIG_MSG("Calculating dt for INS MEKF_WIND propagation.")
-      /* timestamp in usec when last callback was received */
-      static uint32_t last_stamp = 0;
 
     if (last_stamp > 0) {
       float dt = (float)(stamp - last_stamp) * 1e-6;
@@ -287,8 +288,6 @@ static void gyro_cb(uint8_t sender_id __attribute__((unused)),
     // update state interface
     set_state_from_ins();
 
-    last_imu_stamp = last_stamp;
-
 #if LOG_MEKF_WIND
     if (LogFileIsOpen()) {
       PrintLog(pprzLogFile,
@@ -301,6 +300,8 @@ static void gyro_cb(uint8_t sender_id __attribute__((unused)),
     }
 #endif
   }
+
+  last_imu_stamp = last_stamp;
 }
 
 static void accel_cb(uint8_t sender_id __attribute__((unused)),
@@ -444,9 +445,9 @@ static void gps_cb(uint8_t sender_id __attribute__((unused)),
 void ins_mekf_wind_aoa_periodic(void)
 {
   if (ins_mekf_wind.is_aligned) {
-    float aoa = 0.;//stateGetAngleOfAttack_f();
-    float aos = 0.;//stateGetSideslip_f();
-    ins_mekf_wind_update_incidence(aoa, aos);
+    //float aoa = stateGetAngleOfAttack_f();
+    //float aos = stateGetSideslip_f();
+    //ins_mekf_wind_update_incidence(aoa, aos);
 #if USE_NPS || USE_AIRSPEED_PERIODIC
     ins_mekf_wind_update_airspeed(stateGetAirspeed_f());
 #endif
@@ -466,7 +467,6 @@ static void set_state_from_ins(void)
 {
   struct FloatQuat quat = ins_mekf_wind_get_quat();
   stateSetNedToBodyQuat_f(&quat);
-  //printf("quat %f %f %f %f\n",quat.qi,quat.qx,quat.qy,quat.qz);
 
   struct FloatRates rates = ins_mekf_wind_get_body_rates();
   stateSetBodyRates_f(&rates);
