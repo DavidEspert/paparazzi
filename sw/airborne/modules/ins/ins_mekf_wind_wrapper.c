@@ -445,9 +445,9 @@ static void gps_cb(uint8_t sender_id __attribute__((unused)),
 void ins_mekf_wind_aoa_periodic(void)
 {
   if (ins_mekf_wind.is_aligned) {
-    //float aoa = stateGetAngleOfAttack_f();
-    //float aos = stateGetSideslip_f();
-    //ins_mekf_wind_update_incidence(aoa, aos);
+    float aoa = stateGetAngleOfAttack_f();
+    float aos = stateGetSideslip_f();
+    ins_mekf_wind_update_incidence(aoa, aos);
 #if USE_NPS || USE_AIRSPEED_PERIODIC
     ins_mekf_wind_update_airspeed(stateGetAirspeed_f());
 #endif

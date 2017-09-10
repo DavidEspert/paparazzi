@@ -132,7 +132,7 @@ struct InsMekfWindPrivate {
 #define Q_ACCEL_BIAS  1.E-5f
 #endif
 #ifndef Q_WIND
-#define Q_WIND        1.E-4f
+#define Q_WIND        1.E-1f
 #endif
 
 // Initial measurements noise parameters
@@ -143,7 +143,7 @@ struct InsMekfWindPrivate {
 #define R_POS         1.0f
 #endif
 #ifndef R_MAG
-#define R_MAG         10.f
+#define R_MAG         1.f
 #endif
 #ifndef R_BARO
 #define R_BARO        0.1f
@@ -493,6 +493,11 @@ void ins_mekf_wind_update_incidence(float aoa, float aos)
   // H and Ht matrices
   const Matrix3f Rqt = mwp.state.quat.toRotationMatrix().transpose();
   const Vector3f va = Rqt * (mwp.state.speed - mwp.state.wind); // airspeed in body frame
+  if (va.norm() < 1.) {
+    // filter doesn't work at zero airspeed
+    //cout << "too small" << endl;
+    return;
+  }
   const RowVector3f C(sinf(aoa), 0.f, -cosf(aoa));
   const RowVector3f CRqt = C * Rqt;
   const float s_aos = sinf(aos);
@@ -509,18 +514,31 @@ void ins_mekf_wind_update_incidence(float aoa, float aos)
   Matrix<float, MEKF_WIND_COV_SIZE, 2> Ht = H.transpose();
   // Hn and Hnt matrices
   Matrix2f Hn = Matrix2f::Identity();
-  //Hn(0,0) = C(2) * va(0) - C(0) * va(2);
-  //const float s_2aos = sinf(2.0f * aos);
-  //Hn(1,1) = (RowVector3f(-s_2aos, 0.f, s_2aos) * va.asDiagonal()) * va;
+  Hn(0,0) = C(2) * va(0) - C(0) * va(2);
+  const float s_2aos = sinf(2.0f * aos);
+  Hn(1,1) = (RowVector3f(-s_2aos, 0.f, s_2aos) * va.asDiagonal()) * va;
   Matrix2f Hnt = Hn.transpose();
+  //cout << endl << H << endl;
+  //cout << H*mwp.P*Ht << endl;
+  //cout << Hn << endl;
+  //cout << Hn * mwp.R.block<2,2>(11,11) * Hnt << endl;
   // S = H*P*Ht + Hn*N*Hnt
   Matrix2f S = H * mwp.P * Ht + Hn * mwp.R.block<2,2>(11,11) * Hnt;
+  //cout << S << endl;
+  //cout << S.inverse() << endl;
   // K = P*Ht*S^-1
   Matrix<float, MEKF_WIND_COV_SIZE, 2> K = mwp.P * Ht * S.inverse();
   // Residual z_m - h(z)
   Vector2f res = Vector2f::Zero();
   res(0) = mwp.measurements.aoa - C * va;
   res(1) = mwp.measurements.aos - va.transpose() * B * va;
+  cout << endl;
+  cout << mwp.measurements.aoa << " " << C*va << endl;
+  cout << mwp.measurements.aos << " " << va.transpose() * B * va << endl;
+  cout << va << endl;
+  cout << B << endl;
+  //cout << K << endl;
+  cout << res << endl;
   // Update state
   Quaternionf q_tmp;
   q_tmp.w() = 1.f;
