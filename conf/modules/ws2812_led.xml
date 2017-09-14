@@ -1,0 +1,15 @@
+<!DOCTYPE module SYSTEM "module.dtd">
+
+<module name="ws2812_led" dir="light">
+  <doc>
+    <description>ws2812 rgb led driver</description>
+  </doc>
+  <header>
+    <file name="ws2812_led.h"/>
+  </header>
+  <init fun="ws2812_led_init()"/>
+  <periodic fun="ws2812_led_periodic()" freq="8"/>
+  <makefile target="ap">
+    <file name="ws2812_led.c"/>
+  </makefile>
+</module>

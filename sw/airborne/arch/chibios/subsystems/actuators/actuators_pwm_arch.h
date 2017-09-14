@@ -78,6 +78,15 @@
 #define TIM12_SERVO_HZ SERVO_HZ
 #endif
 
+
+#ifdef WS2812_PORT
+extern void ws2812_write_led(uint32_t led_number, uint8_t r, uint8_t g, uint8_t b);
+#ifndef WS2812_LED_N
+#define WS2812_LED_N	8
+#endif
+#endif
+
+
 extern int32_t actuators_pwm_values[ACTUATORS_PWM_NB];
 
 extern void actuators_pwm_commit(void);

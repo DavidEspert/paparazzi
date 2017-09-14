@@ -49,6 +49,58 @@
 
 int32_t actuators_pwm_values[ACTUATORS_PWM_NB];
 
+
+/**
+ * Configuration and interface for WS2812 protocol
+ */
+#ifdef WS2812_PORT
+#define WS2812_PWM_FREQUENCY (STM32_SYSCLK/2)
+#define WS2812_SERVO_HZ 800000
+#define PWM_CONF_DEF_WS2812 { \
+  WS2812_PWM_FREQUENCY, \
+  WS2812_PWM_FREQUENCY/WS2812_SERVO_HZ, \
+  NULL, \
+  { \
+    { PWM_OUTPUT_DISABLED, NULL }, \
+    { PWM_OUTPUT_DISABLED, NULL }, \
+    { PWM_OUTPUT_DISABLED, NULL }, \
+    { PWM_OUTPUT_DISABLED, NULL }, \
+  }, \
+  0, \
+  TIM_DIER_UDE \
+}
+#define WS2812_RESET_BIT_N	(50)
+#define WS2812_COLOR_BIT_N	(WS2812_LED_N*24)                           
+#define WS2812_BIT_N		(WS2812_COLOR_BIT_N + WS2812_RESET_BIT_N)   
+#define WS2812_DUTYCYCLE_0 	(WS2812_PWM_FREQUENCY/(1000000000/350))
+#define WS2812_DUTYCYCLE_1 	(WS2812_PWM_FREQUENCY/(1000000000/800))
+static uint32_t ws2812_frame_buffer[WS2812_BIT_N + 1];
+
+#define CAT(x, y, z) PRIMITIVE_CAT(x, y, z)
+#define PRIMITIVE_CAT(x, y, z) x ## y ## z
+
+#define WS2812_DRIVER 	CAT(PWM_,WS2812_PORT,_DRIVER)
+#define WS2812_TIMER_NB	CAT(PWM_,WS2812_PORT,_TIMER_NB)
+#define WS2812_TIM_CH 	CAT(PWM_,WS2812_PORT,_CHANNEL)
+
+#define WS2812_BIT(led, byte, bit) (24*(led) + 8*(byte) + (7 - (bit)))
+#define WS2812_RED_BIT(led, bit)   WS2812_BIT((led), 1, (bit))
+#define WS2812_GREEN_BIT(led, bit) WS2812_BIT((led), 0, (bit))
+#define WS2812_BLUE_BIT(led, bit)  WS2812_BIT((led), 2, (bit))
+void ws2812_write_led(uint32_t led_number, uint8_t r, uint8_t g, uint8_t b) 
+{
+  uint32_t bit;
+  if (led_number < WS2812_LED_N) { 
+    for (bit = 0; bit < 8; bit++) {
+      ws2812_frame_buffer[WS2812_RED_BIT(led_number, bit)]      = ((r >> bit) & 0x01) ? WS2812_DUTYCYCLE_1 : WS2812_DUTYCYCLE_0;
+      ws2812_frame_buffer[WS2812_GREEN_BIT(led_number, bit)]    = ((g >> bit) & 0x01) ? WS2812_DUTYCYCLE_1 : WS2812_DUTYCYCLE_0;
+      ws2812_frame_buffer[WS2812_BLUE_BIT(led_number, bit)]     = ((b >> bit) & 0x01) ? WS2812_DUTYCYCLE_1 : WS2812_DUTYCYCLE_0;
+    }
+  }
+}
+#endif 
+
+
 /**
  * PWM callback function
  *
@@ -63,12 +115,23 @@ int32_t actuators_pwm_values[ACTUATORS_PWM_NB];
 #if PWM_CONF_TIM1
 static PWMConfig pwmcfg1 = PWM_CONF1_DEF;
 #endif
+
 #if PWM_CONF_TIM2
+#if (WS2812_TIMER_NB==2)
+static PWMConfig pwmcfg2 = PWM_CONF_DEF_WS2812;
+#else
 static PWMConfig pwmcfg2 = PWM_CONF2_DEF;
 #endif
+#endif
+
 #if PWM_CONF_TIM3
+#if (WS2812_TIMER_NB==3)
+static PWMConfig pwmcfg3 = PWM_CONF_DEF_WS2812;
+#else
 static PWMConfig pwmcfg3 = PWM_CONF3_DEF;
 #endif
+#endif
+
 #if PWM_CONF_TIM4
 static PWMConfig pwmcfg4 = PWM_CONF4_DEF;
 #endif
@@ -126,17 +189,52 @@ void actuators_pwm_arch_init(void)
 #endif
 
   /*---------------
+   * Configure WS2812 PWM and DMA
+   *---------------*/
+#ifdef WS2812_PORT
+  #define WS2812_DMA_STREAM     CAT(STM32_PWM_TIMER,WS2812_TIMER_NB,_DMA_STREAM)
+  #define WS2812_DMA_CHANNEL    CAT(STM32_PWM_TIMER,WS2812_TIMER_NB,_DMA_CHANNEL)
+  #define WS2812_DMA_PRIORITY   CAT(STM32_PWM_TIMER,WS2812_TIMER_NB,_DMA_PRIORITY)
+  uint32_t i;
+  for (i = 0; i < WS2812_COLOR_BIT_N; i++) ws2812_frame_buffer[i]                       = WS2812_DUTYCYCLE_0;   // All color bits are zero duty cycle
+  for (i = 0; i < WS2812_RESET_BIT_N; i++) ws2812_frame_buffer[i + WS2812_COLOR_BIT_N]  = 0;                    // All reset bits are zero
+  dmaStreamAllocate(WS2812_DMA_STREAM, 10, NULL, NULL);
+  dmaStreamSetPeripheral(WS2812_DMA_STREAM, &(WS2812_DRIVER.tim->CCR[WS2812_TIM_CH]));
+  dmaStreamSetMemory0(WS2812_DMA_STREAM, ws2812_frame_buffer);
+  dmaStreamSetTransactionSize(WS2812_DMA_STREAM, WS2812_BIT_N);
+  dmaStreamSetMode(WS2812_DMA_STREAM,
+    STM32_DMA_CR_CHSEL(WS2812_DMA_CHANNEL) | STM32_DMA_CR_DIR_M2P | STM32_DMA_CR_PSIZE_WORD | STM32_DMA_CR_MSIZE_WORD |
+					        STM32_DMA_CR_MINC | STM32_DMA_CR_CIRC | STM32_DMA_CR_PL(WS2812_DMA_PRIORITY));
+  dmaStreamEnable(WS2812_DMA_STREAM);
+#endif
+  
+  /*---------------
    * Configure PWM
    *---------------*/
 #if PWM_CONF_TIM1
   pwmStart(&PWMD1, &pwmcfg1);
 #endif
+
 #if PWM_CONF_TIM2
+#if (WS2812_TIMER_NB==2)
+  pwmcfg2.channels[WS2812_TIM_CH].mode = PWM_OUTPUT_ACTIVE_HIGH;
+  pwmStart(&WS2812_DRIVER, &pwmcfg2);
+  pwmEnableChannel(&WS2812_DRIVER, WS2812_TIM_CH, 0);
+#else
   pwmStart(&PWMD2, &pwmcfg2);
 #endif
+#endif
+
 #if PWM_CONF_TIM3
+#if (WS2812_TIMER_NB==3)
+  pwmcfg3.channels[WS2812_TIM_CH].mode = PWM_OUTPUT_ACTIVE_HIGH;
+  pwmStart(&WS2812_DRIVER, &pwmcfg3);
+  pwmEnableChannel(&WS2812_DRIVER, WS2812_TIM_CH, 0);
+#else
   pwmStart(&PWMD3, &pwmcfg3);
 #endif
+#endif
+
 #if PWM_CONF_TIM4
   pwmStart(&PWMD4, &pwmcfg4);
 #endif
@@ -151,29 +249,42 @@ void actuators_pwm_arch_init(void)
 #endif
 }
 
-
 void actuators_pwm_commit(void)
 {
 #ifdef PWM_SERVO_0
+#if(WS2812_TIMER_NB!=PWM_SERVO_0_TIMER_NB)
   pwmEnableChannel(&PWM_SERVO_0_DRIVER, PWM_SERVO_0_CHANNEL, PWM_CMD_TO_US(actuators_pwm_values[PWM_SERVO_0]));
 #endif
+#endif
 #ifdef PWM_SERVO_1
+#if(WS2812_TIMER_NB!=PWM_SERVO_1_TIMER_NB)
   pwmEnableChannel(&PWM_SERVO_1_DRIVER, PWM_SERVO_1_CHANNEL, PWM_CMD_TO_US(actuators_pwm_values[PWM_SERVO_1]));
 #endif
+#endif
 #ifdef PWM_SERVO_2
+#if(WS2812_TIMER_NB!=PWM_SERVO_2_TIMER_NB)
   pwmEnableChannel(&PWM_SERVO_2_DRIVER, PWM_SERVO_2_CHANNEL, PWM_CMD_TO_US(actuators_pwm_values[PWM_SERVO_2]));
 #endif
+#endif
 #ifdef PWM_SERVO_3
+#if(WS2812_TIMER_NB!=PWM_SERVO_3_TIMER_NB)
   pwmEnableChannel(&PWM_SERVO_3_DRIVER, PWM_SERVO_3_CHANNEL, PWM_CMD_TO_US(actuators_pwm_values[PWM_SERVO_3]));
 #endif
+#endif
 #ifdef PWM_SERVO_4
+#if(WS2812_TIMER_NB!=PWM_SERVO_4_TIMER_NB)
   pwmEnableChannel(&PWM_SERVO_4_DRIVER, PWM_SERVO_4_CHANNEL, PWM_CMD_TO_US(actuators_pwm_values[PWM_SERVO_4]));
 #endif
+#endif
 #ifdef PWM_SERVO_5
+#if(WS2812_TIMER_NB!=PWM_SERVO_5_TIMER_NB)
   pwmEnableChannel(&PWM_SERVO_5_DRIVER, PWM_SERVO_5_CHANNEL, PWM_CMD_TO_US(actuators_pwm_values[PWM_SERVO_5]));
 #endif
+#endif
 #ifdef PWM_SERVO_6
+#if(WS2812_TIMER_NB!=PWM_SERVO_6_TIMER_NB)
   pwmEnableChannel(&PWM_SERVO_6_DRIVER, PWM_SERVO_6_CHANNEL, PWM_CMD_TO_US(actuators_pwm_values[PWM_SERVO_6]));
+#endif
 #endif
 #ifdef PWM_SERVO_7
   pwmEnableChannel(&PWM_SERVO_7_DRIVER, PWM_SERVO_7_CHANNEL, PWM_CMD_TO_US(actuators_pwm_values[PWM_SERVO_7]));
