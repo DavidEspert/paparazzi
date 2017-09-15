@@ -115,7 +115,7 @@ struct InsMekfWindPrivate {
 #define P0_ACCEL_BIAS 1.E-5f
 #endif
 #ifndef P0_WIND
-#define P0_WIND       1.E-2f
+#define P0_WIND       1.E-0f
 #endif
 
 // Initial process noise parameters
@@ -132,7 +132,7 @@ struct InsMekfWindPrivate {
 #define Q_ACCEL_BIAS  1.E-5f
 #endif
 #ifndef Q_WIND
-#define Q_WIND        1.E-1f
+#define Q_WIND        1.E+1f
 #endif
 
 // Initial measurements noise parameters
@@ -244,9 +244,9 @@ static Quaternionf quat_smul(const Quaternionf& q1, float scal) {
 
 static Matrix3f skew_sym(const Vector3f& v) {
   Matrix3f m;
-  m << 0,    -v(2),  v(1),
-    v(2),     0, -v(0),
-    -v(1), v(0),     0;
+  m <<    0, -v(2),  v(1),
+       v(2),     0, -v(0),
+      -v(1),  v(0),     0;
   return m;
 }
 
@@ -493,11 +493,21 @@ void ins_mekf_wind_update_incidence(float aoa, float aos)
   // H and Ht matrices
   const Matrix3f Rqt = mwp.state.quat.toRotationMatrix().transpose();
   const Vector3f va = Rqt * (mwp.state.speed - mwp.state.wind); // airspeed in body frame
-  if (va.norm() < 1.) {
+  // check if data in valid range
+  const float van = va.norm();
+  //const float va_bound = 0.2f * van;
+  //cout << van << endl;
+  //cout << va << endl;
+  //cout << mwp.state.pos(2) << endl;
+  if (van < 5.f /*|| va(0) < 0.8f * van
+      || va(1) < - va_bound || va(1) > va_bound
+      || va(2) < - va_bound || va(2) > va_bound*/
+      || mwp.state.pos(2) > -10.f) {
     // filter doesn't work at zero airspeed
-    //cout << "too small" << endl;
+    //cout << "out of bound" << endl;
     return;
   }
+  //cout << "inside bound" << endl;
   const RowVector3f C(sinf(aoa), 0.f, -cosf(aoa));
   const RowVector3f CRqt = C * Rqt;
   const float s_aos = sinf(aos);
@@ -530,15 +540,17 @@ void ins_mekf_wind_update_incidence(float aoa, float aos)
   Matrix<float, MEKF_WIND_COV_SIZE, 2> K = mwp.P * Ht * S.inverse();
   // Residual z_m - h(z)
   Vector2f res = Vector2f::Zero();
-  res(0) = mwp.measurements.aoa - C * va;
-  res(1) = mwp.measurements.aos - va.transpose() * B * va;
-  cout << endl;
-  cout << mwp.measurements.aoa << " " << C*va << endl;
-  cout << mwp.measurements.aos << " " << va.transpose() * B * va << endl;
-  cout << va << endl;
-  cout << B << endl;
+  res(0) = - C * va;
+  res(1) = - va.transpose() * B * va;
+  //cout << endl;
+  //cout << mwp.state.speed << endl;
+  //cout << mwp.state.wind << endl;
+  //cout << mwp.measurements.aoa << " " << C*va << endl;
+  //cout << mwp.measurements.aos << " " << va.transpose() * B * va << endl;
+  //cout << va << endl;
+  //cout << B << endl;
   //cout << K << endl;
-  cout << res << endl;
+  //cout << res << endl;
   // Update state
   Quaternionf q_tmp;
   q_tmp.w() = 1.f;
