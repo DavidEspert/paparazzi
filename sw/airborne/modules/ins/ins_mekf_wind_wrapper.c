@@ -261,9 +261,6 @@ static void pressure_diff_cb(uint8_t __attribute__((unused)) sender_id, float pd
 static void gyro_cb(uint8_t sender_id __attribute__((unused)),
                     uint32_t stamp, struct Int32Rates *gyro)
 {
-  /* timestamp in usec when last callback was received */
-  static uint32_t last_stamp = 0;
-
   if (ins_mekf_wind.is_aligned) {
     struct FloatRates gyro_f, gyro_body;
     RATES_FLOAT_OF_BFP(gyro_f, *gyro);
@@ -274,11 +271,10 @@ static void gyro_cb(uint8_t sender_id __attribute__((unused)),
 #if USE_AUTO_INS_FREQ || !defined(INS_PROPAGATE_FREQUENCY)
     PRINT_CONFIG_MSG("Calculating dt for INS MEKF_WIND propagation.")
 
-    if (last_stamp > 0) {
-      float dt = (float)(stamp - last_stamp) * 1e-6;
+    if (last_imu_stamp > 0) {
+      float dt = (float)(stamp - last_imu_stamp) * 1e-6;
       ins_mekf_wind_propagate(&gyro_body, &ins_mekf_wind_accel, dt);
     }
-    last_stamp = stamp;
 #else
     PRINT_CONFIG_MSG("Using fixed INS_PROPAGATE_FREQUENCY for INS MEKF_WIND propagation.")
       PRINT_CONFIG_VAR(INS_PROPAGATE_FREQUENCY)
@@ -301,7 +297,8 @@ static void gyro_cb(uint8_t sender_id __attribute__((unused)),
 #endif
   }
 
-  last_imu_stamp = last_stamp;
+  /* timestamp in usec when last callback was received */
+  last_imu_stamp = stamp;
 }
 
 static void accel_cb(uint8_t sender_id __attribute__((unused)),
