@@ -70,6 +70,9 @@ extern float ins_mekf_wind_get_airspeed_norm(void);
 extern struct FloatVect3 ins_mekf_wind_get_accel_bias(void);
 extern struct FloatRates ins_mekf_wind_get_rates_bias(void);
 
+// Settings and handler
+extern bool ins_mekf_wind_disable_wind;
+
 #ifdef __cplusplus
 }
 #endif

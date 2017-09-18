@@ -98,6 +98,8 @@ struct InsMekfWindPrivate {
   Vector3f mag_h;
 };
 
+bool ins_mekf_wind_disable_wind = false;
+
 // Initial covariance parameters
 #ifndef P0_QUAT
 #define P0_QUAT       0.00761544f
@@ -334,6 +336,15 @@ void ins_mekf_wind_propagate(struct FloatRates *gyro, struct FloatVect3 *acc, fl
 
   mwp.P = A * mwp.P * At + An * mwp.Q * Ant * dt;
 
+  if (ins_mekf_wind_disable_wind) {
+    mwp.P.block<3,MEKF_WIND_COV_SIZE>(15,0) = Matrix<float,3,MEKF_WIND_COV_SIZE>::Zero();
+    mwp.P.block<MEKF_WIND_COV_SIZE-3,3>(0,15) = Matrix<float,MEKF_WIND_COV_SIZE-3,3>::Zero();
+    mwp.P(15,15) = P0_WIND;
+    mwp.P(16,16) = P0_WIND;
+    mwp.P(17,17) = P0_WIND;
+    mwp.state.wind = Vector3f::Zero();
+  }
+
 }
 
 
@@ -379,7 +390,9 @@ void ins_mekf_wind_update_mag(struct FloatVect3* mag)
   mwp.state.pos         += K.block<3,3>(6,0) * res;
   mwp.state.rates_bias  += K.block<3,3>(9,0) * res;
   mwp.state.accel_bias  += K.block<3,3>(12,0) * res;
-  mwp.state.wind        += K.block<3,3>(15,0) * res;
+  if (!ins_mekf_wind_disable_wind) {
+    mwp.state.wind        += K.block<3,3>(15,0) * res;
+  }
   // Update covariance
   mwp.P = (MEKFWCov::Identity() - K * H) * mwp.P;
 
@@ -410,7 +423,9 @@ void ins_mekf_wind_update_baro(float baro_alt)
   mwp.state.pos         += K.block<3,1>(6,0) * res;
   mwp.state.rates_bias  += K.block<3,1>(9,0) * res;
   mwp.state.accel_bias  += K.block<3,1>(12,0) * res;
-  mwp.state.wind        += K.block<3,1>(15,0) * res;
+  if (!ins_mekf_wind_disable_wind) {
+    mwp.state.wind        += K.block<3,1>(15,0) * res;
+  }
   // Update covariance
   mwp.P = (MEKFWCov::Identity() - K * H) * mwp.P;
 }
@@ -446,7 +461,9 @@ void ins_mekf_wind_update_pos_speed(struct FloatVect3 *pos, struct FloatVect3 *s
   mwp.state.pos         += K.block<3,6>(6,0) * res;
   mwp.state.rates_bias  += K.block<3,6>(9,0) * res;
   mwp.state.accel_bias  += K.block<3,6>(12,0) * res;
-  mwp.state.wind        += K.block<3,6>(15,0) * res;
+  if (!ins_mekf_wind_disable_wind) {
+    mwp.state.wind        += K.block<3,6>(15,0) * res;
+  }
   // Update covariance
   mwp.P = (MEKFWCov::Identity() - K * H) * mwp.P;
 }
@@ -455,6 +472,7 @@ void ins_mekf_wind_update_airspeed(float airspeed)
 {
   mwp.measurements.airspeed = airspeed;
 
+  if (ins_mekf_wind_disable_wind) return;
   // H and Ht matrices
   const RowVector3f IuRqt = mwp.state.quat.toRotationMatrix().transpose().block<1,3>(0,0);
   const Vector3f va = mwp.state.speed - mwp.state.wind;
@@ -480,7 +498,9 @@ void ins_mekf_wind_update_airspeed(float airspeed)
   mwp.state.pos         += K.block<3,1>(6,0) * res;
   mwp.state.rates_bias  += K.block<3,1>(9,0) * res;
   mwp.state.accel_bias  += K.block<3,1>(12,0) * res;
-  mwp.state.wind        += K.block<3,1>(15,0) * res;
+  if (!ins_mekf_wind_disable_wind) {
+    mwp.state.wind        += K.block<3,1>(15,0) * res;
+  }
   // Update covariance
   mwp.P = (MEKFWCov::Identity() - K * H) * mwp.P;
 }
@@ -490,6 +510,7 @@ void ins_mekf_wind_update_incidence(float aoa, float aos)
   mwp.measurements.aoa = aoa;
   mwp.measurements.aos = aos;
 
+  if (ins_mekf_wind_disable_wind) return;
   // H and Ht matrices
   const Matrix3f Rqt = mwp.state.quat.toRotationMatrix().transpose();
   const Vector3f va = Rqt * (mwp.state.speed - mwp.state.wind); // airspeed in body frame
@@ -562,7 +583,9 @@ void ins_mekf_wind_update_incidence(float aoa, float aos)
   mwp.state.pos         += K.block<3,2>(6,0) * res;
   mwp.state.rates_bias  += K.block<3,2>(9,0) * res;
   mwp.state.accel_bias  += K.block<3,2>(12,0) * res;
-  mwp.state.wind        += K.block<3,2>(15,0) * res;
+  if (!ins_mekf_wind_disable_wind) {
+    mwp.state.wind        += K.block<3,2>(15,0) * res;
+  }
   // Update covariance
   mwp.P = (MEKFWCov::Identity() - K * H) * mwp.P;
 }
