@@ -311,5 +311,20 @@
 #define CV_COLORDETECTION 1
 #endif
 
+/*
+ * IDs of Incidence angles
+ */
+
+#ifndef AOA_ADC_ID
+#define AOA_ADC_ID 1
+#endif
+
+#ifndef AOA_PWM_ID
+#define AOA_PWM_ID 2
+#endif
+
+#ifndef INCIDENCE_NPS_ID
+#define INCIDENCE_NPS_ID 20
+#endif
 
 #endif /* ABI_SENDER_IDS_H */
