@@ -89,6 +89,13 @@
 #endif
 
 /*
+ * IDs of airspeed sensors
+ */
+#ifndef AIRSPEED_NPS_ID
+#define AIRSPEED_NPS_ID 1
+#endif
+
+/*
  * IDs of AGL measurment modules that can be loaded (sonars,...)
  */
 #ifndef AGL_SONAR_ADC_ID

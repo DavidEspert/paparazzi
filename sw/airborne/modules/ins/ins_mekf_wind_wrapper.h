@@ -43,7 +43,6 @@ struct InsMekfWind {
 extern struct InsMekfWind ins_mekf_wind;
 
 extern void ins_mekf_wind_wrapper_init(void);
-extern void ins_mekf_wind_aoa_periodic(void);
 
 #define ins_mekf_wind_wrapper_Reset(_v) { \
   ins_mekf_wind.reset = false;            \

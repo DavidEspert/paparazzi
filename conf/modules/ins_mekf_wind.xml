@@ -24,7 +24,6 @@
     <file name="ins_mekf_wind_wrapper.h"/>
   </header>
   <init fun="ins_mekf_wind_wrapper_init()"/>
-  <periodic fun="ins_mekf_wind_aoa_periodic()" freq="20"/>
   <makefile target="ap|nps" firmware="fixedwing">
     <configure name="USE_MAGNETOMETER" default="TRUE"/>
     <define name="USE_MAGNETOMETER" cond="ifeq (,$(findstring $(USE_MAGNETOMETER),0 FALSE))"/>

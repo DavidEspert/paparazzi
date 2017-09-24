@@ -191,6 +191,7 @@ PRINT_CONFIG_VAR(INS_MEKF_WIND_MAG_ID)
 PRINT_CONFIG_VAR(INS_MEKF_WIND_GPS_ID)
 
 static abi_event pressure_diff_ev;
+static abi_event airspeed_ev;
 static abi_event incidence_ev;
 static abi_event baro_ev;
 static abi_event mag_ev;
@@ -249,6 +250,19 @@ static void pressure_diff_cb(uint8_t __attribute__((unused)) sender_id, float pd
 {
   if (ins_mekf_wind.is_aligned) {
     float airspeed = eas_from_dynamic_pressure(pdyn);
+    ins_mekf_wind_update_airspeed(airspeed);
+
+#if LOG_MEKF_WIND
+    if (LogFileIsOpen()) {
+      PrintLog(pprzLogFile, "%.3f airspeed %.3f\n", get_sys_time_float(), airspeed);
+    }
+#endif
+  }
+}
+
+static void airspeed_cb(uint8_t __attribute__((unused)) sender_id, float airspeed)
+{
+  if (ins_mekf_wind.is_aligned) {
     ins_mekf_wind_update_airspeed(airspeed);
 
 #if LOG_MEKF_WIND
@@ -458,24 +472,6 @@ static void gps_cb(uint8_t sender_id __attribute__((unused)),
 	}
 }
 
-void ins_mekf_wind_aoa_periodic(void)
-{
-  if (ins_mekf_wind.is_aligned) {
-    float aoa = stateGetAngleOfAttack_f();
-    float aos = stateGetSideslip_f();
-    ins_mekf_wind_update_incidence(aoa, aos);
-#if USE_NPS || USE_AIRSPEED_PERIODIC
-    ins_mekf_wind_update_airspeed(stateGetAirspeed_f());
-#endif
-
-#if LOG_MEKF_WIND
-    if (LogFileIsOpen()) {
-      PrintLog(pprzLogFile, "%.3f incidence %.3f %.3f\n", get_sys_time_float(), aoa, aos);
-    }
-#endif
-  }
-}
-
 /**
  * Set current state (ltp to body orientation/rates and ned pos/speed/accel
  */
@@ -543,6 +539,7 @@ void ins_mekf_wind_wrapper_init(void)
   // Bind to ABI messages
   AbiBindMsgBARO_ABS(INS_MEKF_WIND_BARO_ID, &baro_ev, baro_cb);
   AbiBindMsgBARO_DIFF(INS_MEKF_WIND_AIRSPEED_ID, &pressure_diff_ev, pressure_diff_cb);
+  AbiBindMsgAIRSPEED(INS_MEKF_WIND_AIRSPEED_ID, &airspeed_ev, airspeed_cb);
   AbiBindMsgINCIDENCE(INS_MEKF_WIND_INCIDENCE_ID, &incidence_ev, incidence_cb);
   AbiBindMsgIMU_MAG_INT32(INS_MEKF_WIND_MAG_ID, &mag_ev, mag_cb);
   AbiBindMsgIMU_GYRO_INT32(INS_MEKF_WIND_IMU_ID, &gyro_ev, gyro_cb);
