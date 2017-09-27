@@ -42,12 +42,12 @@ MCU   = cortex-m4
 else
 MCU   = cortex-m3
 endif
-OPT ?= 0
+OPT ?= s
 # Slightly bigger .elf files but gains the ability to decode macros
 DEBUG_FLAGS ?= -ggdb3
 
 CSTANDARD   ?= -std=gnu99
-CXXSTANDARD ?= -std=c++14
+CXXSTANDARD ?= -std=c++98
 CINCS = $(INCLUDES) -I$(PAPARAZZI_SRC)/sw/include
 
 # input files

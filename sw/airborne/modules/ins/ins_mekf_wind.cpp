@@ -255,8 +255,8 @@ static Matrix3f skew_sym(const Vector3f& v) {
 /**
  * Init function
  */
-#include <iostream>
-using namespace std;
+//#include <iostream>
+//using namespace std;
 void ins_mekf_wind_init(void)
 {
   // init state and measurements
