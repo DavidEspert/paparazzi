@@ -32,6 +32,8 @@
 
 #include "modules/ins/ins_mekf_wind.h"
 
+#define USE_MEKF 1
+
 #ifndef SITL
 // Redifine Eigen assert so it doesn't use memory allocation
 #define eigen_assert(_cond) { if (!_cond) { while(1) ; } }
@@ -172,6 +174,7 @@ static const Vector3f gravity( 0.f, 0.f, 9.81f);
 /* init state and measurements */
 static void init_mekf_state(void)
 {
+#if USE_MEKF
   // init state
   mekf_wind_private.state.quat = Quaternionf::Identity();
   mekf_wind_private.state.speed = Vector3f::Zero();
@@ -233,6 +236,8 @@ static void init_mekf_state(void)
   vm(11) = R_AOA;
   vm(12) = R_AOS;
   mekf_wind_private.R = vm.asDiagonal();
+
+#endif
 }
 
 // Some matrix and quaternion utility functions
@@ -259,19 +264,23 @@ static Matrix3f skew_sym(const Vector3f& v) {
 //using namespace std;
 void ins_mekf_wind_init(void)
 {
+#if USE_MEKF
   // init state and measurements
   init_mekf_state();
 
   // init local earth magnetic field
   mekf_wind_private.mag_h = Vector3f(1.0f, 0.f, 0.f);
+#endif
 }
 
 void ins_mekf_wind_set_mag_h(const struct FloatVect3 *mag_h)
 {
+#if USE_MEKF
   // update local earth magnetic field
   mekf_wind_private.mag_h(0) = mag_h->x;
   mekf_wind_private.mag_h(1) = mag_h->y;
   mekf_wind_private.mag_h(2) = mag_h->z;
+#endif
 }
 
 void ins_mekf_wind_reset(void)
@@ -281,6 +290,7 @@ void ins_mekf_wind_reset(void)
 
 void ins_mekf_wind_propagate(struct FloatRates *gyro, struct FloatVect3 *acc, float dt)
 {
+#if USE_MEKF
   Quaternionf q_tmp;
 
   mekf_wind_private.inputs.rates = Vector3f(gyro->p, gyro->q, gyro->r);
@@ -344,12 +354,13 @@ void ins_mekf_wind_propagate(struct FloatRates *gyro, struct FloatVect3 *acc, fl
     mwp.P(17,17) = P0_WIND;
     mwp.state.wind = Vector3f::Zero();
   }
-
+#endif
 }
 
 
 void ins_mekf_wind_align(struct FloatRates *gyro_bias, struct FloatQuat *quat)
 {
+#if USE_MEKF
   /* Compute an initial orientation from accel and mag directly as quaternion */
   mwp.state.quat.w() = quat->qi;
   mwp.state.quat.x() = quat->qx;
@@ -360,10 +371,12 @@ void ins_mekf_wind_align(struct FloatRates *gyro_bias, struct FloatQuat *quat)
   mwp.state.rates_bias(0) = gyro_bias->p;
   mwp.state.rates_bias(1) = gyro_bias->q;
   mwp.state.rates_bias(2) = gyro_bias->r;
+#endif
 }
 
 void ins_mekf_wind_update_mag(struct FloatVect3* mag)
 {
+#if USE_MEKF
   mwp.measurements.mag(0) = mag->x;
   mwp.measurements.mag(1) = mag->y;
   mwp.measurements.mag(2) = mag->z;
@@ -395,11 +408,12 @@ void ins_mekf_wind_update_mag(struct FloatVect3* mag)
   }
   // Update covariance
   mwp.P = (MEKFWCov::Identity() - K * H) * mwp.P;
-
+#endif
 }
 
 void ins_mekf_wind_update_baro(float baro_alt)
 {
+#if USE_MEKF
   mwp.measurements.baro_alt = baro_alt;
 
   // H and Ht matrices
@@ -428,10 +442,12 @@ void ins_mekf_wind_update_baro(float baro_alt)
   }
   // Update covariance
   mwp.P = (MEKFWCov::Identity() - K * H) * mwp.P;
+#endif
 }
 
 void ins_mekf_wind_update_pos_speed(struct FloatVect3 *pos, struct FloatVect3 *speed)
 {
+#if USE_MEKF
   mwp.measurements.pos(0) = pos->x;
   mwp.measurements.pos(1) = pos->y;
   mwp.measurements.pos(2) = pos->z;
@@ -466,10 +482,12 @@ void ins_mekf_wind_update_pos_speed(struct FloatVect3 *pos, struct FloatVect3 *s
   }
   // Update covariance
   mwp.P = (MEKFWCov::Identity() - K * H) * mwp.P;
+#endif
 }
 
 void ins_mekf_wind_update_airspeed(float airspeed)
 {
+#if USE_MEKF
   mwp.measurements.airspeed = airspeed;
 
   if (ins_mekf_wind_disable_wind) return;
@@ -503,10 +521,12 @@ void ins_mekf_wind_update_airspeed(float airspeed)
   }
   // Update covariance
   mwp.P = (MEKFWCov::Identity() - K * H) * mwp.P;
+#endif
 }
 
 void ins_mekf_wind_update_incidence(float aoa, float aos)
 {
+#if USE_MEKF
   mwp.measurements.aoa = aoa;
   mwp.measurements.aos = aos;
 
@@ -588,6 +608,7 @@ void ins_mekf_wind_update_incidence(float aoa, float aos)
   }
   // Update covariance
   mwp.P = (MEKFWCov::Identity() - K * H) * mwp.P;
+#endif
 }
 
 /**
