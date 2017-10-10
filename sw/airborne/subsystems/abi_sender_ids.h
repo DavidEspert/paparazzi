@@ -95,6 +95,10 @@
 #define AIRSPEED_NPS_ID 1
 #endif
 
+#ifndef AIRSPEED_ADC_ID
+#define AIRSPEED_ADC_ID 2
+#endif
+
 /*
  * IDs of AGL measurment modules that can be loaded (sonars,...)
  */
