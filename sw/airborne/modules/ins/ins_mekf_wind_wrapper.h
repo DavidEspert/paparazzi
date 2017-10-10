@@ -36,7 +36,7 @@ struct InsMekfWind {
   struct OrientationReps body_to_imu;
   bool is_aligned;
   bool baro_initialized;
-  bool gps_fix_once;
+  bool gps_initialized;
   bool reset;
 };
 
@@ -47,7 +47,7 @@ extern void ins_mekf_wind_wrapper_init(void);
 #define ins_mekf_wind_wrapper_Reset(_v) { \
   ins_mekf_wind.reset = false;            \
   ins_mekf_wind.baro_initialized = false; \
-  ins_mekf_wind.gps_fix_once = false;     \
+  ins_mekf_wind.gps_initialized = false;     \
   ins_mekf_wind_reset();                  \
 }
 

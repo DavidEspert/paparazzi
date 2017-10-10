@@ -35,11 +35,12 @@
     <file name="ins_mekf_wind_wrapper.c"/>
     <flag name="LDFLAGS" value="lstdc++" />
     <define name="EIGEN_NO_MALLOC"/>
+    <define name="EIGEN_NO_AUTOMATIC_RESIZING"/>
     <define name="USE_AHRS_ALIGNER"/>
     <define name="INS_TYPE_H" value="modules/ins/ins_mekf_wind_wrapper.h" type="string"/>
+    <file name="syscalls.c" dir="."/>
   </makefile>
   <makefile target="ap" firmware="fixedwing">
-    <configure name="OPT" value="s"/>
     <define name="EIGEN_NO_DEBUG"/>
     <flag name="CXXFLAGS" value="Wno-bool-compare"/>
     <flag name="CXXFLAGS" value="Wno-logical-not-parentheses"/>

@@ -30,6 +30,7 @@
 #if USE_AHRS_ALIGNER
 #include "subsystems/ahrs/ahrs_aligner.h"
 #endif
+#include "subsystems/ins.h"
 #include "subsystems/abi.h"
 #include "math/pprz_isa.h"
 #include "state.h"
@@ -115,10 +116,10 @@ static void send_inv_filter(struct transport_tx *trans, struct link_device *dev)
   struct FloatEulers eulers;
   struct FloatQuat quat = ins_mekf_wind_get_quat();
   float_eulers_of_quat(&eulers, &quat);
-  struct FloatRates rates = ins_mekf_wind_get_body_rates();
+  //struct FloatRates rates = ins_mekf_wind_get_body_rates();
   struct NedCoor_f pos = ins_mekf_wind_get_pos_ned();
   struct NedCoor_f speed = ins_mekf_wind_get_speed_ned();
-  struct NedCoor_f accel = ins_mekf_wind_get_accel_ned();
+  //struct NedCoor_f accel = ins_mekf_wind_get_accel_ned();
   struct FloatVect3 ab = ins_mekf_wind_get_accel_bias();
   struct FloatRates rb = ins_mekf_wind_get_rates_bias();
   float airspeed = ins_mekf_wind_get_airspeed_norm();
@@ -235,7 +236,7 @@ static void baro_cb(uint8_t __attribute__((unused)) sender_id, float pressure)
   } else { /* normal update with baro measurement */
     if (ins_mekf_wind.is_aligned) {
       float baro_alt = -pprz_isa_height_of_pressure(pressure, ins_qfe); // Z down
-      ins_mekf_wind_update_baro(baro_alt);
+      //ins_mekf_wind_update_baro(baro_alt);
 
 #if LOG_MEKF_WIND
       if (LogFileIsOpen()) {
@@ -314,6 +315,13 @@ static void gyro_cb(uint8_t sender_id __attribute__((unused)),
       const float dt = 1. / (INS_PROPAGATE_FREQUENCY);
     ins_mekf_wind_propagate(&gyro_body, &ins_mekf_wind_accel, dt);
 #endif
+    if (!ins_mekf_wind.gps_initialized) {
+      struct FloatVect3 pos, speed;
+      FLOAT_VECT3_ZERO(pos);
+      FLOAT_VECT3_ZERO(speed);
+      ins_mekf_wind_update_pos_speed(&pos, &speed);
+    }
+
     // update state interface
     set_state_from_ins();
 
@@ -356,8 +364,6 @@ static void mag_cb(uint8_t sender_id __attribute__((unused)),
     // new values in body frame
     float_rmat_transp_vmult(&mag_body, body_to_imu_rmat, &mag_f);
     ins_mekf_wind_update_mag(&mag_body);
-    // udate state interface
-    //set_state_from_ins();
 
 #if LOG_MEKF_WIND
     if (LogFileIsOpen()) {
@@ -421,7 +427,6 @@ static void gps_cb(uint8_t sender_id __attribute__((unused)),
                    struct GpsState *gps_s)
 {
 	if (ins_mekf_wind.is_aligned && gps_s->fix >= GPS_FIX_3D) {
-    ins_mekf_wind.gps_fix_once = true;
 
 #if MEKF_WIND_USE_UTM
 		if (state.utm_initialized_f) {
@@ -435,6 +440,12 @@ static void gps_cb(uint8_t sender_id __attribute__((unused)),
 			speed.x = gps_s->ned_vel.x / 100.0f;
 			speed.y = gps_s->ned_vel.y / 100.0f;
 			speed.z = gps_s->ned_vel.z / 100.0f;
+      if (!ins_mekf_wind.gps_initialized) {
+        //ins_reset_local_origin();
+        ins_mekf_wind_set_pos_ned((struct NedCoor_f*)(&pos));
+        ins_mekf_wind_set_speed_ned((struct NedCoor_f*)(&speed));
+        ins_mekf_wind.gps_initialized = true;
+      }
       ins_mekf_wind_update_pos_speed(&pos, &speed);
 
 #if LOG_MEKFW_FILTER
@@ -524,7 +535,7 @@ void ins_mekf_wind_wrapper_init(void)
   ins_mekf_wind.is_aligned = false;
   ins_mekf_wind.reset = false;
   ins_mekf_wind.baro_initialized = false;
-  ins_mekf_wind.gps_fix_once = false;
+  ins_mekf_wind.gps_initialized = false;
 
   // aligner
 #if USE_AHRS_ALIGNER
@@ -576,5 +587,44 @@ void ins_mekf_wind_wrapper_init(void)
   }
 #endif
 
+}
+
+/**
+ * local implemetation of the ins_reset functions
+ */
+
+void ins_reset_local_origin(void)
+{
+#if MEKF_WIND_USE_UTM
+  struct UtmCoor_f utm = utm_float_from_gps(&gps, 0);
+  // reset state UTM ref
+  stateSetLocalUtmOrigin_f(&utm);
+#else
+  struct LtpDef_i ltp_def;
+  ltp_def_from_ecef_i(&ltp_def, &gps.ecef_pos);
+  ltp_def.hmsl = gps.hmsl;
+  stateSetLocalOrigin_i(&ltp_def);
+#endif
+  ins_mekf_wind_wrapper_Reset(true);
+  //ins_mekf_wind.gps_initialized = false;
+}
+
+void ins_reset_altitude_ref(void)
+{
+#if MEKF_WIND_USE_UTM
+  struct UtmCoor_f utm = state.utm_origin_f;
+  utm.alt = gps.hmsl / 1000.0f;
+  stateSetLocalUtmOrigin_f(&utm);
+#else
+  struct LlaCoor_i lla = {
+    .lat = state.ned_origin_i.lla.lat,
+    .lon = state.ned_origin_i.lla.lon,
+    .alt = gps.lla_pos.alt
+  };
+  struct LtpDef_i ltp_def;
+  ltp_def_from_lla_i(&ltp_def, &lla);
+  ltp_def.hmsl = gps.hmsl;
+  stateSetLocalOrigin_i(&ltp_def);
+#endif
 }
 
