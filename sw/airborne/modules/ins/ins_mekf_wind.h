@@ -38,6 +38,25 @@ extern "C" {
 #include "math/pprz_algebra_float.h"
 #include "math/pprz_geodetic_float.h"
 
+// Settings
+struct ins_mekf_wind_parameters {
+  float Q_gyro;       ///< gyro process noise
+  float Q_accel;      ///< accel process noise
+  float Q_rates_bias; ///< rates bias process noise
+  float Q_accel_bias; ///< accel bias process noise
+  float Q_wind;       ///< wind process noise
+  float R_speed;      ///< speed measurement noise
+  float R_pos;        ///< pos measurement noise
+  float R_mag;        ///< mag measurement noise
+  float R_baro;       ///< baro measurement noise
+  float R_airspeed;   ///< airspeed measurement noise
+  float R_aoa;        ///< angle of attack measurement noise
+  float R_aos;        ///< sideslip angle measurement noise
+  bool disable_wind;  ///< disable wind estimation
+};
+
+extern struct ins_mekf_wind_parameters ins_mekf_wind_params;
+
 // Init functions
 extern void ins_mekf_wind_init(void);
 extern void ins_mekf_wind_align(struct FloatRates *gyro_bias,
@@ -48,7 +67,9 @@ extern void ins_mekf_wind_reset(void);
 // Filtering functions
 extern void ins_mekf_wind_propagate(struct FloatRates* gyro,
                                     struct FloatVect3* accel, float dt);
-extern void ins_mekf_wind_update_mag(struct FloatVect3* mag);
+extern void ins_mekf_wind_propagate_ahrs(struct FloatRates* gyro,
+                                         struct FloatVect3* accel, float dt);
+extern void ins_mekf_wind_update_mag(struct FloatVect3* mag, bool attitude_only);
 extern void ins_mekf_wind_update_baro(float baro_alt);
 extern void ins_mekf_wind_update_pos_speed(struct FloatVect3 *pos,
                                            struct FloatVect3 *speed);
@@ -70,8 +91,69 @@ extern float ins_mekf_wind_get_airspeed_norm(void);
 extern struct FloatVect3 ins_mekf_wind_get_accel_bias(void);
 extern struct FloatRates ins_mekf_wind_get_rates_bias(void);
 
-// Settings and handler
-extern bool ins_mekf_wind_disable_wind;
+// Settings handlers
+extern void ins_mekf_wind_update_params(void);
+
+#define ins_mekf_wind_update_Q_gyro(_v) { \
+  ins_mekf_wind_params.Q_gyro = _v; \
+  ins_mekf_wind_update_params(); \
+}
+
+#define ins_mekf_wind_update_Q_accel(_v) { \
+  ins_mekf_wind_params.Q_accel = _v; \
+  ins_mekf_wind_update_params(); \
+}
+
+#define ins_mekf_wind_update_Q_rates_bias(_v) { \
+  ins_mekf_wind_params.Q_rates_bias = _v; \
+  ins_mekf_wind_update_params(); \
+}
+
+#define ins_mekf_wind_update_Q_accel_bias(_v) { \
+  ins_mekf_wind_params.Q_accel_bias = _v; \
+  ins_mekf_wind_update_params(); \
+}
+
+#define ins_mekf_wind_update_Q_wind(_v) { \
+  ins_mekf_wind_params.Q_wind = _v; \
+  ins_mekf_wind_update_params(); \
+}
+
+#define ins_mekf_wind_update_R_speed(_v) { \
+  ins_mekf_wind_params.R_speed = _v; \
+  ins_mekf_wind_update_params(); \
+}
+
+#define ins_mekf_wind_update_R_pos(_v) { \
+  ins_mekf_wind_params.R_pos = _v; \
+  ins_mekf_wind_update_params(); \
+}
+
+#define ins_mekf_wind_update_R_mag(_v) { \
+  ins_mekf_wind_params.R_mag = _v; \
+  ins_mekf_wind_update_params(); \
+}
+
+#define ins_mekf_wind_update_R_baro(_v) { \
+  ins_mekf_wind_params.R_baro = _v; \
+  ins_mekf_wind_update_params(); \
+}
+
+#define ins_mekf_wind_update_R_airspeed(_v) { \
+  ins_mekf_wind_params.R_airspeed = _v; \
+  ins_mekf_wind_update_params(); \
+}
+
+#define ins_mekf_wind_update_R_aoa(_v) { \
+  ins_mekf_wind_params.R_aoa = _v; \
+  ins_mekf_wind_update_params(); \
+}
+
+#define ins_mekf_wind_update_R_aos(_v) { \
+  ins_mekf_wind_params.R_aos = _v; \
+  ins_mekf_wind_update_params(); \
+}
+
 
 #ifdef __cplusplus
 }

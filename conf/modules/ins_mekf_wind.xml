@@ -16,7 +16,19 @@
     <dl_settings>
       <dl_settings name="MEKF_Wind">
         <dl_setting min="0" max="1" step="1" var="ins_mekf_wind.reset" module="ins/ins_mekf_wind_wrapper" shortname="reset" handler="Reset"/>
-        <dl_setting min="0" max="1" step="1" var="ins_mekf_wind_disable_wind" module="ins/ins_mekf_wind" shortname="wind estimation" values="ENABLED|DISABLED"/>
+        <dl_setting min="0" max="1" step="1" var="ins_mekf_wind_params.disable_wind" module="ins/ins_mekf_wind" shortname="wind estimation" values="ENABLED|DISABLED"/>
+        <dl_setting min="1E-3" max="1E-1" step="1E-3" var="ins_mekf_wind_params.Q_gyro" module="ins/ins_mekf_wind" shortname="Q gyro" handler="update_Q_gyro"/>
+        <dl_setting min="1E-3" max="1E-1" step="1E-3" var="ins_mekf_wind_params.Q_accel" module="ins/ins_mekf_wind" shortname="Q accel" handler="update_Q_accel"/>
+        <dl_setting min="1E-7" max="1E-5" step="1E-7" var="ins_mekf_wind_params.Q_rates_bias" module="ins/ins_mekf_wind" shortname="Q rates bias" handler="update_Q_rates_bias"/>
+        <dl_setting min="1E-7" max="1E-5" step="1E-7" var="ins_mekf_wind_params.Q_accel_bias" module="ins/ins_mekf_wind" shortname="Q accel bias" handler="update_Q_accel_bias"/>
+        <dl_setting min="1E-1" max="1E+1" step="1E-1" var="ins_mekf_wind_params.Q_wind" module="ins/ins_mekf_wind" shortname="Q wind" handler="update_Q_wind"/>
+        <dl_setting min="1E-1" max="1E+1" step="1E-1" var="ins_mekf_wind_params.R_speed" module="ins/ins_mekf_wind" shortname="R speed" handler="update_R_speed"/>
+        <dl_setting min="1E-1" max="1E+1" step="1E-1" var="ins_mekf_wind_params.R_pos" module="ins/ins_mekf_wind" shortname="R pos" handler="update_R_pos"/>
+        <dl_setting min="1E-1" max="1E+1" step="1E-1" var="ins_mekf_wind_params.R_mag" module="ins/ins_mekf_wind" shortname="R mag" handler="update_R_mag"/>
+        <dl_setting min="1E-1" max="1E+1" step="1E-1" var="ins_mekf_wind_params.R_baro" module="ins/ins_mekf_wind" shortname="R baro" handler="update_R_baro"/>
+        <dl_setting min="1E-1" max="1E+1" step="1E-1" var="ins_mekf_wind_params.R_airspeed" module="ins/ins_mekf_wind" shortname="R airpeed" handler="update_R_airspeed"/>
+        <dl_setting min="1E-1" max="1E+1" step="1E-1" var="ins_mekf_wind_params.R_aoa" module="ins/ins_mekf_wind" shortname="R aoa" handler="update_R_aoa"/>
+        <dl_setting min="1E-1" max="1E+1" step="1E-1" var="ins_mekf_wind_params.R_aos" module="ins/ins_mekf_wind" shortname="R aos" handler="update_R_aos"/>
       </dl_settings>
     </dl_settings>
   </settings>
@@ -38,12 +50,12 @@
     <define name="EIGEN_NO_AUTOMATIC_RESIZING"/>
     <define name="USE_AHRS_ALIGNER"/>
     <define name="INS_TYPE_H" value="modules/ins/ins_mekf_wind_wrapper.h" type="string"/>
-    <file name="pprz_syscalls.c" dir="."/>
   </makefile>
   <makefile target="ap" firmware="fixedwing">
     <define name="EIGEN_NO_DEBUG"/>
     <flag name="CXXFLAGS" value="Wno-bool-compare"/>
     <flag name="CXXFLAGS" value="Wno-logical-not-parentheses"/>
+    <file name="pprz_syscalls.c" dir="."/>
   </makefile>
   <makefile target="sim" firmware="fixedwing">
     <define name="AHRS_TYPE_H" value="subsystems/ahrs/ahrs_sim.h" type="string"/>

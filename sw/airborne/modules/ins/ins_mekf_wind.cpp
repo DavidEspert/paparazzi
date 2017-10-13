@@ -98,69 +98,76 @@ struct InsMekfWindPrivate {
   Vector3f mag_h;
 };
 
-bool ins_mekf_wind_disable_wind = true;
 
 // Initial covariance parameters
-#ifndef P0_QUAT
-#define P0_QUAT       0.00761544f
+#ifndef INS_MEKF_WIND_P0_QUAT
+#define INS_MEKF_WIND_P0_QUAT       0.00761544f
 #endif
-#ifndef P0_SPEED
-#define P0_SPEED      1.E+2f
+#ifndef INS_MEKF_WIND_P0_SPEED
+#define INS_MEKF_WIND_P0_SPEED      1.E+2f
 #endif
-#ifndef P0_POS
-#define P0_POS        1.E+1f
+#ifndef INS_MEKF_WIND_P0_POS
+#define INS_MEKF_WIND_P0_POS        1.E+1f
 #endif
-#ifndef P0_RATES_BIAS
-#define P0_RATES_BIAS 1.E-5f
+#ifndef INS_MEKF_WIND_P0_RATES_BIAS
+#define INS_MEKF_WIND_P0_RATES_BIAS 1.E-5f
 #endif
-#ifndef P0_ACCEL_BIAS
-#define P0_ACCEL_BIAS 1.E-5f
+#ifndef INS_MEKF_WIND_P0_ACCEL_BIAS
+#define INS_MEKF_WIND_P0_ACCEL_BIAS 1.E-5f
 #endif
-#ifndef P0_WIND
-#define P0_WIND       1.E-0f
+#ifndef INS_MEKF_WIND_P0_WIND
+#define INS_MEKF_WIND_P0_WIND       1.E-0f
 #endif
 
 // Initial process noise parameters
-#ifndef Q_GYRO
-#define Q_GYRO        1.E-2f
+#ifndef INS_MEKF_WIND_Q_GYRO
+#define INS_MEKF_WIND_Q_GYRO        1.E-2f
 #endif
-#ifndef Q_ACCEL
-#define Q_ACCEL       1.E-2f
+#ifndef INS_MEKF_WIND_Q_ACCEL
+#define INS_MEKF_WIND_Q_ACCEL       1.E-2f
 #endif
-#ifndef Q_RATES_BIAS
-#define Q_RATES_BIAS  1.E-5f
+#ifndef INS_MEKF_WIND_Q_RATES_BIAS
+#define INS_MEKF_WIND_Q_RATES_BIAS  1.E-5f
 #endif
-#ifndef Q_ACCEL_BIAS
-#define Q_ACCEL_BIAS  1.E-5f
+#ifndef INS_MEKF_WIND_Q_ACCEL_BIAS
+#define INS_MEKF_WIND_Q_ACCEL_BIAS  1.E-5f
 #endif
-#ifndef Q_WIND
-#define Q_WIND        1.E+1f
+#ifndef INS_MEKF_WIND_Q_WIND
+#define INS_MEKF_WIND_Q_WIND        1.E+1f
 #endif
 
 // Initial measurements noise parameters
-#ifndef R_SPEED
-#define R_SPEED       1.0f
+#ifndef INS_MEKF_WIND_R_SPEED
+#define INS_MEKF_WIND_R_SPEED       1.0f
 #endif
-#ifndef R_POS
-#define R_POS         5.0f
+#ifndef INS_MEKF_WIND_R_POS
+#define INS_MEKF_WIND_R_POS         5.0f
 #endif
-#ifndef R_MAG
-#define R_MAG         1.f
+#ifndef INS_MEKF_WIND_R_MAG
+#define INS_MEKF_WIND_R_MAG         1.f
 #endif
-#ifndef R_BARO
-#define R_BARO        0.1f
+#ifndef INS_MEKF_WIND_R_BARO
+#define INS_MEKF_WIND_R_BARO        0.1f
 #endif
-#ifndef R_AIRSPEED
-#define R_AIRSPEED    0.1f
+#ifndef INS_MEKF_WIND_R_AIRSPEED
+#define INS_MEKF_WIND_R_AIRSPEED    0.1f
 #endif
-#ifndef R_AOA
-#define R_AOA         0.1f
+#ifndef INS_MEKF_WIND_R_AOA
+#define INS_MEKF_WIND_R_AOA         0.1f
 #endif
-#ifndef R_AOS
-#define R_AOS         0.1f
+#ifndef INS_MEKF_WIND_R_AOS
+#define INS_MEKF_WIND_R_AOS         0.1f
 #endif
 
+// Disable wind estimation by default
+#ifndef INS_MEKF_WIND_DISABLE_WIND
+#define INS_MEKF_WIND_DISABLE_WIND true
+#endif
 
+// paramters
+struct ins_mekf_wind_parameters ins_mekf_wind_params;
+
+// internal structure
 static struct InsMekfWindPrivate mekf_wind_private;
 // short name
 #define mwp mekf_wind_private
@@ -195,43 +202,43 @@ static void init_mekf_state(void)
 
   // init state covariance
   mekf_wind_private.P = MEKFWCov::Zero();
-  mekf_wind_private.P(0,0) = P0_QUAT;
-  mekf_wind_private.P(1,1) = P0_QUAT;
-  mekf_wind_private.P(2,2) = P0_QUAT;
-  mekf_wind_private.P(3,4) = P0_SPEED;
-  mekf_wind_private.P(4,4) = P0_SPEED;
-  mekf_wind_private.P(5,5) = P0_SPEED;
-  mekf_wind_private.P(6,6) = P0_POS;
-  mekf_wind_private.P(7,7) = P0_POS;
-  mekf_wind_private.P(8,8) = P0_POS;
-  mekf_wind_private.P(9,9) = P0_RATES_BIAS;
-  mekf_wind_private.P(10,10) = P0_RATES_BIAS;
-  mekf_wind_private.P(11,11) = P0_RATES_BIAS;
-  mekf_wind_private.P(12,12) = P0_ACCEL_BIAS;
-  mekf_wind_private.P(13,13) = P0_ACCEL_BIAS;
-  mekf_wind_private.P(14,14) = P0_ACCEL_BIAS;
-  mekf_wind_private.P(15,15) = P0_WIND;
-  mekf_wind_private.P(16,16) = P0_WIND;
-  mekf_wind_private.P(17,17) = P0_WIND;
+  mekf_wind_private.P(0,0) = INS_MEKF_WIND_P0_QUAT;
+  mekf_wind_private.P(1,1) = INS_MEKF_WIND_P0_QUAT;
+  mekf_wind_private.P(2,2) = INS_MEKF_WIND_P0_QUAT;
+  mekf_wind_private.P(3,4) = INS_MEKF_WIND_P0_SPEED;
+  mekf_wind_private.P(4,4) = INS_MEKF_WIND_P0_SPEED;
+  mekf_wind_private.P(5,5) = INS_MEKF_WIND_P0_SPEED;
+  mekf_wind_private.P(6,6) = INS_MEKF_WIND_P0_POS;
+  mekf_wind_private.P(7,7) = INS_MEKF_WIND_P0_POS;
+  mekf_wind_private.P(8,8) = INS_MEKF_WIND_P0_POS;
+  mekf_wind_private.P(9,9) = INS_MEKF_WIND_P0_RATES_BIAS;
+  mekf_wind_private.P(10,10) = INS_MEKF_WIND_P0_RATES_BIAS;
+  mekf_wind_private.P(11,11) = INS_MEKF_WIND_P0_RATES_BIAS;
+  mekf_wind_private.P(12,12) = INS_MEKF_WIND_P0_ACCEL_BIAS;
+  mekf_wind_private.P(13,13) = INS_MEKF_WIND_P0_ACCEL_BIAS;
+  mekf_wind_private.P(14,14) = INS_MEKF_WIND_P0_ACCEL_BIAS;
+  mekf_wind_private.P(15,15) = INS_MEKF_WIND_P0_WIND;
+  mekf_wind_private.P(16,16) = INS_MEKF_WIND_P0_WIND;
+  mekf_wind_private.P(17,17) = INS_MEKF_WIND_P0_WIND;
 
   // init process noise
   Matrix<float, MEKF_WIND_PROC_NOISE_SIZE, 1> vp;
-  vp(0) = vp(1) = vp(2) = Q_GYRO;
-  vp(3) = vp(4) = vp(5) = Q_ACCEL;
-  vp(6) = vp(7) = vp(8) = Q_RATES_BIAS;
-  vp(9) = vp(10) = vp(11) = Q_ACCEL_BIAS;
-  vp(12) = vp(13) = vp(14) = Q_WIND;
+  vp(0) = vp(1) = vp(2) = ins_mekf_wind_params.Q_gyro;
+  vp(3) = vp(4) = vp(5) = ins_mekf_wind_params.Q_accel;
+  vp(6) = vp(7) = vp(8) = ins_mekf_wind_params.Q_rates_bias;
+  vp(9) = vp(10) = vp(11) = ins_mekf_wind_params.Q_accel_bias;
+  vp(12) = vp(13) = vp(14) = ins_mekf_wind_params.Q_wind;
   mekf_wind_private.Q = vp.asDiagonal();
 
   // init measurements noise
   Matrix<float, MEKF_WIND_MEAS_NOISE_SIZE, 1> vm;
-  vm(0) = vm(1) = vm(2) = R_SPEED;
-  vm(3) = vm(4) = vm(5) = R_POS;
-  vm(6) = vm(7) = vm(8) = R_MAG;
-  vm(9) = R_BARO;
-  vm(10) = R_AIRSPEED;
-  vm(11) = R_AOA;
-  vm(12) = R_AOS;
+  vm(0) = vm(1) = vm(2) = ins_mekf_wind_params.R_speed;
+  vm(3) = vm(4) = vm(5) = ins_mekf_wind_params.R_pos;
+  vm(6) = vm(7) = vm(8) = ins_mekf_wind_params.R_mag;
+  vm(9) = ins_mekf_wind_params.R_baro;
+  vm(10) = ins_mekf_wind_params.R_airspeed;
+  vm(11) = ins_mekf_wind_params.R_aoa;
+  vm(12) = ins_mekf_wind_params.R_aos;
   mekf_wind_private.R = vm.asDiagonal();
 }
 
@@ -266,6 +273,21 @@ static Matrix3f skew_sym(const Vector3f& v) {
  */
 void ins_mekf_wind_init(void)
 {
+  // init parameters
+  ins_mekf_wind_params.Q_gyro       = INS_MEKF_WIND_Q_GYRO;
+  ins_mekf_wind_params.Q_accel      = INS_MEKF_WIND_Q_ACCEL;
+  ins_mekf_wind_params.Q_rates_bias = INS_MEKF_WIND_Q_RATES_BIAS;
+  ins_mekf_wind_params.Q_accel_bias = INS_MEKF_WIND_Q_ACCEL_BIAS;
+  ins_mekf_wind_params.Q_wind       = INS_MEKF_WIND_Q_WIND;
+  ins_mekf_wind_params.R_speed      = INS_MEKF_WIND_R_SPEED;
+  ins_mekf_wind_params.R_pos        = INS_MEKF_WIND_R_POS;
+  ins_mekf_wind_params.R_mag        = INS_MEKF_WIND_R_MAG;
+  ins_mekf_wind_params.R_baro       = INS_MEKF_WIND_R_BARO;
+  ins_mekf_wind_params.R_airspeed   = INS_MEKF_WIND_R_AIRSPEED;
+  ins_mekf_wind_params.R_aoa        = INS_MEKF_WIND_R_AOA;
+  ins_mekf_wind_params.R_aos        = INS_MEKF_WIND_R_AOS;
+  ins_mekf_wind_params.disable_wind = INS_MEKF_WIND_DISABLE_WIND;
+
   // init state and measurements
   init_mekf_state();
 
@@ -286,6 +308,8 @@ void ins_mekf_wind_reset(void)
   init_mekf_state();
 }
 
+/** Full INS propagation
+ */
 void ins_mekf_wind_propagate(struct FloatRates *gyro, struct FloatVect3 *acc, float dt)
 {
   Quaternionf q_tmp;
@@ -343,17 +367,82 @@ void ins_mekf_wind_propagate(struct FloatRates *gyro, struct FloatVect3 *acc, fl
 
   mwp.P = A * mwp.P * At + An * mwp.Q * Ant * dt;
 
-  if (ins_mekf_wind_disable_wind) {
+  if (ins_mekf_wind_params.disable_wind) {
     mwp.P.block<3,MEKF_WIND_COV_SIZE>(15,0) = Matrix<float,3,MEKF_WIND_COV_SIZE>::Zero();
     mwp.P.block<MEKF_WIND_COV_SIZE-3,3>(0,15) = Matrix<float,MEKF_WIND_COV_SIZE-3,3>::Zero();
-    mwp.P(15,15) = P0_WIND;
-    mwp.P(16,16) = P0_WIND;
-    mwp.P(17,17) = P0_WIND;
+    mwp.P(15,15) = INS_MEKF_WIND_P0_WIND;
+    mwp.P(16,16) = INS_MEKF_WIND_P0_WIND;
+    mwp.P(17,17) = INS_MEKF_WIND_P0_WIND;
     mwp.state.wind = Vector3f::Zero();
   }
 }
 
-// TODO propagate AHRS only ????
+/** AHRS-only propagation + accel correction
+ */
+void ins_mekf_wind_propagate_ahrs(struct FloatRates *gyro, struct FloatVect3 *acc, float dt)
+{
+  Quaternionf q_tmp;
+
+  mekf_wind_private.inputs.rates = Vector3f(gyro->p, gyro->q, gyro->r);
+  mekf_wind_private.inputs.accel = Vector3f(acc->x, acc->y, acc->z);
+
+  const Vector3f gyro_unbiased = mwp.inputs.rates - mwp.state.rates_bias;
+  const Vector3f accel_unbiased = mwp.inputs.accel - mwp.state.accel_bias;
+  // propagate state
+  // q_dot = 1/2 q * (rates - rates_bias)
+  q_tmp.w() = 0.f;
+  q_tmp.vec() = gyro_unbiased;
+  const Quaternionf q_d = quat_smul(mwp.state.quat * q_tmp, 0.5f);
+
+  // Euler integration
+
+  //mwp.state.quat = (mwp.state.quat + q_d * dt).normalize();
+  mwp.state.quat = quat_add(mwp.state.quat, quat_smul(q_d, dt));
+  mwp.state.quat.normalize();
+
+  // propagate covariance
+  const Matrix3f Rq = mwp.state.quat.toRotationMatrix();
+  const Matrix3f Rqdt = Rq * dt;
+
+  MEKFWCov A = MEKFWCov::Zero();
+  A.block<3,3>(0,0) = Matrix3f::Identity();
+  A.block<3,3>(0,9) = -Rqdt;
+  A.block<3,3>(9,9) = Matrix3f::Identity();
+
+  Matrix<float, MEKF_WIND_COV_SIZE, MEKF_WIND_PROC_NOISE_SIZE> An;
+  An.setZero();
+  An.block<3,3>(0,0) = Rq;
+  An.block<3,3>(9,9) = Matrix3f::Identity();
+
+  MEKFWCov At(A);
+  At.transposeInPlace();
+  Matrix<float, MEKF_WIND_PROC_NOISE_SIZE, MEKF_WIND_COV_SIZE> Ant;
+  Ant = An.transpose();
+
+  mwp.P = A * mwp.P * At + An * mwp.Q * Ant * dt;
+
+  // correction from accel measurements
+  const Matrix3f Rqt = Rq.transpose();
+  Matrix<float, 3, MEKF_WIND_COV_SIZE> H = Matrix<float, 3, MEKF_WIND_COV_SIZE>::Zero();
+  H.block<3,3>(0,0) = Rqt * skew_sym(gravity);
+  Matrix<float, MEKF_WIND_COV_SIZE, 3> Ht = H.transpose();
+  // S = H*P*Ht + Hn*N*Hnt
+  Matrix3f S = H * mwp.P * Ht + mwp.R.block<3,3>(6,6);
+  // K = P*Ht*S^-1
+  Matrix<float, MEKF_WIND_COV_SIZE, 3> K = mwp.P * Ht * S.inverse();
+  // Residual z_a - h(z)
+  Vector3f res = accel_unbiased - (Rqt * gravity);
+  // Update state
+  q_tmp.w() = 1.f;
+  q_tmp.vec() = 0.5f * K.block<3,3>(0,0) * res;
+  q_tmp.normalize();
+  mwp.state.quat = q_tmp * mwp.state.quat;
+  mwp.state.quat.normalize();
+  mwp.state.rates_bias  += K.block<3,3>(9,0) * res;
+  // Update covariance
+  mwp.P = (MEKFWCov::Identity() - K * H) * mwp.P;
+}
+
 
 void ins_mekf_wind_align(struct FloatRates *gyro_bias, struct FloatQuat *quat)
 {
@@ -369,7 +458,7 @@ void ins_mekf_wind_align(struct FloatRates *gyro_bias, struct FloatQuat *quat)
   mwp.state.rates_bias(2) = gyro_bias->r;
 }
 
-void ins_mekf_wind_update_mag(struct FloatVect3* mag)
+void ins_mekf_wind_update_mag(struct FloatVect3* mag, bool attitude_only)
 {
   mwp.measurements.mag(0) = mag->x;
   mwp.measurements.mag(1) = mag->y;
@@ -393,12 +482,16 @@ void ins_mekf_wind_update_mag(struct FloatVect3* mag)
   q_tmp.normalize();
   mwp.state.quat = q_tmp * mwp.state.quat;
   mwp.state.quat.normalize();
-  mwp.state.speed       += K.block<3,3>(3,0) * res;
-  mwp.state.pos         += K.block<3,3>(6,0) * res;
-  mwp.state.rates_bias  += K.block<3,3>(9,0) * res;
-  mwp.state.accel_bias  += K.block<3,3>(12,0) * res;
-  if (!ins_mekf_wind_disable_wind) {
-    mwp.state.wind        += K.block<3,3>(15,0) * res;
+  if (attitude_only) {
+    mwp.state.rates_bias  += K.block<3,3>(9,0) * res;
+  } else {
+    mwp.state.speed       += K.block<3,3>(3,0) * res;
+    mwp.state.pos         += K.block<3,3>(6,0) * res;
+    mwp.state.rates_bias  += K.block<3,3>(9,0) * res;
+    mwp.state.accel_bias  += K.block<3,3>(12,0) * res;
+    if (!ins_mekf_wind_params.disable_wind) {
+      mwp.state.wind        += K.block<3,3>(15,0) * res;
+    }
   }
   // Update covariance
   mwp.P = (MEKFWCov::Identity() - K * H) * mwp.P;
@@ -429,7 +522,7 @@ void ins_mekf_wind_update_baro(float baro_alt)
   mwp.state.pos         += K.block<3,1>(6,0) * res;
   mwp.state.rates_bias  += K.block<3,1>(9,0) * res;
   mwp.state.accel_bias  += K.block<3,1>(12,0) * res;
-  if (!ins_mekf_wind_disable_wind) {
+  if (!ins_mekf_wind_params.disable_wind) {
     mwp.state.wind        += K.block<3,1>(15,0) * res;
   }
   // Update covariance
@@ -467,7 +560,7 @@ void ins_mekf_wind_update_pos_speed(struct FloatVect3 *pos, struct FloatVect3 *s
   mwp.state.pos         += K.block<3,6>(6,0) * res;
   mwp.state.rates_bias  += K.block<3,6>(9,0) * res;
   mwp.state.accel_bias  += K.block<3,6>(12,0) * res;
-  if (!ins_mekf_wind_disable_wind) {
+  if (!ins_mekf_wind_params.disable_wind) {
     mwp.state.wind        += K.block<3,6>(15,0) * res;
   }
   // Update covariance
@@ -478,7 +571,7 @@ void ins_mekf_wind_update_airspeed(float airspeed)
 {
   mwp.measurements.airspeed = airspeed;
 
-  if (ins_mekf_wind_disable_wind) return;
+  if (ins_mekf_wind_params.disable_wind) return;
   // H and Ht matrices
   const RowVector3f IuRqt = mwp.state.quat.toRotationMatrix().transpose().block<1,3>(0,0);
   const Vector3f va = mwp.state.speed - mwp.state.wind;
@@ -504,7 +597,7 @@ void ins_mekf_wind_update_airspeed(float airspeed)
   mwp.state.pos         += K.block<3,1>(6,0) * res;
   mwp.state.rates_bias  += K.block<3,1>(9,0) * res;
   mwp.state.accel_bias  += K.block<3,1>(12,0) * res;
-  if (!ins_mekf_wind_disable_wind) {
+  if (!ins_mekf_wind_params.disable_wind) {
     mwp.state.wind        += K.block<3,1>(15,0) * res;
   }
   // Update covariance
@@ -516,7 +609,7 @@ void ins_mekf_wind_update_incidence(float aoa, float aos)
   mwp.measurements.aoa = aoa;
   mwp.measurements.aos = aos;
 
-  if (ins_mekf_wind_disable_wind) return;
+  if (ins_mekf_wind_params.disable_wind) return;
   // H and Ht matrices
   const Matrix3f Rqt = mwp.state.quat.toRotationMatrix().transpose();
   const Vector3f va = Rqt * (mwp.state.speed - mwp.state.wind); // airspeed in body frame
@@ -569,7 +662,7 @@ void ins_mekf_wind_update_incidence(float aoa, float aos)
   mwp.state.pos         += K.block<3,2>(6,0) * res;
   mwp.state.rates_bias  += K.block<3,2>(9,0) * res;
   mwp.state.accel_bias  += K.block<3,2>(12,0) * res;
-  if (!ins_mekf_wind_disable_wind) {
+  if (!ins_mekf_wind_params.disable_wind) {
     mwp.state.wind        += K.block<3,2>(15,0) * res;
   }
   // Update covariance
@@ -697,5 +790,26 @@ struct FloatRates ins_mekf_wind_get_rates_bias(void)
     .r = mwp.state.rates_bias(2)
   };
   return rb;
+}
+
+void ins_mekf_wind_update_params(void)
+{
+  Matrix<float, MEKF_WIND_PROC_NOISE_SIZE, 1> vp;
+  vp(0) = vp(1) = vp(2) = ins_mekf_wind_params.Q_gyro;
+  vp(3) = vp(4) = vp(5) = ins_mekf_wind_params.Q_accel;
+  vp(6) = vp(7) = vp(8) = ins_mekf_wind_params.Q_rates_bias;
+  vp(9) = vp(10) = vp(11) = ins_mekf_wind_params.Q_accel_bias;
+  vp(12) = vp(13) = vp(14) = ins_mekf_wind_params.Q_wind;
+  mekf_wind_private.Q = vp.asDiagonal();
+
+  Matrix<float, MEKF_WIND_MEAS_NOISE_SIZE, 1> vm;
+  vm(0) = vm(1) = vm(2) = ins_mekf_wind_params.R_speed;
+  vm(3) = vm(4) = vm(5) = ins_mekf_wind_params.R_pos;
+  vm(6) = vm(7) = vm(8) = ins_mekf_wind_params.R_mag;
+  vm(9) = ins_mekf_wind_params.R_baro;
+  vm(10) = ins_mekf_wind_params.R_airspeed;
+  vm(11) = ins_mekf_wind_params.R_aoa;
+  vm(12) = ins_mekf_wind_params.R_aos;
+  mekf_wind_private.R = vm.asDiagonal();
 }
 

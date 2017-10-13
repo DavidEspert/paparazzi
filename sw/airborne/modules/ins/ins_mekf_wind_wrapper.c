@@ -234,9 +234,9 @@ static void baro_cb(uint8_t __attribute__((unused)) sender_id, float pressure)
     }
     i++;
   } else { /* normal update with baro measurement */
-    if (ins_mekf_wind.is_aligned) {
+    if (ins_mekf_wind.is_aligned && ins_mekf_wind.gps_initialized) {
       float baro_alt = -pprz_isa_height_of_pressure(pressure, ins_qfe); // Z down
-      //ins_mekf_wind_update_baro(baro_alt);
+      ins_mekf_wind_update_baro(baro_alt);
 
 #if LOG_MEKF_WIND
       if (LogFileIsOpen()) {
@@ -307,20 +307,22 @@ static void gyro_cb(uint8_t sender_id __attribute__((unused)),
 
     if (last_imu_stamp > 0) {
       float dt = (float)(stamp - last_imu_stamp) * 1e-6;
-      ins_mekf_wind_propagate(&gyro_body, &ins_mekf_wind_accel, dt);
+      if (ins_mekf_wind.gps_initialized) {
+        ins_mekf_wind_propagate(&gyro_body, &ins_mekf_wind_accel, dt);
+      } else {
+        ins_mekf_wind_propagate_ahrs(&gyro_body, &ins_mekf_wind_accel, dt);
+      }
     }
 #else
     PRINT_CONFIG_MSG("Using fixed INS_PROPAGATE_FREQUENCY for INS MEKF_WIND propagation.")
       PRINT_CONFIG_VAR(INS_PROPAGATE_FREQUENCY)
       const float dt = 1. / (INS_PROPAGATE_FREQUENCY);
-    ins_mekf_wind_propagate(&gyro_body, &ins_mekf_wind_accel, dt);
-#endif
-    if (!ins_mekf_wind.gps_initialized) {
-      struct FloatVect3 pos, speed;
-      FLOAT_VECT3_ZERO(pos);
-      FLOAT_VECT3_ZERO(speed);
-      ins_mekf_wind_update_pos_speed(&pos, &speed);
+    if (ins_mekf_wind.gps_initialized) {
+      ins_mekf_wind_propagate(&gyro_body, &ins_mekf_wind_accel, dt);
+    } else {
+      ins_mekf_wind_propagate_ahrs(&gyro_body, &ins_mekf_wind_accel, dt);
     }
+#endif
 
     // update state interface
     set_state_from_ins();
@@ -363,7 +365,8 @@ static void mag_cb(uint8_t sender_id __attribute__((unused)),
     struct FloatRMat *body_to_imu_rmat = orientationGetRMat_f(&ins_mekf_wind.body_to_imu);
     // new values in body frame
     float_rmat_transp_vmult(&mag_body, body_to_imu_rmat, &mag_f);
-    ins_mekf_wind_update_mag(&mag_body);
+    // only correct attitude if GPS is not initialized
+    ins_mekf_wind_update_mag(&mag_body, !ins_mekf_wind.gps_initialized);
 
 #if LOG_MEKF_WIND
     if (LogFileIsOpen()) {
@@ -441,7 +444,6 @@ static void gps_cb(uint8_t sender_id __attribute__((unused)),
 			speed.y = gps_s->ned_vel.y / 100.0f;
 			speed.z = gps_s->ned_vel.z / 100.0f;
       if (!ins_mekf_wind.gps_initialized) {
-        //ins_reset_local_origin();
         ins_mekf_wind_set_pos_ned((struct NedCoor_f*)(&pos));
         ins_mekf_wind_set_speed_ned((struct NedCoor_f*)(&speed));
         ins_mekf_wind.gps_initialized = true;
@@ -548,7 +550,7 @@ void ins_mekf_wind_wrapper_init(void)
   ins_mekf_wind_set_mag_h(&mag_h);
 
   // Bind to ABI messages
-  AbiBindMsgBARO_ABS(INS_MEKF_WIND_BARO_ID, &baro_ev, baro_cb);
+  //AbiBindMsgBARO_ABS(INS_MEKF_WIND_BARO_ID, &baro_ev, baro_cb);
   AbiBindMsgBARO_DIFF(INS_MEKF_WIND_AIRSPEED_ID, &pressure_diff_ev, pressure_diff_cb);
   AbiBindMsgAIRSPEED(INS_MEKF_WIND_AIRSPEED_ID, &airspeed_ev, airspeed_cb);
   AbiBindMsgINCIDENCE(INS_MEKF_WIND_INCIDENCE_ID, &incidence_ev, incidence_cb);
