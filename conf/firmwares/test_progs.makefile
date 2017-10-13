@@ -552,5 +552,6 @@ test_eigen.CFLAGS += $(COMMON_TEST_CFLAGS)
 test_eigen.CXXFLAGS += -I$(PAPARAZZI_SRC)/sw/ext/eigen -Wno-shadow
 test_eigen.srcs   += $(COMMON_TEST_SRCS)
 test_eigen.srcs   += test/test_eigen.cpp
+test_eigen.srcs   += pprz_syscalls.c
 test_eigen.LDFLAGS += -lstdc++
 
