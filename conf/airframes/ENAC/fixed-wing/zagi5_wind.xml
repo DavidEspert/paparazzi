@@ -88,8 +88,8 @@
     </module>
     <module name="airspeed" type="adc">
       <configure name="ADC_AIRSPEED" value="ADC_2"/>
-      <define name="AIRSPEED_ADC_SCALE" value="1.0"/>
-      <define name="AIRSPEED_ADC_BIAS" value="0"/>
+      <define name="AIRSPEED_ADC_QUADRATIC_SCALE" value="1.097"/>
+      <define name="AIRSPEED_ADC_BIAS" value="1795"/>
       <define name="USE_AIRSPEED_ADC"/>
       <define name="POWER_SWITCH_ENABLE" value="TRUE"/>
     </module>
@@ -135,12 +135,12 @@
 
   <section name="AOA">
     <define name="AOA_REVERSE" value="FALSE"/>
-    <define name="AOA_SENS" value="(1.0*2.0*M_PI/4096.)"/>
-    <define name="AOA_OFFSET" value="90.0" unit="deg"/>
+    <define name="AOA_SENS" value="(0.959450254923*2*M_PI/4096)"/>
+    <define name="AOA_OFFSET" value="85.235" unit="deg"/>
     <define name="LOG_AOA" value="FALSE"/>
     <!--define name="USE_AIRSPEED_AIR_DATA" value="TRUE"/-->
     <define name="SSA_SENS" value="(1.0*2.0*M_PI/4096.)"/>
-    <define name="SSA_OFFSET" value="0.0" unit="deg"/>
+    <define name="SSA_OFFSET" value="-58.0" unit="deg"/>
   </section>
 
   <section name="AUTO1" prefix="AUTO1_">
@@ -150,16 +150,6 @@
 
   <section name="IMU" prefix="IMU_">	
 
-    <!-- Needed by NPS (simulation) -->
-
-    <define name="MAG_X_NEUTRAL" value="-149"/>
-    <define name="MAG_Y_NEUTRAL" value="-162"/>
-    <define name="MAG_Z_NEUTRAL" value="76"/>
-    <define name="MAG_X_SENS" value="4.4530507996" integer="16"/>
-    <define name="MAG_Y_SENS" value="3.98452151833" integer="16"/>
-    <define name="MAG_Z_SENS" value="4.0952166405" integer="16"/>
-
-    <!-- Calibration Neutral -->
     <define name="GYRO_P_SIGN" value="-1"/>
     <define name="GYRO_Q_SIGN" value="-1"/>
     <define name="GYRO_R_SIGN" value="-1"/>
@@ -172,12 +162,19 @@
     <define name="ACCEL_Y_SIGN" value="-1"/>
     <define name="ACCEL_Z_SIGN" value="-1"/>
 
-    <define name="ACCEL_X_NEUTRAL" value="-19"/>
-    <define name="ACCEL_Y_NEUTRAL" value="-91"/>
-    <define name="ACCEL_Z_NEUTRAL" value="55"/>
-    <define name="ACCEL_X_SENS" value="2.42805461102" integer="16"/>
-    <define name="ACCEL_Y_SENS" value="2.3490748465" integer="16"/>
-    <define name="ACCEL_Z_SENS" value="2.42535188272" integer="16"/>
+    <define name="ACCEL_X_NEUTRAL" value="-28"/>
+    <define name="ACCEL_Y_NEUTRAL" value="63"/>
+    <define name="ACCEL_Z_NEUTRAL" value="10"/>
+    <define name="ACCEL_X_SENS" value="2.43682079176" integer="16"/>
+    <define name="ACCEL_Y_SENS" value="2.44816460508" integer="16"/>
+    <define name="ACCEL_Z_SENS" value="2.44010996249" integer="16"/>
+
+    <define name="MAG_X_NEUTRAL" value="-101"/>
+    <define name="MAG_Y_NEUTRAL" value="-205"/>
+    <define name="MAG_Z_NEUTRAL" value="47"/>
+    <define name="MAG_X_SENS" value="3.98838192619" integer="16"/>
+    <define name="MAG_Y_SENS" value="3.95026541074" integer="16"/>
+    <define name="MAG_Z_SENS" value="4.03962900757" integer="16"/>
 
     <define name="BODY_TO_IMU_PHI" value="0" unit="deg"/>
     <define name="BODY_TO_IMU_THETA" value="6.9" unit="deg"/>
