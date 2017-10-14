@@ -11,6 +11,27 @@
     <configure name="USE_MAGNETOMETER" value="TRUE|FALSE" description="use magnetometer"/>
     <configure name="AHRS_ALIGNER_LED" value="2" description="LED number to indicate if AHRS/INS is aligned"/>
     <define name="LOG_MEKF_WIND" value="FALSE|TRUE" description="enable logging on SD card (default: FALSE)"/>
+    <section name="MEKF_WIND" prefix="INS_MEKF_WIND_">
+      <define name="DISABLE_WIND" value="FALSE|TRUE" description="Disable wind estimation (true by default)"/>
+      <define name="P0_QUAT" value="0.007615" description="Initial covariance on quaternion"/>
+      <define name="P0_SPEED" value="1E+2" description="Initial covariance on speed"/>
+      <define name="P0_POS" value="1E+1" description="Initial covariance on position"/>
+      <define name="P0_RATES_BIAS" value="1E-5" description="Initial covariance on gyrometers bias"/>
+      <define name="P0_ACCEL_BIAS" value="1E-5" description="Initial covariance on accelerometers bias"/>
+      <define name="P0_WIND" value="1." description="Initial covariance on wind estimate"/>
+      <define name="Q_GYRO" value="1E-2" description="Process noise on gyrometers"/>
+      <define name="Q_ACCEL" value="1E-2" description="Process noise on accelerometers"/>
+      <define name="Q_RATES_BIAS" value="1E-5" description="Process noise on gyrometers bias"/>
+      <define name="Q_ACCEL_BIAS" value="1E-5" description="Process noise on accelerometers bias"/>
+      <define name="Q_WIND" value="1." description="Process nois on wind estimate"/>
+      <define name="R_SPEED" value="1." description="Measurement noise on speed"/>
+      <define name="R_POS" value="5." description="Measurement noise on position"/>
+      <define name="R_MAG" value="1." description="Measurement noise on magnetometers"/>
+      <define name="R_BARO" value="0.1" description="Measurement noise on barometer"/>
+      <define name="R_AIRSPEED" value="0.1" description="Measurement noise en airspeed"/>
+      <define name="R_AOA" value="0.1" description="Measurement noise on angle of attack"/>
+      <define name="R_AOS" value="0.1" description="Measurement noise on sideslip angle"/>
+    </section>
   </doc>
   <settings>
     <dl_settings>

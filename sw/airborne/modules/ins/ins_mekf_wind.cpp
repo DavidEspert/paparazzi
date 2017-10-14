@@ -31,6 +31,7 @@
 
 
 #include "modules/ins/ins_mekf_wind.h"
+#include "generated/airframe.h"
 
 #ifndef SITL
 // Redifine Eigen assert so it doesn't use memory allocation
