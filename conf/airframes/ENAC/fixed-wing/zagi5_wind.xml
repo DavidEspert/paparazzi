@@ -21,6 +21,7 @@
       <configure name="PERIODIC_FREQUENCY" value="100"/>
       <module name="radio_control" type="sbus"/>
       <module name="ins" type="mekf_wind"/>
+      <define name="LOG_MEKF_WIND" value="TRUE"/>
     </target>
     <target name="nps" board="pc">
       <configure name="PERIODIC_FREQUENCY" value="100"/>
@@ -33,7 +34,7 @@
       <define name="USE_NPS_SIDESLIP"/>
       <define name="NPS_SYNC_INCIDENCE"/>
       <define name="WE_LOG_PATH" value="/home/gautier/tmp"/>
-      <define name="LOG_WIND_ESTIMATOR" value="FALSE"/>
+      <define name="LOG_MEKF_WIND" value="FALSE"/>
     </target>
     <target name="sim" board="pc">
       <module name="radio_control" type="ppm"/>
@@ -62,10 +63,10 @@
     <module name="navigation"/>
     <module name="takeoff_detect"/>
 
-    <!--module name="tlsf"/>
+    <module name="tlsf"/>
     <module name="pprzlog"/>
     <module name="logger" type="sd_chibios"/>
-    <module name="flight_recorder"/-->
+    <module name="flight_recorder"/>
 
     <module name="sys_mon"/>
    

@@ -281,7 +281,7 @@ static void incidence_cb(uint8_t __attribute__((unused)) sender_id, uint8_t flag
 
 #if LOG_MEKF_WIND
     if (LogFileIsOpen()) {
-      PrintLog(pprzLogFile, "%.3f incidence %.3f %.3f\n", get_sys_time_float(), aoa, aos);
+      PrintLog(pprzLogFile, "%.3f incidence %.3f %.3f\n", get_sys_time_float(), aoa, sideslip);
     }
 #endif
   }
