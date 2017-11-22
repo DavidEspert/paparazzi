@@ -26,6 +26,7 @@
 #ifndef JEVOIS_H
 #define JEVOIS_H
 
+/** JEVOIS messages types */
 #define JEVOIS_MSG_T1 10
 #define JEVOIS_MSG_N1 11
 #define JEVOIS_MSG_D1 12

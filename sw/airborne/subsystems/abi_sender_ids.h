@@ -362,4 +362,13 @@
 #define RANGE_FORCEFIELD_ID 1
 #endif
 
+/*
+ * ID's for computer vision systems
+ */
+
+#ifndef CV_JEVOIS_ID
+#define CV_JEVOIS_ID 1
+#endif
+
+
 #endif /* ABI_SENDER_IDS_H */

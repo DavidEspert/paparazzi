@@ -64,7 +64,8 @@ enum jevois_state {
 struct jevois_t {
   enum jevois_state state; // decoder state
   char buf[JEVOIS_MAX_LEN]; // temp buffer
-  uint8_t idx; // temp index
+  uint8_t idx; // temp buffer index
+  uint8_t n; // temp coordinates/dimension index
   struct jevois_msg_t msg; // last decoded message
 };
 
@@ -75,6 +76,7 @@ void jevois_init(void)
 {
   jevois.state = JV_SYNC;
   jevois.idx = 0;
+  jevois.n = 0;
   memset(jevois.buf, 0, JEVOIS_MAX_LEN);
 }
 
@@ -87,49 +89,72 @@ static void jevois_parse(struct jevois_t *jv, char c)
       if (c == '\n') {
         jv->state = JV_TYPE;
         jv->idx = 0;
+        jv->n = 0;
       }
       break;
     case JV_TYPE:
       if (c == ' ') {
         break; // in case skip white spaces
       }
-      jv->buf[jv->idx++] = c;
+      jv->buf[jv->idx++] = c; // fill buffer
       // parse type
-      // TODO set nb when possible
-      // FIXME test each case individualy
       if (jv->idx > 1) {
-        if (jv->buf[0] == 'T') {
+        if (jv->buf[0] == 'T' && jv->buf[1] == '1') {
           jv->state = JV_COORD;
-          jv->msg.type = 0;
-        } else if (jv->buf[0] == 'N') {
+          jv->msg.type = JEVOIS_MSG_T1;
+          jv->msg.nb = 1;
+        } else if (jv->buf[0] == 'N' && jv->buf[1] == '1') {
           jv->state = JV_ID;
-          jv->msg.type = 1;
-        } else if (jv->buf[0] == 'D') {
+          jv->msg.type = JEVOIS_MSG_N1;
+          jv->msg.nb = 1;
+        } else if (jv->buf[0] == 'D' && jv->buf[1] == '1') {
           jv->state = JV_ID;
-          jv->msg.type = 2;
-        } else if (jv->buf[0] == 'F') {
+          jv->msg.type = JEVOIS_MSG_D1;
+          jv->msg.nb = 2;
+        } else if (jv->buf[0] == 'T' && jv->buf[1] == '2') {
+          jv->state = JV_COORD;
+          jv->msg.type = JEVOIS_MSG_T2;
+          jv->msg.nb = 2;
+        } else if (jv->buf[0] == 'N' && jv->buf[1] == '2') {
           jv->state = JV_ID;
-          jv->msg.type = 3;
+          jv->msg.type = JEVOIS_MSG_N2;
+          jv->msg.nb = 2;
+        } else if (jv->buf[0] == 'D' && jv->buf[1] == '2') {
+          jv->state = JV_ID;
+          jv->msg.type = JEVOIS_MSG_D2;
+          jv->msg.nb = 8;
+        } else if (jv->buf[0] == 'F' && jv->buf[1] == '2') {
+          jv->state = JV_ID;
+          jv->msg.type = JEVOIS_MSG_F2;
+          jv->msg.nb = 0;
+        } else if (jv->buf[0] == 'T' && jv->buf[1] == '3') {
+          jv->state = JV_COORD;
+          jv->msg.type = JEVOIS_MSG_T3;
+          jv->msg.nb = 3;
+        } else if (jv->buf[0] == 'N' && jv->buf[1] == '3') {
+          jv->state = JV_ID;
+          jv->msg.type = JEVOIS_MSG_N3;
+          jv->msg.nb = 3;
+        } else if (jv->buf[0] == 'D' && jv->buf[1] == '3') {
+          jv->state = JV_ID;
+          jv->msg.type = JEVOIS_MSG_D3;
+          jv->msg.nb = 3;
+        } else if (jv->buf[0] == 'F' && jv->buf[1] == '3') {
+          jv->state = JV_ID;
+          jv->msg.type = JEVOIS_MSG_F3;
+          jv->msg.nb = 0;
         } else {
-          jv->state = JV_SYNC;
-        }
-        if (jv->buf[1] == '1') {
-          jv->msg.type += 10;
-        } else if (jv->buf[1] == '2') {
-          jv->msg.type += 20;
-        } else if (jv->buf[1] == '3') {
-          jv->msg.type += 30;
-        } else if (jv->buf[1] == '4') {
-          jv->msg.type += 40;
-        } else {
-          jv->state = JV_SYNC;
+          jv->state = JV_SYNC; // error
         }
         jv->idx = 0;
       }
       break;
     case JV_ID:
-      jv->msg.id[jv->idx++] = c;
-      if (c == '\0') {
+      if (c == ' ' && jv->idx == 0) {
+        jv->idx++; // skip first white space
+      }
+      else if (c == ' ' && jv->idx > 0) {
+        jv->buf[jv->idx] = '\0'; // end string
         if (jv->msg.type == JEVOIS_MSG_F2 ||
             jv->msg.type == JEVOIS_MSG_F3) {
           jv->state = JV_SIZE; // parse n before coordinates
@@ -138,27 +163,136 @@ static void jevois_parse(struct jevois_t *jv, char c)
         }
         break;
       }
-      if (jv->idx >= JEVOIS_MAX_LEN) {
-        jv->state = JV_TYPE;
+      else {
+        jv->msg.id[jv->idx++] = c;
+        if (jv->idx > JEVOIS_MAX_LEN - 1) {
+          jv->state = JV_SYNC; // too long, return to sync
+        }
       }
       break;
     case JV_SIZE:
-      // TODO
+      if (c == ' ') {
+        jv->buf[jv->idx] = '\0'; // end string
+        jv->msg.nb = (uint8_t)atoi(jv->buf); // store size
+        jv->state = JV_COORD;
+        jv->idx = 0;
+      }
+      else {
+        jv->buf[jv->idx++] = c; // fill buffer
+      }
       break;
     case JV_COORD:
-      // TODO
+      if (c == ' ') {
+        jv->buf[jv->idx] = '\0'; // end string
+        jv->msg.coord[jv->n++] = (int16_t)atoi(jv->buf); // store value
+        if (jv->n == jv->msg.nb) {
+          // got all coordinates, go to next state
+          jv->n = 0; // reset number of received elements
+          jv->idx = 0; // reset index
+          switch (jv->msg.type) {
+            case JEVOIS_MSG_T1:
+            case JEVOIS_MSG_T2:
+            case JEVOIS_MSG_T3:
+              jv->state = JV_SEND_MSG;
+              break;
+            case JEVOIS_MSG_N1:
+            case JEVOIS_MSG_N2:
+            case JEVOIS_MSG_N3:
+            case JEVOIS_MSG_D3:
+              jv->state = JV_DIM;
+              break;
+            case JEVOIS_MSG_D1:
+            case JEVOIS_MSG_D2:
+            case JEVOIS_MSG_F2:
+            case JEVOIS_MSG_F3:
+              jv->state = JV_EXTRA;
+              break;
+            default:
+              jv->state = JV_SYNC; // error
+              break;
+          }
+        }
+        jv->idx = 0; // reset index
+      }
+      else {
+        jv->buf[jv->idx++] = c; // fill buffer
+      }
       break;
     case JV_DIM:
-      // TODO
+      if (c == ' ') {
+        jv->buf[jv->idx] = '\0'; // end string
+        jv->msg.dim[jv->n++] = (uint16_t)atoi(jv->buf); // store dimension
+        if (jv->n == jv->msg.nb) {
+          // got all dimensions, go to next state
+          jv->n = 0; // reset number of received elements
+          jv->idx = 0; // reset index
+          if (jv->msg.type == JEVOIS_MSG_D3) {
+            jv->state = JV_QUAT;
+          } else {
+            jv->state = JV_SEND_MSG;
+          }
+          break;
+        }
+        jv->idx = 0; // reset index
+      }
+      else {
+        jv->buf[jv->idx++] = c; // fill buffer
+      }
       break;
     case JV_QUAT:
-      // TODO
+      if (c == ' ') {
+        jv->buf[jv->idx] = '\0';
+        float q = (float) atof(jv->buf);
+        switch (jv->n) {
+          case 0:
+            jv->msg.quat.qi = q; // TODO check quaternion order
+            break;
+          case 1:
+            jv->msg.quat.qx = q;
+            break;
+          case 2:
+            jv->msg.quat.qy = q;
+            break;
+          case 3:
+            jv->msg.quat.qz = q;
+            break;
+          case 4:
+            jv->state = JV_EXTRA;
+            break;
+          default:
+            jv->state = JV_SYNC; // error
+            break;
+        }
+        jv->n++;
+        jv->idx = 0; // reset index
+      }
+      else {
+        jv->buf[jv->idx++] = c; // fill buffer
+      }
       break;
     case JV_EXTRA:
-      // TODO
+      if (c == ' ') {
+        jv->buf[jv->idx] = '\0'; // end string
+        jv->state = JV_SEND_MSG;
+      }
+      else {
+        jv->msg.id[jv->idx++] = c; // store extra string
+        if (jv->idx > JEVOIS_MAX_LEN - 1) {
+          jv->state = JV_SYNC; // too long, return to sync
+        }
+      }
       break;
     case JV_SEND_MSG:
-      // TODO
+      // send ABI message
+      AbiSendMsgJEVOIS_MSG(CV_JEVOIS_ID,
+          jv->msg.type,
+          jv->msg.id,
+          jv->msg.nb,
+          jv->msg.coord,
+          jv->msg.dim,
+          jv->msg.quat,
+          jv->msg.extra);
+      jv->state = JV_SYNC;
       break;
     default:
       // error, back to SYNC
@@ -172,8 +306,8 @@ static void jevois_parse(struct jevois_t *jv, char c)
 void jevois_event(void)
 {
   // Look for data on serial link and send to parser
-  while (uart_char_available(&JEVOIS_DEV)) {
-    uint8_t ch = uart_getch(&JEVOIS_DEV);
+  while (uart_char_available(&(JEVOIS_DEV))) {
+    uint8_t ch = uart_getch(&(JEVOIS_DEV));
     jevois_parse(&jevois, ch);
   }
 }
