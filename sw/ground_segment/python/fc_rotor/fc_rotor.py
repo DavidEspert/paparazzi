@@ -6,10 +6,12 @@ import sys
 import wx
 import numpy as np
 import sys
+from time import sleep
 from os import path, getenv
+PPRZ_HOME = getenv("PAPARAZZI_HOME", path.normpath(path.join(path.dirname(path.abspath(__file__)), '../../../../')))
 PPRZ_SRC = getenv("PAPARAZZI_SRC", path.normpath(path.join(path.dirname(path.abspath(__file__)), '../../../../')))
+sys.path.append(PPRZ_HOME + "/var/lib/python/")
 sys.path.append(PPRZ_SRC + "/sw/lib/python")
-sys.path.append(PPRZ_SRC + "/sw/ext/pprzlink/lib/v1.0/python")
 from pprzlink.ivy import IvyMessagesInterface
 from pprzlink.message import PprzMessage 
 from settings_xml_parse import PaparazziACSettings
@@ -28,6 +30,7 @@ class rotorcraft:
 list_ids = []
 list_rotorcrafts = []
 interface = IvyMessagesInterface("Formation Control Rotorcrafts")
+sleep(0.1)
 
 # Joystick and Keyboard
 translation = 0.0
@@ -75,11 +78,11 @@ def formation(B, d, mus, k, geo_fence, dim, joystick_present):
         if rc.timeout > 0.5:
             print("The INS msg of rotorcraft ", rc.id, " stopped")
             no_ins_msg = 1
-         if (rc.X[0] < geo_fence[0] or rc.X[0] > geo_fence[1]
-             or rc.X[1] < geo_fence[2] or rc.X[1] > geo_fence[3]
-             or rc.X[2] < geo_fence[4] or rc.X[2] > geo_fence[5]):
-             print("The rotorcraft", rc.id, " is out of the fence")
-             return
+        if (rc.X[0] < geo_fence[0] or rc.X[0] > geo_fence[1]
+                or rc.X[1] < geo_fence[2] or rc.X[1] > geo_fence[3]
+                or rc.X[2] < geo_fence[4] or rc.X[2] > geo_fence[5]):
+            print("The rotorcraft", rc.id, " is out of the fence (", rc.X, ", ", geo_fence, ")")
+            return
 
     if no_ins_msg == 1:
         return
@@ -96,6 +99,7 @@ def formation(B, d, mus, k, geo_fence, dim, joystick_present):
         V[i+1] = rc.V[1]
         i = i + 2
 
+    global scale
     # Computation of useful matrices
     d = scale*d
 
@@ -121,7 +125,6 @@ def formation(B, d, mus, k, geo_fence, dim, joystick_present):
     global translation2
     global rotation
     global rotation2
-    global scale
     global altitude
     global but_A_pressed
     global but_B_pressed
@@ -209,9 +212,9 @@ def formation(B, d, mus, k, geo_fence, dim, joystick_present):
 
     i = 0
     for ac in list_rotorcrafts:
-        msg = PprzMessage("datalink", "FC_ROTOR")
+        msg = PprzMessage("datalink", "DESIRED_SETPOINT")
         msg['ac_id'] = ac.id
-        msg['dim'] = dim
+        msg['flag'] = dim
         msg['ux'] = U[i]
         msg['uy'] = U[i+1]
         msg['uz'] = 0
@@ -271,7 +274,7 @@ def main():
         list_rotorcrafts.append(rotorcraft(int(ids[i])))
 
     # Ivy
-    interface.subscribe(message_recv)
+    interface.subscribe(message_recv, PprzMessage("telemetry", "INS"))
 
     for rc in list_rotorcrafts:
         settings = PaparazziACSettings(rc.id)
@@ -291,8 +294,14 @@ def main():
     global stick
     if joystick_present == 1:
         pygame.init()
-        stick = pygame.joystick.Joystick(0)
-        stick.init()
+        if pygame.joystick.get_count() > 0:
+            stick = pygame.joystick.Joystick(0)
+            stick.init()
+        else:
+            print("No joystick found")
+            interface.shutdown()
+            pygame.quit()
+            exit()
 
     try:
         # The main loop
