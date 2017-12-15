@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014 Freek van Tienen
+ * Copyright (C) 2017 Ewoud Smeur <ewoud_smeur@msn.com>
  *
  * This file is part of paparazzi.
  *
@@ -20,32 +20,24 @@
  */
 
 /**
- * @file gps_datalink.h
- * @brief GPS system based on datalink
- *
- * This GPS parses the datalink REMOTE_GPS packet and sets the
- * GPS structure to the values received.
+ * @file modules/ctrl/ctrl_effectiveness_scheduling.h
  */
 
-#ifndef GPS_DATALINK_H
-#define GPS_DATALINK_H
+#ifndef CTRL_EFFECTIVENESS_SCHEDULING_H
+#define CTRL_EFFECTIVENESS_SCHEDULING_H
 
-#include "std.h"
 #include "generated/airframe.h"
-#include "subsystems/gps.h"
+#include "firmwares/rotorcraft/stabilization/stabilization_indi.h"
 
-#ifndef PRIMARY_GPS
-#define PRIMARY_GPS GPS_DATALINK
-#endif
+/**
+ * Initialises periodic loop;
+ */
+extern void ctrl_eff_scheduling_init(void);
 
-extern struct GpsState gps_datalink;
+/**
+ * Periodic function that interpolates between gain sets depending on the scheduling variable.
+ */
+extern void ctrl_eff_scheduling_periodic(void);
 
-extern void gps_datalink_init(void);
+#endif  /* CTRL_EFFECTIVENESS_SCHEDULING_H */
 
-#define gps_datalink_periodic_check() gps_periodic_check(&gps_datalink)
-
-extern void gps_datalink_parse_REMOTE_GPS(void);
-extern void gps_datalink_parse_REMOTE_GPS_SMALL(void);
-extern void gps_datalink_parse_REMOTE_GPS_LOCAL(void);
-
-#endif /* GPS_DATALINK_H */
