@@ -24,8 +24,7 @@
 #include "subsystems/datalink/datalink.h" // dl_buffer
 #include "autopilot.h"
 #include "modules/fc_rotor/fc_rotor.h"
-
-int fc_rotor_on;
+#include "firmwares/rotorcraft/navigation.h"
 
 void fc_rotor_init(void)
 {
@@ -49,7 +48,8 @@ void fc_read_msg(void)
     else if (flag == 0) {
       AbiSendMsgACCEL_SP(ACCEL_SP_2D_ID, &u);
 
-      // TODO set altitude from u.z
+      // set flight altitude in integer ENU LTP frame
+      nav_flight_altitude = POS_BFP_OF_REAL(u.z);
     }
   }
 }
