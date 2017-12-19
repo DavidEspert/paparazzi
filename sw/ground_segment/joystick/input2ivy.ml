@@ -135,7 +135,7 @@ let ac_id_of_name = fun ac_name ->
     ExtXml.int_attrib aircraft "ac_id"
   with
       Not_found ->
-        if ac_name == "GCS" then
+        if ac_name = "GCS" then
           0 (* return GCS id *)
         else
           failwith (sprintf "A/C '%s' not found" ac_name)

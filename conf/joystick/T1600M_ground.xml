@@ -16,6 +16,12 @@
     <button index="1" name="top_center"/>
     <button index="2" name="top_left"/>
     <button index="3" name="top_right"/>
+    <button index="4" name="b4"/>
+    <button index="5" name="b5"/>
+    <button index="6" name="b6"/>
+    <button index="7" name="b7"/>
+    <button index="8" name="b8"/>
+    <button index="9" name="b9"/>
   </input>
 
   <messages period="0.05">
@@ -26,10 +32,10 @@
       <field name="axis2"   value="pitch"/>
       <field name="axis3"   value="yaw"/>
       <field name="axis4"   value="Fit(-thrust,-127,127,0,127)"/>
-      <field name="button1" value="fire"/>
-      <field name="button2" value="top_center"/>
-      <field name="button3" value="top_left"/>
-      <field name="button4" value="top_right"/>
+      <field name="button1" value="top_left"/>
+      <field name="button2" value="top_right"/>
+      <field name="button3" value="fire"/>
+      <field name="button4" value="top_center"/>
     </message>
 
   </messages>
