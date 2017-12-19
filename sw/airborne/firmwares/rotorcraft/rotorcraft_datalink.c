@@ -36,7 +36,6 @@
 
 #include "autopilot.h"
 #include "firmwares/rotorcraft/autopilot_guided.h"
-#include "modules/fc_rotor/fc_rotor.h"
 
 void firmware_parse_msg(struct link_device *dev __attribute__((unused)), struct transport_tx *trans __attribute__((unused)), uint8_t *buf)
 {
