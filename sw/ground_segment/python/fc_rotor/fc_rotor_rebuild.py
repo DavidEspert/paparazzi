@@ -30,9 +30,7 @@ import json
 from time import sleep
 from os import path, getenv
 PPRZ_HOME = getenv("PAPARAZZI_HOME", path.normpath(path.join(path.dirname(path.abspath(__file__)), '../../../../')))
-PPRZ_SRC = getenv("PAPARAZZI_SRC", path.normpath(path.join(path.dirname(path.abspath(__file__)), '../../../../')))
 sys.path.append(PPRZ_HOME + "/var/lib/python/")
-sys.path.append(PPRZ_SRC + "/sw/lib/python")
 from pprzlink.ivy import IvyMessagesInterface
 from pprzlink.message import PprzMessage 
 
@@ -41,11 +39,11 @@ from scipy import linalg as la
 
 class FC_Rotorcraft:
     def __init__(self, ac_id):
+        self.initialized = False
         self.id = ac_id
-        self.X = None
-        self.V = None
+        self.X = np.zeros(3)
+        self.V = np.zeros(3)
         self.timeout = 0
-        self.fa_index = None
 
 class FC_Joystick:
     def __init__(self):
@@ -59,24 +57,29 @@ class FC_Joystick:
         self.button4 = False
 
 class FormationControl:
-    def __init__(self, config, freq=50., verbose=False):
+    def __init__(self, config, freq=10., use_ground_ref=False, verbose=False):
         self.config = config
         self.step = 1. / freq
+        self.sens = self.config['sensitivity']
+        self.use_ground_ref = use_ground_ref
         self.verbose = verbose
         self.ids = self.config['ids']
         self.rotorcrafts = [FC_Rotorcraft(i) for i in self.ids]
         self.joystick = FC_Joystick()
-        self.altitude = 1.0 # starts from 1 m high
+        self.altitude = 2.0 # starts from 1 m high
         self.scale = 1.0
         self.B = np.array(self.config['topology'])
         self.d = np.array(self.config['desired_distances'])
-        self.m = np.array(self.config['motion'])
+        self.t1 = np.array(self.config['motion']['t1'])
+        self.t2 = np.array(self.config['motion']['t2'])
+        self.r1 = np.array(self.config['motion']['r1'])
+        self.r2 = np.array(self.config['motion']['r2'])
         self.k = np.array(self.config['gains'])
 
-        if np.size(self.d) == 1:
-            self.m.shape = (4,1)
-        if self.B.size == 2:
-            self.B.shape = (2,1)
+        #if np.size(self.d) == 1:
+        #    self.m.shape = (4,1)
+        #if self.B.size == 2:
+        #    self.B.shape = (2,1)
 
         # Check formation settings
         if len(self.ids) != np.size(self.B, 0):
@@ -87,13 +90,13 @@ class FormationControl:
             print("The number of links in the topology and desired distances do not match")
             return
 
-        if np.size(self.d) != np.size(self.m,1):
-            print("The number of (columns) motion parameters and relative vectors do not match")
-            return
+        #if np.size(self.d) != np.size(self.m,1):
+        #    print("The number of (columns) motion parameters and relative vectors do not match")
+        #    return
 
-        if np.size(self.m, 0) != 8:
-            print("The number of (rows) motion parameters must be eight")
-            return
+        #if np.size(self.m, 0) != 8:
+        #    print("The number of (rows) motion parameters must be eight")
+        #    return
 
         if self.config['3D'] == True:
             print("3D formation is not supported yet")
@@ -102,39 +105,60 @@ class FormationControl:
         # Start IVY interface
         self._interface = IvyMessagesInterface("Formation Control Rotorcrafts")
 
-        # bind to INS and JOYSTICK messages
+        # bind to INS message
         def ins_cb(ac_id, msg):
+            if ac_id in self.ids and msg.name == "INS":
+                rc = self.rotorcrafts[self.ids.index(ac_id)]
+                i2p = 1. / 2**8     # integer to position
+                i2v = 1. / 2**19    # integer to velocity
+                rc.X[0] = float(msg['ins_x']) * i2p
+                rc.X[1] = float(msg['ins_y']) * i2p
+                rc.X[2] = float(msg['ins_z']) * i2p
+                rc.V[0] = float(msg['ins_xd']) * i2v
+                rc.V[1] = float(msg['ins_yd']) * i2v
+                rc.V[2] = float(msg['ins_zd']) * i2v
+                rc.timeout = 0
+                rc.initialized = True
+        if not self.use_ground_ref:
+            self._interface.subscribe(ins_cb, PprzMessage("telemetry", "INS"))
+
+        # bind to GROUND_REF message
+        def ground_ref_cb(ground_id, msg):
+            print('REF '+str(msg['timestamp']))
+            ac_id = int(msg['ac_id'])
             if ac_id in self.ids:
                 rc = self.rotorcrafts[self.ids.index(ac_id)]
                 i2p = 1. / 2**8     # integer to position
                 i2v = 1. / 2**19    # integer to velocity
-                rc.X[0] = float(msg.get_field(0)) * i2p
-                rc.X[1] = float(msg.get_field(1)) * i2p
-                rc.X[2] = float(msg.get_field(2)) * i2p
-                rc.V[0] = float(msg.get_field(3)) * i2v
-                rc.V[1] = float(msg.get_field(4)) * i2v
-                rc.V[2] = float(msg.get_field(5)) * i2v
+                rc.X[0] = float(msg['pos'][0]) * i2p
+                rc.X[1] = float(msg['pos'][1]) * i2p
+                rc.X[2] = float(msg['pos'][2]) * i2p
+                rc.V[0] = float(msg['speed'][0]) * i2v
+                rc.V[1] = float(msg['speed'][1]) * i2v
+                rc.V[2] = float(msg['speed'][2]) * i2v
                 rc.timeout = 0
-        self._interface.subscribe(ins_cb, PprzMessage("telemetry", "INS"))
+                rc.initialized = True
+        if self.use_ground_ref:
+            self._interface.subscribe(ground_ref_cb, PprzMessage("ground", "GROUND_REF"))
 
+        # bind to JOYSTICK message
         def joystick_cb(ac_id, msg):
-            # FIXME get gains and limits from config file
-            self.joystick.trans = float(msg['axis1']) * 2.5 / 127.
-            self.joystick.trans2 = float(msg['axis2']) * 2.5 / 127.
-            self.joystick.rot = float(msg['axis3']) * 3.5 / 127.
-            self.joystick.rot2 = float(msg['axis4']) * 2.5 / 127.
-            if msg['button1'] == 1 and not self.joystick.button1:
-                self.scale = min(self.scale - 0.05, 0.2)
-            if msg['button2'] == 1 and not self.joystick.button2:
-                self.scale = self.scale + 0.05
-            if msg['button3'] == 1 and not self.joystick.button3:
-                self.altitude = max(self.altitude + 0.1, 4.0)
-            if msg['button4'] == 1 and not self.joystick.button4:
-                self.altitude = min(self.altitude - 0.1, 0.2)
-            self.joystick.button1 = (msg['button1'] == 1)
-            self.joystick.button2 = (msg['button2'] == 1)
-            self.joystick.button3 = (msg['button3'] == 1)
-            self.joystick.button4 = (msg['button4'] == 1)
+            self.joystick.trans = float(msg['axis1']) * self.sens['t1'] / 127.
+            self.joystick.trans2 = float(msg['axis2']) * self.sens['t2'] / 127.
+            self.joystick.rot = float(msg['axis3']) * self.sens['r1'] / 127.
+            self.joystick.rot2 = float(msg['axis4']) * self.sens['r2'] / 127.
+            if msg['button1'] == '1' and not self.joystick.button1:
+                self.scale = min(self.scale + self.sens['scale'], self.sens['scale_max'])
+            if msg['button2'] == '1' and not self.joystick.button2:
+                self.scale = max(self.scale - self.sens['scale'], self.sens['scale_min'])
+            if msg['button3'] == '1' and not self.joystick.button3:
+                self.altitude = min(self.altitude + self.sens['alt'], self.sens['alt_max'])
+            if msg['button4'] == '1' and not self.joystick.button4:
+                self.altitude = max(self.altitude - self.sens['alt'], self.sens['alt_min'])
+            self.joystick.button1 = (msg['button1'] == '1')
+            self.joystick.button2 = (msg['button2'] == '1')
+            self.joystick.button3 = (msg['button3'] == '1')
+            self.joystick.button4 = (msg['button4'] == '1')
         self._interface.subscribe(joystick_cb, PprzMessage("ground", "JOYSTICK"))
 
     def __del__(self):
@@ -151,15 +175,15 @@ class FormationControl:
         '''
         ready = True
         for rc in self.rotorcrafts:
-            if rc.X is None:
+            if not rc.initialized:
                 if self.verbose:
-                    print("Waiting for INS msg of rotorcraft ", rc.id)
+                    print("Waiting for state of rotorcraft ", rc.id)
                 ready = False
             if rc.timeout > 0.5:
                 if self.verbose:
-                    print("The INS msg of rotorcraft ", rc.id, " stopped")
+                    print("The state msg of rotorcraft ", rc.id, " stopped")
                 ready = False
-            if rc.X is not None and 'geo_fence' in self.config.keys():
+            if rc.initialized and 'geo_fence' in self.config.keys():
                 geo_fence = self.config['geo_fence']
                 if (rc.X[0] < geo_fence['x_min'] or rc.X[0] > geo_fence['x_max']
                         or rc.X[1] < geo_fence['y_min'] or rc.X[1] > geo_fence['y_max']
@@ -183,46 +207,36 @@ class FormationControl:
             V[i+1] = rc.V[1]
             i = i + 2
 
-        # Computation of useful matrices
-        self.d = self.scale * self.d
 
         Bb = la.kron(self.B, np.eye(2))
         Z = Bb.T.dot(X)
         Dz = rf.make_Dz(Z, 2)
         Dzt = rf.make_Dzt(Z, 2, 1)
-        Dztstar = rf.make_Dztstar(self.d, 2, 1)
+        Dztstar = rf.make_Dztstar(self.d * self.scale, 2, 1)
         Zh = rf.make_Zh(Z, 2)
-        E = rf.make_E(Z, self.d, 2, 1)
+        E = rf.make_E(Z, self.d * self.scale, 2, 1)
 
         # Shape and motion control
-        mu_t = self.m[0,:]
-        tilde_mu_t = self.m[1,:]
-        mu_r = self.m[2,:]
-        tilde_mu_r = self.m[3,:]
-        mu_t2 = self.m[4,:]
-        tilde_mu_t2 = self.m[5,:]
-        mu_r2 = self.m[6,:]
-        tilde_mu_r2 = self.m[7,:]
+        jmu_t1 = self.joystick.trans * self.t1[0,:]
+        jtilde_mu_t1 = self.joystick.trans * self.t1[1,:]
+        jmu_r1 = self.joystick.rot * self.r1[0,:]
+        jtilde_mu_r1 = self.joystick.rot * self.r1[1,:]
+        jmu_t2 = self.joystick.trans2 * self.t2[0,:]
+        jtilde_mu_t2 = self.joystick.trans2 * self.t2[1,:]
+        jmu_r2 = self.joystick.rot2 * self.r2[0,:]
+        jtilde_mu_r2 = self.joystick.rot2 * self.r2[1,:]
 
-        jmu_t = self.joystick.trans * mu_t
-        jtilde_mu_t = self.joystick.trans * tilde_mu_t
-        jmu_r = self.joystick.rot * mu_r
-        jtilde_mu_r = self.joystick.rot * tilde_mu_r
-        jmu_t2 = self.joystick.trans2 * mu_t2
-        jtilde_mu_t2 = self.joystick.trans2 * tilde_mu_t2
-        jmu_r2 = self.joystick.rot2 * mu_r2
-        jtilde_mu_r2 = self.joystick.rot2 * tilde_mu_r2
-
-        Avt = rf.make_Av(self.B, jmu_t, jtilde_mu_t)
-        Avtb = la.kron(Avt, np.eye(2))
-        Avr = rf.make_Av(self.B, jmu_r, jtilde_mu_r)
-        Avrb = la.kron(Avr, np.eye(2))
+        Avt1 = rf.make_Av(self.B, jmu_t1, jtilde_mu_t1)
+        Avt1b = la.kron(Avt1, np.eye(2))
+        Avr1 = rf.make_Av(self.B, jmu_r1, jtilde_mu_r1)
+        Avr1b = la.kron(Avr1, np.eye(2))
         Avt2 = rf.make_Av(self.B, jmu_t2, jtilde_mu_t2)
         Avt2b = la.kron(Avt2, np.eye(2))
         Avr2 = rf.make_Av(self.B, jmu_r2, jtilde_mu_r2)
         Avr2b = la.kron(Avr2, np.eye(2))
 
-        Avb = Avtb + Avrb + Avt2b + Avr2b
+        Avb = Avt1b + Avr1b + Avt2b + Avr2b
+        Avr = Avr1 + Avr2
 
         U = -self.k[1]*V - self.k[0]*Bb.dot(Dz).dot(Dzt).dot(E) + self.k[1]*Avb.dot(Zh) + la.kron(Avr.dot(Dztstar).dot(self.B.T).dot(Avr), np.eye(2)).dot(Zh)
 
@@ -240,7 +254,7 @@ class FormationControl:
             msg['ux'] = U[i]
             msg['uy'] = U[i+1]
             msg['uz'] = self.altitude
-            interface.send(msg)
+            self._interface.send(msg)
             i = i+2
 
 
@@ -266,7 +280,8 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description="Formation Control for Rotorcrafts")
     parser.add_argument('config_file', help="JSON configuration file")
-    parser.add_argument('-f', '--freq', dest='freq', default=50, type=int, help="control frequency")
+    parser.add_argument('-f', '--freq', dest='freq', default=10, type=int, help="control frequency")
+    parser.add_argument('-gr', '--use_ground_ref', dest='use_ground_ref', default=False, action='store_true', help="use GROUND_REF messages instead of INS messages")
     parser.add_argument('-v', '--verbose', dest='verbose', default=False, action='store_true', help="display debug messages")
     args = parser.parse_args()
 
@@ -275,6 +290,6 @@ if __name__ == '__main__':
         if args.verbose:
             print(json.dumps(conf))
 
-        fc = FormationControl(conf, freq=args.freq, verbose=args.verbose)
+        fc = FormationControl(conf, freq=args.freq, use_ground_ref=args.use_ground_ref, verbose=args.verbose)
         fc.run()
 
