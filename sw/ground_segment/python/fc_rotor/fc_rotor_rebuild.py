@@ -76,10 +76,8 @@ class FormationControl:
         self.r2 = np.array(self.config['motion']['r2'])
         self.k = np.array(self.config['gains'])
 
-        #if np.size(self.d) == 1:
-        #    self.m.shape = (4,1)
-        #if self.B.size == 2:
-        #    self.B.shape = (2,1)
+        if self.B.size == 2:
+            self.B.shape = (2,1)
 
         # Check formation settings
         if len(self.ids) != np.size(self.B, 0):
@@ -238,7 +236,11 @@ class FormationControl:
         Avb = Avt1b + Avr1b + Avt2b + Avr2b
         Avr = Avr1 + Avr2
 
-        U = -self.k[1]*V - self.k[0]*Bb.dot(Dz).dot(Dzt).dot(E) + self.k[1]*Avb.dot(Zh) + la.kron(Avr.dot(Dztstar).dot(self.B.T).dot(Avr), np.eye(2)).dot(Zh)
+        if self.B.size == 2:
+            Zhr = np.array([-Zh[1],Zh[0]])
+            U = -self.k[1]*V - self.k[0]*Bb.dot(Dz).dot(Dzt).dot(E) + self.k[1]*(Avt1b.dot(Zh) + Avt2b.dot(Zhr)) + np.sign(jmu_r1[0])*la.kron(Avr1.dot(Dztstar).dot(self.B.T).dot(Avr1), np.eye(2)).dot(Zhr)
+        else:
+            U = -self.k[1]*V - self.k[0]*Bb.dot(Dz).dot(Dzt).dot(E) + self.k[1]*Avb.dot(Zh) + la.kron(Avr.dot(Dztstar).dot(self.B.T).dot(Avr), np.eye(2)).dot(Zh)
 
         if self.verbose:
             #print "Positions: " + str(X).replace('[','').replace(']','')
