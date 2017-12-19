@@ -163,7 +163,7 @@ def receiveRigidBodyList( rigidBodyList, stamp ):
             gr['frame'] = "LTP_ENU"
             gr['pos'] = pos
             gr['speed'] = vel
-            gr['quat'] = [quat[1], quat[2], quat[3], quat[0]]
+            gr['quat'] = [quat[3], quat[0], quat[1], quat[2]]
             gr['rate'] = [ 0., 0., 0. ]
             gr['timestamp'] = stamp
             ivy.send(gr)
