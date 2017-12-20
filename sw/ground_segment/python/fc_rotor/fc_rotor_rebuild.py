@@ -62,6 +62,7 @@ class FormationControl:
         self.step = 1. / freq
         self.sens = self.config['sensitivity']
         self.use_ground_ref = use_ground_ref
+        self.enabled = True # run control by default
         self.verbose = verbose
         self.ids = self.config['ids']
         self.rotorcrafts = [FC_Rotorcraft(i) for i in self.ids]
@@ -122,18 +123,16 @@ class FormationControl:
 
         # bind to GROUND_REF message
         def ground_ref_cb(ground_id, msg):
-            print('REF '+str(msg['timestamp']))
             ac_id = int(msg['ac_id'])
             if ac_id in self.ids:
                 rc = self.rotorcrafts[self.ids.index(ac_id)]
-                i2p = 1. / 2**8     # integer to position
-                i2v = 1. / 2**19    # integer to velocity
-                rc.X[0] = float(msg['pos'][0]) * i2p
-                rc.X[1] = float(msg['pos'][1]) * i2p
-                rc.X[2] = float(msg['pos'][2]) * i2p
-                rc.V[0] = float(msg['speed'][0]) * i2v
-                rc.V[1] = float(msg['speed'][1]) * i2v
-                rc.V[2] = float(msg['speed'][2]) * i2v
+                # X and V in NED
+                rc.X[0] = float(msg['pos'][1])
+                rc.X[1] = float(msg['pos'][0])
+                rc.X[2] = -float(msg['pos'][2])
+                rc.V[0] = float(msg['speed'][1])
+                rc.V[1] = float(msg['speed'][0])
+                rc.V[2] = -float(msg['speed'][2])
                 rc.timeout = 0
                 rc.initialized = True
         if self.use_ground_ref:
@@ -144,15 +143,15 @@ class FormationControl:
             self.joystick.trans = float(msg['axis1']) * self.sens['t1'] / 127.
             self.joystick.trans2 = float(msg['axis2']) * self.sens['t2'] / 127.
             self.joystick.rot = float(msg['axis3']) * self.sens['r1'] / 127.
-            self.joystick.rot2 = float(msg['axis4']) * self.sens['r2'] / 127.
+            self.altitude = self.sens['alt_min'] + float(msg['axis4']) * (self.sens['alt_max'] - self.sens['alt_min']) / 127.
             if msg['button1'] == '1' and not self.joystick.button1:
                 self.scale = min(self.scale + self.sens['scale'], self.sens['scale_max'])
             if msg['button2'] == '1' and not self.joystick.button2:
                 self.scale = max(self.scale - self.sens['scale'], self.sens['scale_min'])
-            if msg['button3'] == '1' and not self.joystick.button3:
-                self.altitude = min(self.altitude + self.sens['alt'], self.sens['alt_max'])
             if msg['button4'] == '1' and not self.joystick.button4:
-                self.altitude = max(self.altitude - self.sens['alt'], self.sens['alt_min'])
+                self.enabled = False
+            if msg['button3'] == '1' and not self.joystick.button3:
+                self.enabled = True
             self.joystick.button1 = (msg['button1'] == '1')
             self.joystick.button2 = (msg['button2'] == '1')
             self.joystick.button3 = (msg['button3'] == '1')
@@ -271,7 +270,8 @@ class FormationControl:
                     rc.timeout = rc.timeout + self.step
 
                 # Run the formation algorithm
-                self.formation()
+                if self.enabled:
+                    self.formation()
 
         except KeyboardInterrupt:
             self.stop()
