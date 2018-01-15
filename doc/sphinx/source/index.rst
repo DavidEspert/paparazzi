@@ -25,30 +25,32 @@ Paparazzi features a dynamic flight plan system that is defined by mission state
 Contents:
 
 .. toctree::
-   :maxdepth: 2
+    :maxdepth: 2
 
+    getting_started/index
+  
 
 --------------
 
-Community:
-==========
+Community
+=========
 
 `Discussion forum on Gitter <http://gitter.im/paparazzi/discuss>`__
 
-Developer Community:
-====================
+Developer Community
+===================
 
 `Legacy Wiki documentation <http://wiki.paparazziuav.org/wiki/Main_Page>`__
 
 
-History:
-========
+History
+=======
 TBD
            
 --------------
 
-Features:
-=========
+Features
+========
 TBD
 
 
