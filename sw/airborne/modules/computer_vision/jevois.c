@@ -182,7 +182,10 @@ static void jevois_parse(struct jevois_t *jv, char c)
       }
       break;
     case JV_COORD:
-      if (c == ' ') {
+      if (c == ' ' && jv->idx == 0) {
+        break;
+      }
+      else if ((c == ' ' || c == '\n' || c == '\r') && jv->idx > 0) {
         jv->buf[jv->idx] = '\0'; // end string
         jv->msg.coord[jv->n++] = (int16_t)atoi(jv->buf); // store value
         if (jv->n == jv->msg.nb) {
@@ -242,7 +245,7 @@ static void jevois_parse(struct jevois_t *jv, char c)
     case JV_QUAT:
       if (c == ' ') {
         jv->buf[jv->idx] = '\0';
-        float q = (float) atof(jv->buf);
+        float q = 0.f;//(float) atof(jv->buf);
         switch (jv->n) {
           case 0:
             jv->msg.quat.qi = q; // TODO check quaternion order
