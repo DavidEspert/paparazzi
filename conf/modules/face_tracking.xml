@@ -1,0 +1,35 @@
+<!DOCTYPE module SYSTEM "module.dtd">
+
+<module name="face_tracking" dir="ctrl">
+  <doc>
+    <description>
+      Control a rotorcraft heading to track a face detected by a JeVois smart camera
+    </description>
+    <section name="FACE_TRACKING" prefix="FACE_TRACKING_">
+      <define name="ID" value="ABI_BROADCAST" description="ABI binding ID"/>
+      <define name="TIMEOUT" value="2." description="timeout for entering search mode"/>
+      <define name="DEADBAND" value="50" description="range in which heading is not changing"/>
+      <define name="RATE" value="10." unit="deg/s" description="turn rate during control mode"/>
+      <define name="SEARCH_RATE" value="20." unit="deg/s" description="turn rate during search mode"/>
+      <define name="DEBUG" value="FALSE/TRUE" description="send debug message over telemetry"/>
+    </section>
+  </doc>
+  <settings>
+    <dl_settings>
+      <dl_settings NAME="face track">
+        <dl_setting MAX="300" MIN="0" STEP="1" VAR="face_tracking_deadband" shortname="deadband" module="modules/ctrl/face_tracking"/>
+        <dl_setting MAX="90." MIN="0." STEP="0.1" VAR="face_tracking_search_rate" shortname="search rate" unit="rad/s" alt_unit="deg/s" module="modules/ctrl/face_tracking"/>
+        <dl_setting MAX="90." MIN="0." STEP="0.1" VAR="face_tracking_rate" shortname="tracking rate" unit="rad/s" alt_unit="deg/s" module="modules/ctrl/face_tracking"/>
+      </dl_settings>
+    </dl_settings>
+  </settings>
+  <depends>jevois</depends>
+  <header>
+    <file name="face_tracking.h"/>
+  </header>
+  <init fun="face_tracking_init()"/>
+  <makefile>
+    <file name="face_tracking.c"/>
+  </makefile>
+</module>
+
