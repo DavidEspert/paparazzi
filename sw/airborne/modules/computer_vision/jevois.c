@@ -34,7 +34,8 @@
 #define JEVOIS_MAX_LEN 32
 // max number of coordinates
 #define JEVOIS_MAX_COORD 18
-// temp buffer size
+// check delimiter
+#define JEVOIS_CHECK_DELIM(_c) (_c == ' ' || _c == '\n' || _c == '\r' || _c == '\0')
 
 // generic JEVOIS message structure
 struct jevois_msg_t {
@@ -93,12 +94,9 @@ static void jevois_parse(struct jevois_t *jv, char c)
       }
       break;
     case JV_TYPE:
-      if (c == ' ') {
-        break; // in case skip white spaces
-      }
       jv->buf[jv->idx++] = c; // fill buffer
       // parse type
-      if (jv->idx > 1) {
+      if (jv->idx > 2) { // msg type + white space
         if (jv->buf[0] == 'T' && jv->buf[1] == '1') {
           jv->state = JV_COORD;
           jv->msg.type = JEVOIS_MSG_T1;
@@ -150,10 +148,7 @@ static void jevois_parse(struct jevois_t *jv, char c)
       }
       break;
     case JV_ID:
-      if (c == ' ' && jv->idx == 0) {
-        jv->idx++; // skip first white space
-      }
-      else if (c == ' ' && jv->idx > 0) {
+      if (JEVOIS_CHECK_DELIM(c)) {
         jv->buf[jv->idx] = '\0'; // end string
         if (jv->msg.type == JEVOIS_MSG_F2 ||
             jv->msg.type == JEVOIS_MSG_F3) {
@@ -171,7 +166,7 @@ static void jevois_parse(struct jevois_t *jv, char c)
       }
       break;
     case JV_SIZE:
-      if (c == ' ') {
+      if (JEVOIS_CHECK_DELIM(c)) {
         jv->buf[jv->idx] = '\0'; // end string
         jv->msg.nb = (uint8_t)atoi(jv->buf); // store size
         jv->state = JV_COORD;
@@ -182,10 +177,7 @@ static void jevois_parse(struct jevois_t *jv, char c)
       }
       break;
     case JV_COORD:
-      if (c == ' ' && jv->idx == 0) {
-        break;
-      }
-      else if ((c == ' ' || c == '\n' || c == '\r') && jv->idx > 0) {
+      if (JEVOIS_CHECK_DELIM(c)) {
         jv->buf[jv->idx] = '\0'; // end string
         jv->msg.coord[jv->n++] = (int16_t)atoi(jv->buf); // store value
         if (jv->n == jv->msg.nb) {
@@ -222,7 +214,7 @@ static void jevois_parse(struct jevois_t *jv, char c)
       }
       break;
     case JV_DIM:
-      if (c == ' ') {
+      if (JEVOIS_CHECK_DELIM(c)) {
         jv->buf[jv->idx] = '\0'; // end string
         jv->msg.dim[jv->n++] = (uint16_t)atoi(jv->buf); // store dimension
         if (jv->n == jv->msg.nb) {
@@ -243,7 +235,7 @@ static void jevois_parse(struct jevois_t *jv, char c)
       }
       break;
     case JV_QUAT:
-      if (c == ' ') {
+      if (JEVOIS_CHECK_DELIM(c)) {
         jv->buf[jv->idx] = '\0';
         float q = 0.f;//(float) atof(jv->buf);
         switch (jv->n) {
@@ -274,7 +266,7 @@ static void jevois_parse(struct jevois_t *jv, char c)
       }
       break;
     case JV_EXTRA:
-      if (c == ' ') {
+      if (JEVOIS_CHECK_DELIM(c)) {
         jv->buf[jv->idx] = '\0'; // end string
         jv->state = JV_SEND_MSG;
       }
