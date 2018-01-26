@@ -42,7 +42,7 @@
 
 // Deadband (constant heading setpoint)
 #ifndef FACE_TRACKING_DEADBAND
-#define FACE_TRACKING_DEADBAND 50
+#define FACE_TRACKING_DEADBAND 100
 #endif
 
 // Turn rate in tracking mode (rad/s)
@@ -55,9 +55,24 @@
 #define FACE_TRACKING_SEARCH_RATE RadOfDeg(20)
 #endif
 
+// Camera horizontal FOV
+#ifndef FACE_TRACKING_HFOV
+#define FACE_TRACKING_HFOV RadOfDeg(45)
+#endif
+
+// Maximum value (JeVois normalized messages between -1000 and 1000)
+#ifndef FACE_TRACKING_MAX
+#define FACE_TRACKING_MAX 1000
+#endif
+
+// Select rate or heading tracking mode
+#ifndef FACE_TRACKING_USE_RATE
+#define FACE_TRACKING_USE_RATE FALSE
+#endif
+
 // Send debug message
 #ifndef FACE_TRACKING_DEBUG
-#define FACE_TRACKING_DEBUG FALSE
+#define FACE_TRACKING_DEBUG TRUE
 #endif
 
 #if FACE_TRACKING_DEBUG
@@ -111,6 +126,7 @@ void face_tracking_init(void)
 
 void face_tracking_run(void)
 {
+#if FACE_TRACKING_USE_RATE
   float rate = face_tracking_search_rate; // search mode
   if (timeout < FACE_TRACKING_TIMEOUT) {
     timeout += nav_dt;
@@ -132,5 +148,30 @@ void face_tracking_run(void)
 #endif
   }
   nav_heading += ANGLE_BFP_OF_REAL(rate * nav_dt);
+
+#else // use calculated heading
+
+  if (timeout < FACE_TRACKING_TIMEOUT) {
+    timeout += nav_dt;
+    // compute expected heading
+    float cam_heading = (FACE_TRACKING_HFOV / (2.f * FACE_TRACKING_MAX)) * (float)face_lat;
+    float target_heading = stateGetNedToBodyEulers_f()->psi + cam_heading;
+    float diff = target_heading - ANGLE_FLOAT_OF_BFP(nav_heading);
+    FLOAT_ANGLE_NORMALIZE(diff);
+    BoundAbs(diff, face_tracking_rate * nav_dt)
+    nav_heading += ANGLE_BFP_OF_REAL(diff);
+#if FACE_TRACKING_DEBUG
+    float msg[] = {
+      target_heading,
+      (float)face_lat,
+      (float)face_vert,
+      (float)timeout
+    };
+    DOWNLINK_SEND_PAYLOAD_FLOAT(DefaultChannel, DefaultDevice, 4, msg);
+#endif
+  } else {
+    nav_heading += ANGLE_BFP_OF_REAL(face_tracking_search_rate * nav_dt);
+  }
+#endif
 }
 
